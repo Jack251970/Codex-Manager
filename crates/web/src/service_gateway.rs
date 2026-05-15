@@ -412,7 +412,21 @@ pub(super) async fn usage_refresh_events(State(state): State<Arc<AppState>>) -> 
     out
 }
 
-const GATEWAY_PROXY_MAX_BODY_BYTES: usize = 256 * 1024 * 1024;
+const DEFAULT_GATEWAY_PROXY_MAX_BODY_BYTES: usize = 0;
+const ENV_GATEWAY_PROXY_MAX_BODY_BYTES: &str = "CODEXMANAGER_GATEWAY_PROXY_MAX_BODY_BYTES";
+
+fn env_usize_or(name: &str, default: usize) -> usize {
+    read_env_trim(name)
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(default)
+}
+
+fn gateway_proxy_max_body_bytes() -> usize {
+    env_usize_or(
+        ENV_GATEWAY_PROXY_MAX_BODY_BYTES,
+        DEFAULT_GATEWAY_PROXY_MAX_BODY_BYTES,
+    )
+}
 
 /// 函数 `gateway_proxy_target_url`
 ///
@@ -510,7 +524,13 @@ pub(super) async fn gateway_proxy(
 ) -> Response {
     let (parts, body) = request.into_parts();
     let target_url = gateway_proxy_target_url(state.service_addr.as_str(), &parts.uri);
-    let body = match to_bytes(body, GATEWAY_PROXY_MAX_BODY_BYTES).await {
+    let max_body_bytes = gateway_proxy_max_body_bytes();
+    let read_limit = if max_body_bytes == 0 {
+        usize::MAX
+    } else {
+        max_body_bytes
+    };
+    let body = match to_bytes(body, read_limit).await {
         Ok(body) => body,
         Err(err) => {
             return (
@@ -598,10 +618,40 @@ pub(super) async fn quit(State(state): State<Arc<AppState>>) -> impl IntoRespons
 #[cfg(test)]
 mod tests {
     use super::{
-        format_upstream_error_message, gateway_proxy_target_url,
+        format_upstream_error_message, gateway_proxy_max_body_bytes, gateway_proxy_target_url,
         should_skip_gateway_request_header, should_skip_gateway_response_header,
+        ENV_GATEWAY_PROXY_MAX_BODY_BYTES,
     };
     use axum::http::{header, HeaderValue, Uri};
+
+    struct EnvGuard {
+        key: &'static str,
+        original: Option<std::ffi::OsString>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: &str) -> Self {
+            let original = std::env::var_os(key);
+            std::env::set_var(key, value);
+            Self { key, original }
+        }
+
+        fn clear(key: &'static str) -> Self {
+            let original = std::env::var_os(key);
+            std::env::remove_var(key);
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvGuard {
+        fn drop(&mut self) {
+            if let Some(value) = &self.original {
+                std::env::set_var(self.key, value);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
+    }
 
     #[test]
     fn format_upstream_error_message_adds_docker_hint_for_host_internal() {
@@ -618,6 +668,20 @@ mod tests {
             gateway_proxy_target_url("localhost:48760", &uri),
             "http://localhost:48760/v1/responses?stream=true"
         );
+    }
+
+    #[test]
+    fn gateway_proxy_body_limit_defaults_to_unbounded() {
+        let _guard = EnvGuard::clear(ENV_GATEWAY_PROXY_MAX_BODY_BYTES);
+
+        assert_eq!(gateway_proxy_max_body_bytes(), 0);
+    }
+
+    #[test]
+    fn gateway_proxy_body_limit_allows_env_override() {
+        let _guard = EnvGuard::set(ENV_GATEWAY_PROXY_MAX_BODY_BYTES, "536870912");
+
+        assert_eq!(gateway_proxy_max_body_bytes(), 536_870_912);
     }
 
     #[test]
