@@ -503,6 +503,10 @@ pub(crate) fn current_compact_model_override() -> Option<String> {
     runtime_config::current_compact_model_override()
 }
 
+pub(crate) fn compact_uses_chat_completions_api() -> bool {
+    runtime_config::compact_uses_chat_completions_api()
+}
+
 /// 函数 `current_model_forward_rules`
 ///
 /// 作者: gaohongshun
