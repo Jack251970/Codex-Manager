@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use std::sync::{Arc, Mutex};
 use tiny_http::{Header, Request, Response, StatusCode};
@@ -1055,10 +1056,122 @@ fn classify_compact_non_success_kind(
 /// # 返回
 /// 返回函数执行结果
 fn compact_success_body_is_valid(body: &[u8]) -> bool {
-    serde_json::from_slice::<Value>(body)
-        .ok()
-        .and_then(|value| value.get("output").cloned())
-        .is_some_and(|output| output.is_array())
+    serde_json::from_slice::<CompactHistoryResponse>(body).is_ok()
+}
+
+#[derive(Debug, Deserialize)]
+struct CompactHistoryResponse {
+    #[allow(dead_code)]
+    output: Vec<ResponseItem>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum ResponseItem {
+    Message {
+        #[allow(dead_code)]
+        role: String,
+        #[allow(dead_code)]
+        content: Vec<Value>,
+    },
+    Reasoning {
+        #[allow(dead_code)]
+        summary: Vec<Value>,
+        #[allow(dead_code)]
+        encrypted_content: Option<String>,
+        #[allow(dead_code)]
+        content: Option<Vec<Value>>,
+    },
+    LocalShellCall {
+        #[allow(dead_code)]
+        call_id: Option<String>,
+        #[allow(dead_code)]
+        status: Value,
+        #[allow(dead_code)]
+        action: Value,
+    },
+    FunctionCall {
+        #[allow(dead_code)]
+        name: String,
+        #[allow(dead_code)]
+        namespace: Option<String>,
+        #[allow(dead_code)]
+        arguments: String,
+        #[allow(dead_code)]
+        call_id: String,
+    },
+    ToolSearchCall {
+        #[allow(dead_code)]
+        call_id: Option<String>,
+        #[allow(dead_code)]
+        status: Option<String>,
+        #[allow(dead_code)]
+        execution: String,
+        #[allow(dead_code)]
+        arguments: Value,
+    },
+    FunctionCallOutput {
+        #[allow(dead_code)]
+        call_id: String,
+        #[allow(dead_code)]
+        output: Value,
+    },
+    CustomToolCall {
+        #[allow(dead_code)]
+        status: Option<String>,
+        #[allow(dead_code)]
+        call_id: String,
+        #[allow(dead_code)]
+        name: String,
+        #[allow(dead_code)]
+        input: String,
+    },
+    CustomToolCallOutput {
+        #[allow(dead_code)]
+        call_id: String,
+        #[allow(dead_code)]
+        name: Option<String>,
+        #[allow(dead_code)]
+        output: Value,
+    },
+    ToolSearchOutput {
+        #[allow(dead_code)]
+        call_id: Option<String>,
+        #[allow(dead_code)]
+        status: String,
+        #[allow(dead_code)]
+        execution: String,
+        #[allow(dead_code)]
+        tools: Vec<Value>,
+    },
+    WebSearchCall {
+        #[allow(dead_code)]
+        status: Option<String>,
+        #[allow(dead_code)]
+        action: Option<Value>,
+    },
+    ImageGenerationCall {
+        #[allow(dead_code)]
+        id: String,
+        #[allow(dead_code)]
+        status: String,
+        #[allow(dead_code)]
+        revised_prompt: Option<String>,
+        #[allow(dead_code)]
+        result: String,
+    },
+    #[serde(alias = "compaction_summary")]
+    Compaction {
+        #[allow(dead_code)]
+        encrypted_content: String,
+    },
+    CompactionTrigger,
+    ContextCompaction {
+        #[allow(dead_code)]
+        encrypted_content: Option<String>,
+    },
+    #[serde(other)]
+    Other,
 }
 
 /// 函数 `build_invalid_compact_success_message`
@@ -1111,7 +1224,7 @@ fn build_invalid_compact_success_message(
         );
     }
     format!(
-        "invalid upstream compact response: missing output array{}",
+        "invalid upstream compact response: cannot parse compact output{}",
         compact_debug_suffix(
             Some(kind),
             request_id,
@@ -3333,7 +3446,7 @@ fn resolve_stream_keepalive_frame(
 mod tests {
     use super::{
         classify_compact_non_success_kind, compact_non_success_body_should_be_normalized,
-        convert_responses_body_to_chat_completions,
+        compact_success_body_is_valid, convert_responses_body_to_chat_completions,
         convert_responses_body_to_gemini_generate_content, convert_responses_body_to_images,
         force_openai_responses_stream_content_type, gemini_cli_wrap_response_envelope, Header,
         ImagesResponseFormat, ResponseAdapter,
@@ -3397,6 +3510,72 @@ mod tests {
             ),
             "cloudflare_edge"
         );
+    }
+
+    #[test]
+    fn compact_success_body_matches_official_compact_response_shape() {
+        assert!(compact_success_body_is_valid(
+            json!({
+                "output": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [{ "type": "input_text", "text": "keep context" }]
+                    },
+                    {
+                        "type": "compaction",
+                        "encrypted_content": "summary_payload"
+                    }
+                ]
+            })
+            .to_string()
+            .as_bytes()
+        ));
+        assert!(compact_success_body_is_valid(
+            json!({
+                "output": [
+                    {
+                        "type": "context_compaction",
+                        "encrypted_content": "summary_payload"
+                    }
+                ]
+            })
+            .to_string()
+            .as_bytes()
+        ));
+        assert!(compact_success_body_is_valid(
+            json!({ "output": [] }).to_string().as_bytes()
+        ));
+        assert!(compact_success_body_is_valid(
+            json!({
+                "output": [
+                    {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [{ "type": "output_text", "text": "done" }]
+                    }
+                ]
+            })
+            .to_string()
+            .as_bytes()
+        ));
+        assert!(!compact_success_body_is_valid(
+            json!({ "id": "resp_missing_output" })
+                .to_string()
+                .as_bytes()
+        ));
+        assert!(!compact_success_body_is_valid(
+            json!({
+                "output": [
+                    {
+                        "type": "message",
+                        "role": "assistant"
+                    }
+                ]
+            })
+            .to_string()
+            .as_bytes()
+        ));
     }
 
     #[test]
