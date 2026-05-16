@@ -150,6 +150,8 @@ export default function ModelsPage() {
   } = useManagedModels();
   const isPageActive = useDesktopPageActive("/models/");
   usePageTransitionReady("/models/", !isServiceReady || !isLoading);
+  const canLoadAdminRoutingSources =
+    isServiceReady && isPageActive && isAdminMode && !isSessionLoading;
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ModelFilter>("all");
@@ -179,14 +181,14 @@ export default function ModelsPage() {
   const { data: accountList } = useQuery({
     queryKey: ["accounts", "model-routing-sources"],
     queryFn: () => accountClient.list(),
-    enabled: isServiceReady && isPageActive && isAdminMode,
+    enabled: canLoadAdminRoutingSources,
     retry: 1,
   });
 
   const { data: aggregateApis } = useQuery({
     queryKey: ["aggregate-apis", "model-routing-sources"],
     queryFn: () => accountClient.listAggregateApis(),
-    enabled: isServiceReady && isPageActive && isAdminMode,
+    enabled: canLoadAdminRoutingSources,
     retry: 1,
   });
 

@@ -71,7 +71,7 @@ function billingModeLockReasonLabel(reason: string): string {
 export function WebPasswordModal({ open, onOpenChange }: WebPasswordModalProps) {
   const { t } = useI18n();
   const { appSettings, setAppSettings } = useAppStore();
-  const { canAccessManagementRpc } = useRuntimeCapabilities();
+  const { canAccessManagementRpc, isDesktopRuntime } = useRuntimeCapabilities();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [webAuthMode, setWebAuthMode] = useState(appSettings.webAuthMode || "none");
@@ -95,6 +95,17 @@ export function WebPasswordModal({ open, onOpenChange }: WebPasswordModalProps) 
   const lockReasonLabels = billingModeLock.reasons.map((reason) =>
     t(billingModeLockReasonLabel(reason))
   );
+
+  const redirectToCurrentWebAuthBoundary = (nextMode: string) => {
+    if (isDesktopRuntime || typeof window === "undefined") {
+      return;
+    }
+    if (nextMode === "accounts" || nextMode === "password") {
+      window.location.replace("/__login?force=1");
+      return;
+    }
+    window.location.replace("/");
+  };
 
   useEffect(() => {
     setWebAuthMode(appSettings.webAuthMode || "none");
@@ -192,6 +203,7 @@ export function WebPasswordModal({ open, onOpenChange }: WebPasswordModalProps) 
 
     setIsLoading(true);
     try {
+      const previousMode = appSettings.webAuthMode || "none";
       const settings = await appClient.setSettings({
         webAuthMode,
         distributionEnabled,
@@ -202,6 +214,9 @@ export function WebPasswordModal({ open, onOpenChange }: WebPasswordModalProps) 
       onOpenChange(false);
       setPassword("");
       setConfirmPassword("");
+      if (previousMode !== settings.webAuthMode) {
+        redirectToCurrentWebAuthBoundary(settings.webAuthMode || "none");
+      }
     } catch (err: unknown) {
       toast.error(`${t("保存")} ${t("失败")}: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
