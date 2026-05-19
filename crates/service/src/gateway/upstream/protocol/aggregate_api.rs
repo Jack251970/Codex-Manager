@@ -11,6 +11,7 @@ use crate::aggregate_api::{
     AGGREGATE_API_AUTH_APIKEY, AGGREGATE_API_AUTH_USERPASS, AGGREGATE_API_PROVIDER_CLAUDE,
     AGGREGATE_API_PROVIDER_CODEX, AGGREGATE_API_PROVIDER_GEMINI,
 };
+use crate::gateway::protocol_adapter::adapt_openai_responses_to_anthropic_messages;
 use crate::gateway::request_log::RequestLogUsage;
 use serde_json::Value;
 
@@ -144,6 +145,11 @@ fn aggregate_upstream_model_for_log<'a>(
     platform_model: Option<&'a str>,
 ) -> Option<&'a str> {
     candidate.model_override.as_deref().or(platform_model)
+}
+
+fn should_bridge_responses_to_anthropic(candidate: &AggregateApi, path: &str) -> bool {
+    normalize_provider_type_value(candidate.provider_type.as_str()) == AGGREGATE_API_PROVIDER_CLAUDE
+        && (path == "/v1/responses" || path.starts_with("/v1/responses?"))
 }
 
 fn replace_query_param(mut url: reqwest::Url, name: &str, value: &str) -> reqwest::Url {
@@ -809,7 +815,17 @@ pub(in super::super) fn proxy_aggregate_request(
             continue;
         };
 
-        let effective_path = effective_action_path(&candidate, path);
+        let bridge_responses_to_anthropic = should_bridge_responses_to_anthropic(&candidate, path);
+        let effective_path = if bridge_responses_to_anthropic {
+            "/v1/messages".to_string()
+        } else {
+            effective_action_path(&candidate, path)
+        };
+        let response_adapter_for_candidate = if bridge_responses_to_anthropic {
+            super::super::super::ResponseAdapter::ResponsesFromAnthropicMessages
+        } else {
+            response_adapter
+        };
         let (auth_config, injected_headers) = match parse_auth_config(&candidate) {
             Ok(value) => value,
             Err(err) => {
@@ -904,12 +920,23 @@ pub(in super::super) fn proxy_aggregate_request(
                 _ => {}
             }
 
+            let rewritten_body =
+                rewrite_body_model_override(body, candidate.model_override.as_deref());
+            let upstream_body = if bridge_responses_to_anthropic {
+                Bytes::from(adapt_openai_responses_to_anthropic_messages(
+                    rewritten_body.as_ref(),
+                    candidate.model_override.as_deref(),
+                )?)
+            } else {
+                rewritten_body
+            };
+
             let builder = build_aggregate_api_request(
                 &client,
                 request.as_ref().expect("request should still be available"),
                 method,
                 url.clone(),
-                &rewrite_body_model_override(body, candidate.model_override.as_deref()),
+                &upstream_body,
                 secret.as_str(),
                 &auth_config,
                 &injected_headers,
@@ -980,14 +1007,15 @@ pub(in super::super) fn proxy_aggregate_request(
             }
 
             let inflight_guard = super::super::super::acquire_account_inflight(key_id);
-            let passthrough_sse_protocol = resolve_passthrough_sse_protocol(path, response_adapter);
+            let passthrough_sse_protocol =
+                resolve_passthrough_sse_protocol(path, response_adapter_for_candidate);
             let bridge = super::super::super::respond_with_upstream(
                 request
                     .take()
                     .expect("request should be available before bridge"),
                 GatewayUpstreamResponse::Blocking(upstream),
                 inflight_guard,
-                response_adapter,
+                response_adapter_for_candidate,
                 passthrough_sse_protocol,
                 None,
                 path,
@@ -1008,7 +1036,7 @@ pub(in super::super) fn proxy_aggregate_request(
             super::super::super::trace_log::log_bridge_result(
                 super::super::super::trace_log::BridgeResultLog {
                     trace_id,
-                    adapter: format!("{response_adapter:?}").as_str(),
+                    adapter: format!("{response_adapter_for_candidate:?}").as_str(),
                     path,
                     is_stream,
                     stream_terminal_seen: bridge.stream_terminal_seen,
@@ -1066,7 +1094,7 @@ pub(in super::super) fn proxy_aggregate_request(
                     original_path: Some(original_path),
                     adapted_path: Some(path),
                     gateway_mode: gateway_mode_for_log,
-                    response_adapter: Some(response_adapter),
+                    response_adapter: Some(response_adapter_for_candidate),
                     effective_service_tier: effective_service_tier_for_log,
                     aggregate_api_supplier_name: candidate_supplier_name.as_deref(),
                     aggregate_api_url: Some(candidate_url.as_str()),
