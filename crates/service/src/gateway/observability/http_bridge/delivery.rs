@@ -3784,8 +3784,9 @@ fn resolve_stream_keepalive_frame(
 mod tests {
     use super::{
         build_passthrough_non_success_message, classify_compact_non_success_kind,
-        compact_non_success_body_should_be_normalized, compact_success_body_is_valid,
-        convert_chat_completions_body_to_compact, convert_responses_body_to_chat_completions,
+        collect_non_stream_json_from_sse_bytes, compact_non_success_body_should_be_normalized,
+        compact_success_body_is_valid, convert_chat_completions_body_to_compact,
+        convert_responses_body_to_chat_completions,
         convert_responses_body_to_gemini_generate_content, convert_responses_body_to_images,
         force_openai_responses_stream_content_type, gemini_cli_wrap_response_envelope, Header,
         ImagesResponseFormat, ResponseAdapter,
@@ -4068,6 +4069,33 @@ mod tests {
             value["usage"]["prompt_tokens"],
             serde_json::Value::Number(2.into())
         );
+    }
+
+    #[test]
+    fn non_stream_chat_responses_sse_json_mode_returns_single_parseable_content() {
+        let sse = concat!(
+            "event: response.output_text.delta\n",
+            "data: {\"response_id\":\"resp_non_stream_json\",\"delta\":\"{\\\"answer\\\":true}\"}\n\n",
+            "event: response.output_item.done\n",
+            "data: {\"response_id\":\"resp_non_stream_json\",\"output_index\":0,\"item\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"{\\\"answer\\\":true}\"}]}}\n\n",
+            "event: response.completed\n",
+            "data: {\"response\":{\"id\":\"resp_non_stream_json\",\"created\":3,\"model\":\"gpt-5.3-codex\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"{\\\"answer\\\":true}\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}\n\n",
+            "data: [DONE]\n\n"
+        );
+        let (body, _) = collect_non_stream_json_from_sse_bytes(sse.as_bytes());
+        let body = body.expect("synthesized response json");
+        let mapped = convert_responses_body_to_chat_completions(body.as_slice())
+            .expect("convert chat completion body");
+        let value: serde_json::Value =
+            serde_json::from_slice(&mapped).expect("parse chat completion body");
+        let content = value["choices"][0]["message"]["content"]
+            .as_str()
+            .expect("chat message content");
+
+        assert_eq!(content, r#"{"answer":true}"#);
+        let parsed: serde_json::Value =
+            serde_json::from_str(content).expect("chat content is a single json document");
+        assert_eq!(parsed["answer"], true);
     }
 
     #[test]

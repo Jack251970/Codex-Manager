@@ -1,10 +1,10 @@
 use super::{
     chat_image_payload, classify_upstream_stream_read_error, collect_image_generation_data_urls,
-    collect_response_output_text, mark_first_response_ms, merge_usage, should_emit_keepalive,
-    stream_idle_timed_out, stream_idle_timeout_message, stream_reader_disconnected_message,
-    stream_wait_timeout, upstream_hint_or_stream_incomplete_message, Arc, Cursor, Mutex,
-    PassthroughSseCollector, Read, SseKeepAliveFrame, UpstreamSseFramePump,
-    UpstreamSseFramePumpItem,
+    collect_output_text_from_event_fields, collect_response_output_text, mark_first_response_ms,
+    merge_usage, should_emit_keepalive, stream_idle_timed_out, stream_idle_timeout_message,
+    stream_reader_disconnected_message, stream_wait_timeout,
+    upstream_hint_or_stream_incomplete_message, Arc, Cursor, Mutex, PassthroughSseCollector, Read,
+    SseKeepAliveFrame, UpstreamSseFramePump, UpstreamSseFramePumpItem,
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -346,16 +346,32 @@ impl ChatCompletionsFromResponsesSseReader {
         self.remember_meta(&value);
         let event_type = Self::event_type(lines, &value);
         let mut text = String::new();
-        if matches!(
-            event_type.as_deref(),
-            Some("response.output_text.delta")
-                | Some("response.output_text.done")
-                | Some("response.content_part.delta")
-                | Some("response.content_part.done")
-        ) {
-            if let Some(delta) = value.get("delta") {
-                collect_response_output_text(delta, &mut text);
+        match event_type.as_deref() {
+            Some("response.output_text.delta") | Some("response.content_part.delta") => {
+                if let Some(delta) = value.get("delta") {
+                    collect_response_output_text(delta, &mut text);
+                }
             }
+            Some("response.output_text.done") => {
+                if !self.emitted_text {
+                    if let Some(done_text) = value.get("text") {
+                        collect_response_output_text(done_text, &mut text);
+                    } else if let Some(delta) = value.get("delta") {
+                        collect_response_output_text(delta, &mut text);
+                    }
+                }
+            }
+            Some("response.content_part.done") => {
+                if !self.emitted_text {
+                    collect_output_text_from_event_fields(&value, &mut text);
+                    if text.is_empty() {
+                        if let Some(delta) = value.get("delta") {
+                            collect_response_output_text(delta, &mut text);
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
         if matches!(
             event_type.as_deref(),
@@ -390,6 +406,9 @@ impl ChatCompletionsFromResponsesSseReader {
             }
             if let Some(images) = self.image_delta_chunk(&value) {
                 return Some(images);
+            }
+            if !self.emitted_text {
+                collect_output_text_from_event_fields(&value, &mut text);
             }
         }
         if event_type.as_deref() == Some("response.output_item.added") {
