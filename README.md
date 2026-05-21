@@ -195,7 +195,7 @@
 ├─ apps/                # 前端与 Tauri 桌面端
 │  ├─ src/
 │  ├─ src-tauri/
-│  └─ dist/
+│  └─ out/
 ├─ crates/              # Rust core/service
 │  ├─ core
 │  ├─ service
