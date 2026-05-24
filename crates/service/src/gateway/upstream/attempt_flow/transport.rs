@@ -904,7 +904,42 @@ fn send_upstream_request_with_compression_override(
 
     let use_async_stream_transport =
         should_wrap_upstream_as_stream_response(request_ctx.request_path, is_stream);
-    let result = if use_async_stream_transport {
+    let use_websocket_upstream =
+        use_async_stream_transport && should_use_websocket_upstream(target_url);
+    let result = if use_websocket_upstream {
+        match send_websocket_upstream_request(
+            target_url,
+            request_deadline,
+            upstream_headers.as_slice(),
+            &body_for_request,
+        ) {
+            Ok(resp) => Ok(GatewayUpstreamResponse::Stream(resp)),
+            Err(ws_err) => {
+                log::warn!(
+                    "event=gateway_websocket_upstream_fallback_to_http path={} account_id={} target_url={} err={}",
+                    request_ctx.request_path,
+                    account.id,
+                    target_url,
+                    ws_err
+                );
+                let async_client =
+                    super::super::super::async_upstream_client_for_account(account.id.as_str());
+                match send_async_stream_request(
+                    &async_client,
+                    method,
+                    target_url,
+                    request_ctx.request_path,
+                    request_deadline,
+                    upstream_headers.as_slice(),
+                    &body_for_request,
+                    is_stream,
+                ) {
+                    Ok(resp) => Ok(GatewayUpstreamResponse::Stream(resp)),
+                    Err(err) => Err(err),
+                }
+            }
+        }
+    } else if use_async_stream_transport {
         let async_client =
             super::super::super::async_upstream_client_for_account(account.id.as_str());
         match send_async_stream_request(
@@ -1076,6 +1111,158 @@ fn send_upstream_request_with_compression_override(
     let duration_ms = super::super::super::duration_to_millis(attempt_started_at.elapsed());
     super::super::super::metrics::record_gateway_upstream_attempt(duration_ms, result.is_err());
     result
+}
+
+fn should_use_websocket_upstream(target_url: &str) -> bool {
+    super::super::super::runtime_config::use_websocket_upstream()
+        && target_url.contains("chatgpt.com")
+}
+
+fn send_websocket_upstream_request(
+    target_url: &str,
+    _request_deadline: Option<Instant>,
+    request_headers: &[(String, String)],
+    request_body: &Bytes,
+) -> Result<super::super::GatewayStreamResponse, String> {
+    let ws_url = if target_url.starts_with("https://") {
+        format!("wss://{}", &target_url["https://".len()..])
+    } else if target_url.starts_with("http://") {
+        format!("ws://{}", &target_url["http://".len()..])
+    } else {
+        target_url.to_string()
+    };
+    let request_headers = request_headers.to_vec();
+    let request_body = request_body.clone();
+    let (meta_tx, meta_rx) = mpsc::sync_channel::<Result<(), String>>(1);
+    let (body_tx, body_rx) = mpsc::sync_channel::<super::super::GatewayByteStreamItem>(128);
+
+    thread::spawn(move || {
+        let runtime = Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap_or_else(|err| panic!("build websocket upstream runtime failed: {err}"));
+        runtime.block_on(async move {
+            use futures_util::SinkExt;
+            use tokio_tungstenite::tungstenite::Message;
+
+            let mut req_builder =
+                tokio_tungstenite::tungstenite::http::Request::builder().uri(ws_url);
+            req_builder =
+                req_builder.header("OpenAI-Beta", "responses_websockets=2026-02-06");
+            for (name, value) in request_headers.iter() {
+                let name_lower = name.to_ascii_lowercase();
+                if matches!(
+                    name_lower.as_str(),
+                    "content-encoding"
+                        | "content-length"
+                        | "content-type"
+                        | "transfer-encoding"
+                ) {
+                    continue;
+                }
+                req_builder = req_builder.header(name.as_str(), value.as_str());
+            }
+            let req = match req_builder.body(()) {
+                Ok(r) => r,
+                Err(e) => {
+                    let _ = meta_tx.send(Err(format!("failed to build WS request: {e}")));
+                    return;
+                }
+            };
+
+            match tokio_tungstenite::connect_async(req).await {
+                Err(e) => {
+                    let _ = meta_tx.send(Err(format!("WebSocket connect failed: {e}")));
+                }
+                Ok((mut ws_stream, _)) => {
+                    if meta_tx.send(Ok(())).is_err() {
+                        return;
+                    }
+                    if !request_body.is_empty() {
+                        let text = match std::str::from_utf8(request_body.as_ref()) {
+                            Ok(s) => s.to_string(),
+                            Err(_) => {
+                                let _ = body_tx.send(
+                                    super::super::GatewayByteStreamItem::Error(
+                                        "request body not valid UTF-8".to_string(),
+                                    ),
+                                );
+                                return;
+                            }
+                        };
+                        if let Err(e) = ws_stream.send(Message::Text(text.into())).await {
+                            let _ = body_tx.send(super::super::GatewayByteStreamItem::Error(
+                                format!("WebSocket send error: {e}"),
+                            ));
+                            return;
+                        }
+                    }
+                    loop {
+                        match ws_stream.next().await {
+                            None => {
+                                let _ =
+                                    body_tx.send(super::super::GatewayByteStreamItem::Eof);
+                                return;
+                            }
+                            Some(Err(e)) => {
+                                let _ = body_tx.send(
+                                    super::super::GatewayByteStreamItem::Error(format!(
+                                        "WebSocket receive error: {e}"
+                                    )),
+                                );
+                                return;
+                            }
+                            Some(Ok(Message::Text(text))) => {
+                                let sse = format!("data: {text}\n\n");
+                                if body_tx
+                                    .send(super::super::GatewayByteStreamItem::Chunk(
+                                        Bytes::from(sse.into_bytes()),
+                                    ))
+                                    .is_err()
+                                {
+                                    return;
+                                }
+                                if text.contains(r#""response.completed""#)
+                                    || text.contains(r#""response.failed""#)
+                                    || text.contains(r#""response.incomplete""#)
+                                {
+                                    let _ = body_tx
+                                        .send(super::super::GatewayByteStreamItem::Eof);
+                                    return;
+                                }
+                            }
+                            Some(Ok(Message::Ping(payload))) => {
+                                let _ = ws_stream.send(Message::Pong(payload)).await;
+                            }
+                            Some(Ok(Message::Close(_))) => {
+                                let _ =
+                                    body_tx.send(super::super::GatewayByteStreamItem::Eof);
+                                return;
+                            }
+                            Some(Ok(_)) => {}
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    match meta_rx.recv() {
+        Ok(Ok(())) => {
+            let mut headers = reqwest::header::HeaderMap::new();
+            headers.insert(
+                reqwest::header::CONTENT_TYPE,
+                reqwest::header::HeaderValue::from_static("text/event-stream"),
+            );
+            Ok(super::super::GatewayStreamResponse::new(
+                reqwest::StatusCode::OK,
+                headers,
+                super::super::GatewayByteStream::from_receiver(body_rx),
+            ))
+        }
+        Ok(Err(err)) => Err(err),
+        Err(_) => Err("WebSocket upstream thread terminated before handshake".to_string()),
+    }
 }
 
 #[cfg(test)]
