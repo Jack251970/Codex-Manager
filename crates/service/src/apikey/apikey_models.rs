@@ -949,15 +949,11 @@ fn auto_associate_source_models(
         if existing_source_platform_mappings.contains(source_model.upstream_model.as_str()) {
             continue;
         }
-        if prefs
-            .get(source_model.upstream_model.as_str())
-            .map_or(false, |v| v == "unlinked")
-        {
-            continue;
-        }
-        let enabled = prefs
-            .get(source_model.upstream_model.as_str())
-            .map_or(true, |v| v != "disabled");
+        let enabled = match prefs.get(source_model.upstream_model.as_str()).map(String::as_str) {
+            Some("unlinked") => continue,
+            Some(v) => v != "disabled",
+            None => true,
+        };
         let mapping = ModelSourceMapping {
             id: generate_mapping_id(),
             platform_model_slug: source_model.upstream_model.clone(),
