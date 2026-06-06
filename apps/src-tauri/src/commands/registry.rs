@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-pub(crate) use invoke_handler;
 macro_rules! invoke_handler {
     () => {
         tauri::generate_handler![
