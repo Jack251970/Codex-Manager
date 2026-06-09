@@ -76,6 +76,7 @@ import { appClient } from "@/lib/api/app-client";
 import { dashboardClient } from "@/lib/api/dashboard-client";
 import { getAppErrorMessage } from "@/lib/api/transport";
 import { estimateChartYAxisWidth } from "@/lib/dashboard/format";
+import type { AppLocale } from "@/lib/i18n/config";
 import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 import { formatCompactNumber } from "@/lib/utils/usage";
@@ -89,6 +90,25 @@ const ACCOUNT_MANAGER_QUERY_KEYS = {
 };
 
 const CREDIT_MICROS_PER_USD = 1_000_000;
+
+const SUPPORTED_INTL_LOCALES = ["zh-CN", "en-US", "ru-RU", "ko-KR"] as const;
+
+const INTL_LOCALE_BY_APP_LOCALE: Record<Exclude<AppLocale, "zh-CN">, string> = {
+  en: "en-US",
+  ru: "ru-RU",
+  ko: "ko-KR",
+};
+
+function intlLocaleFromAppLocale(locale: string): string {
+  if (
+    SUPPORTED_INTL_LOCALES.includes(
+      locale as (typeof SUPPORTED_INTL_LOCALES)[number],
+    )
+  ) {
+    return locale;
+  }
+  return INTL_LOCALE_BY_APP_LOCALE[locale as Exclude<AppLocale, "zh-CN">] ?? "zh-CN";
+}
 
 function formatCreditMicros(value: number | null | undefined): string {
   const normalized =
@@ -142,11 +162,15 @@ function parseCreditInput(value: string): number | null {
   return Math.round(normalized * CREDIT_MICROS_PER_USD);
 }
 
-function formatTime(value: number | null | undefined, t: TranslateFn): string {
+function formatTime(
+  value: number | null | undefined,
+  t: (message: string) => string,
+  locale: AppLocale,
+): string {
   if (!value) return t("从未");
   const date = new Date(value * 1000);
   if (Number.isNaN(date.getTime())) return t("未知");
-  return date.toLocaleString("zh-CN", {
+  return date.toLocaleString(intlLocaleFromAppLocale(locale), {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -154,17 +178,17 @@ function formatTime(value: number | null | undefined, t: TranslateFn): string {
   });
 }
 
-function formatShortDate(value: number | null | undefined): string {
+function formatShortDate(value: number | null | undefined, locale: AppLocale): string {
   if (!value) return "--";
   const date = new Date(value * 1000);
   if (Number.isNaN(date.getTime())) return "--";
-  return date.toLocaleDateString("zh-CN", {
+  return date.toLocaleDateString(intlLocaleFromAppLocale(locale), {
     month: "2-digit",
     day: "2-digit",
   });
 }
 
-function modeLabel(mode: string, t: TranslateFn): string {
+function modeLabel(mode: string, t: (message: string) => string): string {
   switch (mode) {
     case "accounts":
       return t("账号登录");
@@ -177,7 +201,7 @@ function modeLabel(mode: string, t: TranslateFn): string {
   }
 }
 
-function roleLabel(role: string, t: TranslateFn): string {
+function roleLabel(role: string, t: (message: string) => string): string {
   return role === "admin" ? t("管理员") : t("成员");
 }
 
@@ -189,12 +213,15 @@ function userCanOwnWallet(user: AppUser): boolean {
   return !isAdminUser(user);
 }
 
-function statusLabel(status: string, t: TranslateFn): string {
+function statusLabel(status: string, t: (message: string) => string): string {
   if (status === "disabled") return t("禁用");
   return status === "active" ? t("启用") : status || t("未知");
 }
 
-function userSelectLabel(user: AppUser | null | undefined, t: TranslateFn): string {
+function userSelectLabel(
+  user: AppUser | null | undefined,
+  t: (message: string) => string,
+): string {
   if (!user) return t("选择可分发成员");
   return user.displayName ? `${user.displayName} (${user.username})` : user.username;
 }
@@ -229,7 +256,7 @@ function StatCard({
 }
 
 function UserUsageTrendLine({ summary }: { summary: MemberDashboardSummary }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const chartConfig = {
     totalTokens: {
       label: "Token",
@@ -237,7 +264,7 @@ function UserUsageTrendLine({ summary }: { summary: MemberDashboardSummary }) {
     },
   } satisfies ChartConfig;
   const chartData = summary.usageTrend7d.map((item) => ({
-    date: formatShortDate(item.dayStartTs),
+    date: formatShortDate(item.dayStartTs, locale),
     totalTokens: item.totalTokens,
     estimatedCostUsd: item.estimatedCostUsd,
   }));
@@ -335,7 +362,7 @@ function UserUsageDetail({
   user: AppUser;
   summary: MemberDashboardSummary;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const successRate =
     summary.usageToday.successRate == null
       ? "--"
@@ -484,9 +511,7 @@ function UserUsageDetail({
                   >
                     {log.model || "unknown"}
                   </div>
-                  <div className="break-words text-muted-foreground">
-                    {formatTime(log.createdAt, t)}
-                  </div>
+                  <div className="truncate text-muted-foreground">{formatTime(log.createdAt, t, locale)}</div>
                 </div>
                 <div className="flex gap-3 text-muted-foreground sm:justify-end">
                   <span>{log.statusCode || "-"}</span>
@@ -503,7 +528,7 @@ function UserUsageDetail({
 }
 
 export default function AccountManagerPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const queryClient = useQueryClient();
   const { canAccessManagementRpc } = useRuntimeCapabilities();
   const isPageActive = useDesktopPageActive("/account-manager/");
@@ -894,16 +919,18 @@ export default function AccountManagerPage() {
                         formatCreditMicros(user.wallet?.availableCreditMicros)
                       )}
                     </TableCell>
-                    <TableCell>{formatTime(user.lastLoginAt, t)}</TableCell>
-                    <TableCell
-                      className={fitLongTextClassName(
-                        user.id,
-                        "max-w-[220px] break-all font-mono text-muted-foreground [overflow-wrap:anywhere]",
-                        "text-xs",
-                      )}
-                      title={user.id}
-                    >
-                      {user.id}
+                    <TableCell>{formatTime(user.lastLoginAt, t, locale)}</TableCell>
+                    <TableCell className="max-w-[180px]">
+                      <span
+                        className={fitLongTextClassName(
+                          user.id,
+                          "block break-all font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]",
+                          "text-xs",
+                        )}
+                        title={user.id}
+                      >
+                        {user.id}
+                      </span>
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       <div className="flex flex-wrap justify-end gap-2">
