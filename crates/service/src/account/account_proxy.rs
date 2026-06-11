@@ -9,8 +9,6 @@ pub(crate) const STATUS_UNCHECKED: &str = "unchecked";
 pub(crate) const STATUS_CHECKING: &str = "checking";
 pub(crate) const STATUS_INVALID_URL: &str = "invalid_url";
 pub(crate) const ENV_ACCOUNT_PROXY_DEBUG: &str = "CODEXMANAGER_ACCOUNT_PROXY_DEBUG";
-#[cfg(test)]
-pub(crate) const STATUS_RUNTIME_ERROR: &str = "runtime_error";
 const LOCAL_PROXY_EXPECTED_MESSAGE: &str = "Codex-Manager supports HTTP, HTTPS, SOCKS4, and SOCKS5 proxy URLs, for example http://host:port or socks5://host:port. For sing-box, paste the local mixed inbound address, e.g. http://127.0.0.1:7891.";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,33 +108,69 @@ pub(crate) fn set_account_proxy_settings(
     };
 
     let (
-        final_status, final_latency, final_last_error,
-        final_ip, final_country_code, final_country_name, final_region_name, final_city_name,
-        final_geo_checked_at, final_geo_error,
-        final_asn, final_as_org, final_isp, final_as_domain,
-        final_timezone_id, final_timezone_offset, final_timezone_utc,
-        final_flag_img_url, final_flag_emoji,
-    ) =
-    if proxy_url_changed {
+        final_status,
+        final_latency,
+        final_last_error,
+        final_ip,
+        final_country_code,
+        final_country_name,
+        final_region_name,
+        final_city_name,
+        final_geo_checked_at,
+        final_geo_error,
+        final_asn,
+        final_as_org,
+        final_isp,
+        final_as_domain,
+        final_timezone_id,
+        final_timezone_offset,
+        final_timezone_utc,
+        final_flag_img_url,
+        final_flag_emoji,
+    ) = if proxy_url_changed {
         if status.is_some() {
             (
                 status.unwrap_or(default_status),
-                latency_ms, last_error,
-                ip, country_code, country_name, region_name, city_name,
-                geo_checked_at, geo_error,
-                None, None, None, None,
-                None, None, None,
-                None, None,
+                latency_ms,
+                last_error,
+                ip,
+                country_code,
+                country_name,
+                region_name,
+                city_name,
+                geo_checked_at,
+                geo_error,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
             )
         } else {
             (
                 default_status,
-                None, None,
-                None, None, None, None, None,
-                None, None,
-                None, None, None, None,
-                None, None, None,
-                None, None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
             )
         }
     } else {
@@ -164,11 +198,12 @@ pub(crate) fn set_account_proxy_settings(
         )
     };
 
-    let final_last_check_at = if final_status == STATUS_UNCHECKED || final_status == STATUS_NOT_CONFIGURED {
-        None
-    } else {
-        Some(now_ts())
-    };
+    let final_last_check_at =
+        if final_status == STATUS_UNCHECKED || final_status == STATUS_NOT_CONFIGURED {
+            None
+        } else {
+            Some(now_ts())
+        };
 
     storage
         .upsert_account_proxy_settings(
@@ -204,7 +239,11 @@ pub(crate) fn set_account_proxy_settings(
         let account_id_clone = account_id.to_string();
         std::thread::spawn(move || {
             if let Err(err) = test_account_proxy_settings(&account_id_clone, None, None) {
-                log::error!("background proxy check failed for account {}: {}", account_id_clone, err);
+                log::error!(
+                    "background proxy check failed for account {}: {}",
+                    account_id_clone,
+                    err
+                );
             }
         });
     }
@@ -236,17 +275,29 @@ pub(crate) fn test_account_proxy_settings(
     match (enabled, proxy_url) {
         (Some(enabled), proxy_url) => {
             test_account_proxy_draft_with_checker(account_id, enabled, proxy_url, |proxy_url| {
-                crate::account::proxy_health::check_account_proxy(proxy_url)
+                crate::account::proxy_health::check_account_proxy(proxy_url, |country_code| {
+                    storage
+                        .find_cached_proxy_flag_by_country(country_code)
+                        .unwrap_or(None)
+                })
             })
         }
         (None, None) => {
             test_account_proxy_settings_with_checker(&storage, account_id, |proxy_url| {
-                crate::account::proxy_health::check_account_proxy(proxy_url)
+                crate::account::proxy_health::check_account_proxy(proxy_url, |country_code| {
+                    storage
+                        .find_cached_proxy_flag_by_country(country_code)
+                        .unwrap_or(None)
+                })
             })
         }
         (None, Some(proxy_url)) => {
             test_account_proxy_draft_with_checker(account_id, true, Some(proxy_url), |proxy_url| {
-                crate::account::proxy_health::check_account_proxy(proxy_url)
+                crate::account::proxy_health::check_account_proxy(proxy_url, |country_code| {
+                    storage
+                        .find_cached_proxy_flag_by_country(country_code)
+                        .unwrap_or(None)
+                })
             })
         }
     }

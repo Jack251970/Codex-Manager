@@ -112,14 +112,23 @@ pub(crate) struct ProxyHealthCheckResult {
     pub geo: Option<ProxyGeoInfo>,
 }
 
-pub(crate) fn check_account_proxy(proxy_url: &str) -> ProxyHealthCheckResult {
-    check_account_proxy_with_options(proxy_url, DEFAULT_PROXY_TEST_TARGETS, false)
+pub(crate) fn check_account_proxy<'a>(
+    proxy_url: &str,
+    cached_flag_lookup: impl Fn(&str) -> Option<String> + 'a,
+) -> ProxyHealthCheckResult {
+    check_account_proxy_with_options(
+        proxy_url,
+        DEFAULT_PROXY_TEST_TARGETS,
+        false,
+        &cached_flag_lookup,
+    )
 }
 
-fn check_account_proxy_with_options(
+fn check_account_proxy_with_options<'a>(
     proxy_url: &str,
     targets: &[&str],
     accept_invalid_certs: bool,
+    cached_flag_lookup: &(dyn Fn(&str) -> Option<String> + 'a),
 ) -> ProxyHealthCheckResult {
     let (client, parsed_proxy_url) = match build_proxy_test_client(proxy_url, accept_invalid_certs)
     {
@@ -134,7 +143,7 @@ fn check_account_proxy_with_options(
         }
     };
 
-    let mut geo_error = match check_proxy_geo(&client) {
+    let mut geo_error = match check_proxy_geo(&client, cached_flag_lookup) {
         Ok((geo, latency_ms)) => {
             return ProxyHealthCheckResult {
                 status: STATUS_OK,
@@ -213,14 +222,20 @@ fn proxy_geo_endpoint() -> String {
         .unwrap_or_else(|| IPWHOIS_ENDPOINT.to_string())
 }
 
-fn check_proxy_geo(client: &Client) -> Result<(ProxyGeoInfo, i64), String> {
+fn check_proxy_geo<'a>(
+    client: &Client,
+    cached_flag_lookup: &(dyn Fn(&str) -> Option<String> + 'a),
+) -> Result<(ProxyGeoInfo, i64), String> {
     match proxy_geo_provider().as_str() {
-        "ipwhois" => check_ipwhois_geo(client),
+        "ipwhois" => check_ipwhois_geo(client, cached_flag_lookup),
         other => Err(format!("unsupported proxy geo provider: {other}")),
     }
 }
 
-fn check_ipwhois_geo(client: &Client) -> Result<(ProxyGeoInfo, i64), String> {
+fn check_ipwhois_geo<'a>(
+    client: &Client,
+    cached_flag_lookup: &(dyn Fn(&str) -> Option<String> + 'a),
+) -> Result<(ProxyGeoInfo, i64), String> {
     let started_at = Instant::now();
     let response = client
         .get(proxy_geo_endpoint())
@@ -254,11 +269,36 @@ fn check_ipwhois_geo(client: &Client) -> Result<(ProxyGeoInfo, i64), String> {
     let timezone = payload.timezone.as_ref();
     let flag = payload.flag.as_ref();
 
+    let country_code =
+        normalize_optional_text(payload.country_code).map(|value| value.to_ascii_uppercase());
+
+    let flag_img_url = if let Some(code) = &country_code {
+        if let Some(cached) = cached_flag_lookup(code) {
+            Some(cached)
+        } else if let Some(url) = flag.and_then(|f| normalize_optional_text(f.img.clone())) {
+            match client.get(&url).send() {
+                Ok(res) if res.status().is_success() => {
+                    if let Ok(bytes) = res.bytes() {
+                        use base64::{engine::general_purpose, Engine as _};
+                        let b64 = general_purpose::STANDARD.encode(&bytes);
+                        Some(format!("data:image/svg+xml;base64,{}", b64))
+                    } else {
+                        Some(url)
+                    }
+                }
+                _ => Some(url),
+            }
+        } else {
+            None
+        }
+    } else {
+        flag.and_then(|f| normalize_optional_text(f.img.clone()))
+    };
+
     Ok((
         ProxyGeoInfo {
             ip,
-            country_code: normalize_optional_text(payload.country_code)
-                .map(|value| value.to_ascii_uppercase()),
+            country_code,
             country_name: normalize_optional_text(payload.country),
             region_name: normalize_optional_text(payload.region),
             city_name: normalize_optional_text(payload.city),
@@ -274,7 +314,7 @@ fn check_ipwhois_geo(client: &Client) -> Result<(ProxyGeoInfo, i64), String> {
             timezone_offset: timezone.and_then(|tz| tz.offset),
             timezone_utc: timezone.and_then(|tz| normalize_optional_text(tz.utc.clone())),
 
-            flag_img_url: flag.and_then(|f| normalize_optional_text(f.img.clone())),
+            flag_img_url,
             flag_emoji: flag.and_then(|f| normalize_optional_text(f.emoji.clone())),
         },
         latency_ms,
@@ -344,6 +384,7 @@ mod tests {
             &proxy_url,
             &["https://www.gstatic.com/generate_204"],
             true,
+            &|_| None,
         );
 
         assert_eq!(result.status, STATUS_RUNTIME_ERROR);

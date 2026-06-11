@@ -89,7 +89,6 @@ pub struct AccountProxySettings {
     pub updated_at: i64,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct QuotaSourceModelAssignment {
     pub source_kind: String,

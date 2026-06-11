@@ -249,6 +249,22 @@ impl Storage {
         }
     }
 
+    pub fn find_cached_proxy_flag_by_country(&self, country_code: &str) -> Result<Option<String>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT flag_img_url
+             FROM account_proxy_settings
+             WHERE country_code = ?1
+               AND flag_img_url LIKE 'data:image/%'
+             LIMIT 1",
+        )?;
+        let mut rows = stmt.query([country_code])?;
+        if let Some(row) = rows.next()? {
+            Ok(row.get(0)?)
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn list_account_proxy_settings(&self) -> Result<Vec<AccountProxySettings>> {
         let mut stmt = self.conn.prepare(
             "SELECT
@@ -356,18 +372,72 @@ impl Storage {
         self.ensure_column("account_proxy_settings", "isp", "TEXT")?;
         self.ensure_column("account_proxy_settings", "as_domain", "TEXT")?;
         self.ensure_column("account_proxy_settings", "timezone_id", "TEXT")?;
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN is_proxy", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN geo_provider", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN continent_code", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN continent_name", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN region_code", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN latitude", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN longitude", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN is_eu", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN postal", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN timezone_abbr", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN timezone_is_dst", []).ok();
-        self.conn.execute("ALTER TABLE account_proxy_settings DROP COLUMN flag_emoji_unicode", []).ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN is_proxy",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN geo_provider",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN continent_code",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN continent_name",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN region_code",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN latitude",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN longitude",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute("ALTER TABLE account_proxy_settings DROP COLUMN is_eu", [])
+            .ok();
+        self.conn
+            .execute("ALTER TABLE account_proxy_settings DROP COLUMN postal", [])
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN timezone_abbr",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN timezone_is_dst",
+                [],
+            )
+            .ok();
+        self.conn
+            .execute(
+                "ALTER TABLE account_proxy_settings DROP COLUMN flag_emoji_unicode",
+                [],
+            )
+            .ok();
         self.ensure_column("account_proxy_settings", "timezone_offset", "INTEGER")?;
         self.ensure_column("account_proxy_settings", "timezone_utc", "TEXT")?;
         self.ensure_column("account_proxy_settings", "flag_img_url", "TEXT")?;
