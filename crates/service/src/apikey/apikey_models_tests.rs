@@ -17,7 +17,7 @@ use super::{
     read_model_options_from_storage, save_managed_model_catalog_with_storage,
     save_model_options_with_storage, sync_aggregate_api_source_models,
     sync_aggregate_api_source_models_with_discovery, MODEL_SOURCE_KIND_CUSTOM,
-    MODEL_SOURCE_KIND_REMOTE, ROUTING_SOURCE_KIND_AGGREGATE_API,
+    MODEL_SOURCE_KIND_REMOTE, PREF_UNLINKED, ROUTING_SOURCE_KIND_AGGREGATE_API,
     ROUTING_SOURCE_KIND_OPENAI_ACCOUNT,
 };
 use codexmanager_core::rpc::types::{
@@ -651,7 +651,7 @@ fn delete_model_catalog_entry_removes_model_group_and_platform_source_routes() {
         })
         .expect("seed wrapper mapping");
 
-    delete_model_catalog_entry(&storage, "gpt-delete").expect("delete catalog entry");
+    delete_model_catalog_entry(&storage, "gpt-delete", true).expect("delete catalog entry");
 
     assert!(storage
         .list_model_catalog_models("default")
@@ -1460,7 +1460,7 @@ fn aggregate_bootstrap_preserves_disabled_source_routes() {
             ROUTING_SOURCE_KIND_AGGREGATE_API,
             "agg-stale",
             "vendor-stale",
-            "unlinked",
+            PREF_UNLINKED,
         )
         .expect("seed preference");
 
@@ -1853,4 +1853,271 @@ fn auto_association_preserves_existing_platform_mapping_override() {
     assert_eq!(mappings.len(), 1);
     assert_eq!(mappings[0].id, "mapping-override");
     assert_eq!(mappings[0].upstream_model, "gpt-upstream");
+}
+
+#[test]
+fn delete_catalog_entry_sets_unlinked_preference_and_prevents_auto_recreation() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+    seed_platform_catalog(&storage, &["gpt-unlink"]);
+    insert_test_aggregate_api(&storage, "agg-unlink", "active");
+    storage
+        .upsert_discovered_model_source_models(
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-unlink",
+            &["gpt-unlink".to_string()],
+            "synced",
+        )
+        .expect("seed aggregate source model");
+    let now = now_ts();
+    storage
+        .upsert_model_source_mapping(&ModelSourceMapping {
+            id: "mapping-unlink".to_string(),
+            platform_model_slug: "gpt-unlink".to_string(),
+            source_kind: ROUTING_SOURCE_KIND_AGGREGATE_API.to_string(),
+            source_id: "agg-unlink".to_string(),
+            upstream_model: "gpt-unlink".to_string(),
+            enabled: true,
+            priority: 0,
+            weight: 1,
+            billing_model_slug: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("seed mapping");
+
+    delete_model_catalog_entry(&storage, "gpt-unlink", true).expect("delete catalog entry");
+
+    assert!(storage
+        .list_model_catalog_models("default")
+        .expect("list catalog")
+        .is_empty());
+    assert!(storage
+        .list_model_source_mappings(Some("gpt-unlink"))
+        .expect("list mappings")
+        .is_empty());
+
+    let prefs: Vec<_> = storage
+        .list_model_source_mapping_preferences(
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-unlink",
+        )
+        .expect("list preferences")
+        .into_iter()
+        .filter(|p| p.upstream_model == "gpt-unlink")
+        .collect();
+    assert_eq!(prefs.len(), 1);
+    assert_eq!(prefs[0].preference, PREF_UNLINKED);
+
+    auto_associate_source_models(
+        &storage,
+        ROUTING_SOURCE_KIND_AGGREGATE_API,
+        "agg-unlink",
+        true,
+    )
+    .expect("auto associate after delete");
+
+    let catalog_after =
+        read_managed_model_catalog_from_storage(&storage).expect("read catalog after associate");
+    assert!(
+        !catalog_after
+            .items
+            .iter()
+            .any(|item| item.model.slug == "gpt-unlink"),
+        "deleted model should not be recreated by auto_associate after unlink"
+    );
+    assert!(storage
+        .list_model_source_mappings(Some("gpt-unlink"))
+        .expect("list mappings after associate")
+        .is_empty());
+}
+
+#[test]
+fn delete_catalog_entry_sets_unlinked_preference_for_multiple_sources() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+    seed_platform_catalog(&storage, &["gpt-multi"]);
+    insert_test_account(&storage, "acc-multi");
+    insert_test_aggregate_api(&storage, "agg-multi", "active");
+    storage
+        .upsert_discovered_model_source_models(
+            ROUTING_SOURCE_KIND_OPENAI_ACCOUNT,
+            "acc-multi",
+            &["gpt-multi".to_string()],
+            "synced",
+        )
+        .expect("seed account source model");
+    storage
+        .upsert_discovered_model_source_models(
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-multi",
+            &["gpt-multi".to_string()],
+            "synced",
+        )
+        .expect("seed aggregate source model");
+    let now = now_ts();
+    storage
+        .upsert_model_source_mapping(&ModelSourceMapping {
+            id: "mapping-multi-account".to_string(),
+            platform_model_slug: "gpt-multi".to_string(),
+            source_kind: ROUTING_SOURCE_KIND_OPENAI_ACCOUNT.to_string(),
+            source_id: "acc-multi".to_string(),
+            upstream_model: "gpt-multi".to_string(),
+            enabled: true,
+            priority: 0,
+            weight: 1,
+            billing_model_slug: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("seed account mapping");
+    storage
+        .upsert_model_source_mapping(&ModelSourceMapping {
+            id: "mapping-multi-aggregate".to_string(),
+            platform_model_slug: "gpt-multi".to_string(),
+            source_kind: ROUTING_SOURCE_KIND_AGGREGATE_API.to_string(),
+            source_id: "agg-multi".to_string(),
+            upstream_model: "gpt-multi".to_string(),
+            enabled: true,
+            priority: 0,
+            weight: 1,
+            billing_model_slug: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("seed aggregate mapping");
+
+    delete_model_catalog_entry(&storage, "gpt-multi", true).expect("delete catalog entry");
+
+    assert!(storage
+        .list_model_catalog_models("default")
+        .expect("list catalog")
+        .is_empty());
+    assert!(storage
+        .list_model_source_mappings(Some("gpt-multi"))
+        .expect("list mappings")
+        .is_empty());
+
+    let account_prefs: Vec<_> = storage
+        .list_model_source_mapping_preferences(
+            ROUTING_SOURCE_KIND_OPENAI_ACCOUNT,
+            "acc-multi",
+        )
+        .expect("list account preferences")
+        .into_iter()
+        .filter(|p| p.upstream_model == "gpt-multi")
+        .collect();
+    assert_eq!(account_prefs.len(), 1);
+    assert_eq!(account_prefs[0].preference, PREF_UNLINKED);
+
+    let aggregate_prefs: Vec<_> = storage
+        .list_model_source_mapping_preferences(
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-multi",
+        )
+        .expect("list aggregate preferences")
+        .into_iter()
+        .filter(|p| p.upstream_model == "gpt-multi")
+        .collect();
+    assert_eq!(aggregate_prefs.len(), 1);
+    assert_eq!(aggregate_prefs[0].preference, PREF_UNLINKED);
+
+    auto_associate_source_models(
+        &storage,
+        ROUTING_SOURCE_KIND_OPENAI_ACCOUNT,
+        "acc-multi",
+        true,
+    )
+    .expect("auto associate account after delete");
+    auto_associate_source_models(
+        &storage,
+        ROUTING_SOURCE_KIND_AGGREGATE_API,
+        "agg-multi",
+        true,
+    )
+    .expect("auto associate aggregate after delete");
+
+    assert!(storage
+        .list_model_source_mappings(Some("gpt-multi"))
+        .expect("list mappings after associate")
+        .is_empty());
+}
+
+#[test]
+fn unlink_preference_blocks_mapping_when_platform_model_exists() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+    seed_platform_catalog(&storage, &["gpt-exists"]);
+    insert_test_aggregate_api(&storage, "agg-test", "active");
+    storage
+        .upsert_discovered_model_source_models(
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-test",
+            &["gpt-exists".to_string()],
+            "synced",
+        )
+        .expect("seed aggregate source model");
+    let now = now_ts();
+    storage
+        .upsert_model_source_mapping(&ModelSourceMapping {
+            id: "mapping-test".to_string(),
+            platform_model_slug: "gpt-exists".to_string(),
+            source_kind: ROUTING_SOURCE_KIND_AGGREGATE_API.to_string(),
+            source_id: "agg-test".to_string(),
+            upstream_model: "gpt-exists".to_string(),
+            enabled: true,
+            priority: 0,
+            weight: 1,
+            billing_model_slug: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("seed mapping");
+
+    storage
+        .delete_model_source_mapping_with_unlink_preference(
+            "mapping-test",
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-test",
+            "gpt-exists",
+        )
+        .expect("delete mapping with unlink");
+
+    let prefs_after_delete: Vec<_> = storage
+        .list_model_source_mapping_preferences(
+            ROUTING_SOURCE_KIND_AGGREGATE_API,
+            "agg-test",
+        )
+        .expect("list preferences")
+        .into_iter()
+        .filter(|p| p.upstream_model == "gpt-exists")
+        .collect();
+    assert_eq!(prefs_after_delete.len(), 1);
+    assert_eq!(prefs_after_delete[0].preference, PREF_UNLINKED);
+
+    auto_associate_source_models(
+        &storage,
+        ROUTING_SOURCE_KIND_AGGREGATE_API,
+        "agg-test",
+        false,
+    )
+    .expect("auto associate with auto_create=false");
+
+    let catalog =
+        read_managed_model_catalog_from_storage(&storage).expect("read catalog");
+    assert!(
+        catalog
+            .items
+            .iter()
+            .any(|item| item.model.slug == "gpt-exists"),
+        "platform model should remain in catalog"
+    );
+
+    assert!(
+        storage
+            .list_model_source_mappings(Some("gpt-exists"))
+            .expect("list mappings")
+            .is_empty(),
+        "unlink preference should prevent mapping creation"
+    );
 }

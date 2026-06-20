@@ -22,6 +22,7 @@ const MODEL_SOURCE_KIND_REMOTE: &str = "remote";
 const MODEL_SOURCE_KIND_CUSTOM: &str = "custom";
 const ROUTING_SOURCE_KIND_OPENAI_ACCOUNT: &str = "openai_account";
 const ROUTING_SOURCE_KIND_AGGREGATE_API: &str = "aggregate_api";
+const PREF_UNLINKED: &str = "unlinked";
 
 /// 函数 `read_model_options`
 ///
@@ -73,8 +74,7 @@ pub(crate) fn read_managed_model_catalog(
     let storage =
         storage_helpers::open_storage().ok_or_else(|| "storage unavailable".to_string())?;
     let cached_catalog = read_managed_model_catalog_from_storage(&storage)?;
-    let cached = managed_catalog_to_models_response(&cached_catalog);
-    if !refresh_remote && !cached.is_empty() {
+    if !refresh_remote {
         return Ok(cached_catalog);
     }
 
@@ -275,7 +275,7 @@ pub(crate) fn delete_managed_model_catalog_model(slug: &str) -> Result<(), Strin
     }
     let storage =
         storage_helpers::open_storage().ok_or_else(|| "storage unavailable".to_string())?;
-    delete_model_catalog_entry(&storage, normalized_slug)
+    delete_model_catalog_entry(&storage, normalized_slug, true)
 }
 
 pub(crate) fn prune_stale_remote_managed_model_catalog() -> Result<ManagedModelCatalogResult, String>
@@ -811,7 +811,7 @@ fn cleanup_orphan_auto_catalog_models(
         if enabled_mappings.contains(model.slug.as_str()) {
             continue;
         }
-        delete_model_catalog_entry(storage, model.slug.as_str())?;
+        delete_model_catalog_entry(storage, model.slug.as_str(), false)?;
     }
     Ok(())
 }
@@ -898,6 +898,9 @@ fn auto_associate_source_models(
             if upstream_model.is_empty() || known_slugs.contains(upstream_model) {
                 continue;
             }
+            if prefs.get(upstream_model).map(String::as_str) == Some(PREF_UNLINKED) {
+                continue;
+            }
             let Some(model) = auto_platform_model_from_source_model(source_model) else {
                 continue;
             };
@@ -944,7 +947,7 @@ fn auto_associate_source_models(
             .get(source_model.upstream_model.as_str())
             .map(String::as_str)
         {
-            Some("unlinked") => continue,
+            Some(PREF_UNLINKED) => continue,
             Some(v) => v != "disabled",
             None => true,
         };
@@ -1699,7 +1702,7 @@ fn replace_model_catalog_entry(
     if let Some(previous_slug) = previous_slug {
         let normalized_previous = previous_slug.trim();
         if !normalized_previous.is_empty() && normalized_previous != target_slug {
-            delete_model_catalog_entry(storage, normalized_previous)?;
+            delete_model_catalog_entry(storage, normalized_previous, false)?;
         }
     }
 
@@ -1780,7 +1783,50 @@ fn replace_model_catalog_entry(
     Ok(())
 }
 
-fn delete_model_catalog_entry(storage: &Storage, slug: &str) -> Result<(), String> {
+fn delete_model_catalog_entry(
+    storage: &Storage,
+    slug: &str,
+    set_unlink_prefs: bool,
+) -> Result<(), String> {
+    if set_unlink_prefs {
+        match storage.list_model_source_mappings(Some(slug)) {
+            Ok(mappings) => {
+                let mut errors: Vec<String> = Vec::new();
+                for mapping in &mappings {
+                    if let Err(err) = storage.delete_model_source_mapping_with_unlink_preference(
+                        &mapping.id,
+                        &mapping.source_kind,
+                        &mapping.source_id,
+                        &mapping.upstream_model,
+                    ) {
+                        log::warn!(
+                            "event=model_catalog_delete_unlink_preference_failed slug={slug} \
+                             source_kind={} source_id={} upstream_model={} err={err:?}",
+                            mapping.source_kind,
+                            mapping.source_id,
+                            mapping.upstream_model,
+                        );
+                        errors.push(format!(
+                            "{}: {err}",
+                            mapping.upstream_model,
+                        ));
+                    }
+                }
+                if !errors.is_empty() {
+                    return Err(format!(
+                        "无法为所有来源模型设置删除偏好: {}",
+                        errors.join("; "),
+                    ));
+                }
+            }
+            Err(err) => {
+                log::warn!(
+                    "event=model_catalog_delete_list_mappings_failed slug={slug} err={err:?}"
+                );
+                return Err(format!("无法读取模型来源映射: {err}"));
+            }
+        }
+    }
     storage
         .delete_model_group_model_references(slug)
         .map_err(|e| e.to_string())?;
@@ -1822,7 +1868,7 @@ fn prune_unedited_remote_model_catalog_entries_missing_from_remote(
         .map_err(|e| e.to_string())?;
     for slug in slugs {
         if !remote_slugs.contains(slug.as_str()) {
-            delete_model_catalog_entry(storage, slug.as_str())?;
+            delete_model_catalog_entry(storage, slug.as_str(), false)?;
         }
     }
     Ok(())
