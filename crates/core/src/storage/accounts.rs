@@ -3272,6 +3272,32 @@ mod tests {
     }
 
     #[test]
+    fn account_cleanup_candidates_use_normalized_status_index() {
+        let storage = Storage::open_in_memory().expect("open");
+        storage.init().expect("init");
+
+        let plan = storage
+            .conn
+            .prepare(
+                "EXPLAIN QUERY PLAN
+                 SELECT id, status, sort, updated_at
+                 FROM accounts
+                 WHERE LOWER(TRIM(COALESCE(status, ''))) IN (?1, ?2)",
+            )
+            .expect("prepare explain")
+            .query_map(["limited", "banned"], |row| row.get::<_, String>(3))
+            .expect("query explain")
+            .collect::<Result<Vec<_>>>()
+            .expect("collect explain");
+
+        assert!(
+            plan.iter()
+                .any(|detail| detail.contains("idx_accounts_cleanup_status_lookup")),
+            "expected cleanup candidate query to use normalized status index, got {plan:?}"
+        );
+    }
+
+    #[test]
     fn account_id_chunk_queries_defer_final_ordering_to_rust() {
         let storage = Storage::open_in_memory().expect("open");
         storage.init().expect("init");

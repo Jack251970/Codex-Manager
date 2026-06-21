@@ -1781,6 +1781,10 @@ impl Storage {
             "107_plugin_tasks_list_order_indexes",
             include_str!("../../migrations/107_plugin_tasks_list_order_indexes.sql"),
         )?;
+        self.apply_sql_migration(
+            "108_accounts_cleanup_status_lookup_index",
+            include_str!("../../migrations/108_accounts_cleanup_status_lookup_index.sql"),
+        )?;
         self.ensure_api_key_rotation_columns()?;
         self.ensure_aggregate_apis_table()?;
         self.ensure_aggregate_api_supplier_model_tables()?;
