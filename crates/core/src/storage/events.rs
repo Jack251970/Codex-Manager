@@ -97,6 +97,15 @@ impl Storage {
         )?;
         Ok(())
     }
+
+    pub(super) fn ensure_events_account_cleanup_index(&self) -> Result<()> {
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_events_account_cleanup
+             ON events(account_id)",
+            [],
+        )?;
+        Ok(())
+    }
 }
 
 fn latest_account_status_reasons_chunk(

@@ -202,3 +202,25 @@ fn latest_account_status_reasons_uses_lookup_index() {
         "expected account status lookup index in plan, got {plan}"
     );
 }
+
+#[test]
+fn account_event_cleanup_uses_account_cleanup_index() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+
+    let plan = storage
+        .conn
+        .query_row(
+            "EXPLAIN QUERY PLAN
+             DELETE FROM events
+             WHERE account_id = ?1",
+            ["acc-index"],
+            |row| row.get::<_, String>(3),
+        )
+        .expect("explain plan");
+
+    assert!(
+        plan.contains("idx_events_account_cleanup"),
+        "expected event account cleanup index in plan, got {plan}"
+    );
+}
