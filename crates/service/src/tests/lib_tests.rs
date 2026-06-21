@@ -4,8 +4,8 @@ use codexmanager_core::rpc::types::{
     ModelGroupUsersSetParams,
 };
 use codexmanager_core::storage::{
-    ModelCatalogModelRecord, ModelGroupModel, PluginInstall, PluginRunLog, PluginTask, RequestLog,
-    RequestTokenStat,
+    Account, ModelCatalogModelRecord, ModelGroupModel, PluginInstall, PluginRunLog, PluginTask,
+    RequestLog, RequestTokenStat, Token, UsageSnapshotRecord,
 };
 
 /// 函数 `response_result`
@@ -566,6 +566,105 @@ fn startup_snapshot_can_skip_api_model_catalog_for_light_dashboard_reads() {
             .map(Vec::len),
         Some(0)
     );
+
+    let _ = std::fs::remove_file(db_path);
+}
+
+#[test]
+fn startup_snapshot_can_skip_account_details_for_light_dashboard_reads() {
+    let _guard = test_env_guard();
+    let db_path = setup_dashboard_test_db("codexmanager-startup-snapshot-account-light");
+    let now = codexmanager_core::storage::now_ts();
+    let account_id = "acc-startup-light";
+    let mut storage = storage_helpers::open_storage().expect("open storage");
+    storage
+        .insert_account(&Account {
+            id: account_id.to_string(),
+            label: "Startup Light Account".to_string(),
+            issuer: "issuer".to_string(),
+            chatgpt_account_id: None,
+            workspace_id: None,
+            group_name: None,
+            sort: 0,
+            status: "active".to_string(),
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("insert account");
+    storage
+        .insert_token(&Token {
+            account_id: account_id.to_string(),
+            id_token: "id".to_string(),
+            access_token: "access".to_string(),
+            refresh_token: "refresh".to_string(),
+            api_key_access_token: None,
+            last_refresh: now,
+        })
+        .expect("insert token");
+    storage
+        .insert_usage_snapshot(&UsageSnapshotRecord {
+            account_id: account_id.to_string(),
+            used_percent: Some(20.0),
+            window_minutes: Some(180),
+            resets_at: Some(now + 300),
+            secondary_used_percent: Some(30.0),
+            secondary_window_minutes: Some(10_080),
+            secondary_resets_at: Some(now + 600),
+            credits_json: None,
+            captured_at: now,
+        })
+        .expect("insert usage snapshot");
+    storage
+        .upsert_account_metadata(account_id, Some("note"), Some("tag-a,tag-b"))
+        .expect("insert metadata");
+    storage
+        .upsert_account_subscription(account_id, true, Some("team"), Some("plus"), None, None)
+        .expect("insert subscription");
+    storage
+        .set_quota_source_model_assignments(
+            "openai_account",
+            account_id,
+            &["gpt-visible".to_string()],
+        )
+        .expect("insert model assignment");
+    storage
+        .upsert_account_quota_capacity_override(account_id, Some(100), Some(200))
+        .expect("insert quota override");
+
+    let full_resp = response_result(handle_request_with_actor(
+        rpc_request("startup/snapshot", serde_json::json!({})),
+        RpcActor::system_admin(),
+    ));
+    let full_account = &full_resp.result["accounts"][0];
+    assert_eq!(full_account["note"].as_str(), Some("note"));
+    assert_eq!(full_account["subscriptionPlan"].as_str(), Some("plus"));
+    assert_eq!(full_account["modelSlugs"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        full_account["quotaCapacityPrimaryWindowTokens"].as_i64(),
+        Some(100)
+    );
+
+    let light_resp = response_result(handle_request_with_actor(
+        rpc_request(
+            "startup/snapshot",
+            serde_json::json!({ "includeAccountDetails": false }),
+        ),
+        RpcActor::system_admin(),
+    ));
+    let light_account = &light_resp.result["accounts"][0];
+    assert_eq!(light_account["id"].as_str(), Some(account_id));
+    assert_eq!(light_account["hasToken"].as_bool(), Some(true));
+    assert_eq!(
+        light_resp.result["usageSnapshots"].as_array().map(Vec::len),
+        Some(1)
+    );
+    assert!(light_account["note"].is_null());
+    assert!(light_account["subscriptionPlan"].is_null());
+    assert_eq!(
+        light_account["modelSlugs"].as_array().map(Vec::len),
+        Some(0)
+    );
+    assert!(light_account["quotaCapacityPrimaryWindowTokens"].is_null());
 
     let _ = std::fs::remove_file(db_path);
 }

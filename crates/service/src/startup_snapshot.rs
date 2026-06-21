@@ -1,4 +1,7 @@
-use codexmanager_core::rpc::types::{StartupSnapshotResult, UsageAggregateSummaryResult};
+use codexmanager_core::{
+    rpc::types::{StartupSnapshotResult, UsageAggregateSummaryResult},
+    storage::AccountSummaryStorageSnapshotOptions,
+};
 
 use crate::{
     account_list, apikey_list, apikey_models, gateway, requestlog_list, requestlog_today_summary,
@@ -32,6 +35,7 @@ pub(crate) fn read_startup_snapshot(
     day_start_ts: Option<i64>,
     day_end_ts: Option<i64>,
     include_api_models: bool,
+    include_account_details: bool,
 ) -> Result<StartupSnapshotResult, String> {
     let request_log_limit = normalize_startup_request_log_limit(request_log_limit);
     let storage =
@@ -49,8 +53,13 @@ pub(crate) fn read_startup_snapshot(
         .iter()
         .map(|account| account.id.clone())
         .collect::<Vec<_>>();
-    let account_context =
-        account_list::build_account_summary_context_from_rows(&storage, accounts)?;
+    let account_context = account_list::build_account_summary_context_from_rows_with_options(
+        &storage,
+        accounts,
+        AccountSummaryStorageSnapshotOptions {
+            include_details: include_account_details,
+        },
+    )?;
     let usage_aggregate_summary =
         usage_aggregate::compute_usage_aggregate_summary_for_account_ids_list(
             &account_ids,
@@ -95,6 +104,7 @@ pub(crate) fn read_startup_snapshot_for_actor(
     day_start_ts: Option<i64>,
     day_end_ts: Option<i64>,
     include_api_models: bool,
+    include_account_details: bool,
 ) -> Result<StartupSnapshotResult, String> {
     if actor.is_admin() {
         return read_startup_snapshot(
@@ -102,6 +112,7 @@ pub(crate) fn read_startup_snapshot_for_actor(
             day_start_ts,
             day_end_ts,
             include_api_models,
+            include_account_details,
         );
     }
     let request_log_limit = normalize_startup_request_log_limit(request_log_limit);

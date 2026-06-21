@@ -7,9 +7,9 @@ use super::{
     AccountCodexProfileCandidate, AccountDashboardSourceMetadata, AccountDirectAuthProfile,
     AccountImportSnapshot, AccountListSummaryRow, AccountQuotaOverviewStats,
     AccountQuotaPoolSource, AccountQuotaSourceSummary, AccountStatusCount,
-    AccountSummaryStorageSnapshot, AccountTokenRefreshIssuer, AccountUpsertState,
-    AccountUsageRefreshTarget, AccountUsageRefreshTokenTarget, AccountWorkspaceIdentity, Storage,
-    Token,
+    AccountSummaryStorageSnapshot, AccountSummaryStorageSnapshotOptions, AccountTokenRefreshIssuer,
+    AccountUpsertState, AccountUsageRefreshTarget, AccountUsageRefreshTokenTarget,
+    AccountWorkspaceIdentity, Storage, Token,
 };
 
 const ACCOUNT_MODEL_SOURCE_KIND: &str = "openai_account";
@@ -544,22 +544,43 @@ impl Storage {
         &self,
         account_ids: &[String],
     ) -> Result<AccountSummaryStorageSnapshot> {
+        self.load_account_summary_storage_snapshot_with_options(
+            account_ids,
+            AccountSummaryStorageSnapshotOptions::default(),
+        )
+    }
+
+    pub fn load_account_summary_storage_snapshot_with_options(
+        &self,
+        account_ids: &[String],
+        options: AccountSummaryStorageSnapshotOptions,
+    ) -> Result<AccountSummaryStorageSnapshot> {
         if account_ids.is_empty() {
             return Ok(AccountSummaryStorageSnapshot::default());
         }
+        let (metadata, subscriptions, model_assignments, quota_overrides) =
+            if options.include_details {
+                (
+                    self.list_account_metadata_for_accounts(account_ids)?,
+                    self.list_account_subscriptions_for_accounts(account_ids)?,
+                    self.list_quota_source_model_assignments_for_sources(
+                        ACCOUNT_MODEL_SOURCE_KIND,
+                        account_ids,
+                    )?,
+                    self.list_account_quota_capacity_overrides_for_accounts(account_ids)?,
+                )
+            } else {
+                Default::default()
+            };
         Ok(AccountSummaryStorageSnapshot {
             preferred_account_id: self.preferred_account_id()?,
             status_reasons: self.latest_account_status_reasons(account_ids)?,
             tokens: self.list_account_token_plans_for_accounts(account_ids)?,
             usage_snapshots: self.latest_usage_snapshots_for_accounts(account_ids)?,
-            metadata: self.list_account_metadata_for_accounts(account_ids)?,
-            subscriptions: self.list_account_subscriptions_for_accounts(account_ids)?,
-            model_assignments: self.list_quota_source_model_assignments_for_sources(
-                ACCOUNT_MODEL_SOURCE_KIND,
-                account_ids,
-            )?,
-            quota_overrides: self
-                .list_account_quota_capacity_overrides_for_accounts(account_ids)?,
+            metadata,
+            subscriptions,
+            model_assignments,
+            quota_overrides,
         })
     }
 
@@ -2956,6 +2977,64 @@ mod tests {
         assert!(empty.subscriptions.is_empty());
         assert!(empty.model_assignments.is_empty());
         assert!(empty.quota_overrides.is_empty());
+    }
+
+    #[test]
+    fn light_account_summary_storage_snapshot_skips_display_details() {
+        let mut storage = Storage::open_in_memory().expect("open");
+        storage.init().expect("init");
+        let now = now_ts();
+        let account_id = "acc-summary-light";
+
+        storage
+            .insert_account(&sample_account(account_id, "active", now))
+            .expect("insert account");
+        storage
+            .insert_token(&sample_token(account_id, now))
+            .expect("insert token");
+        storage
+            .insert_usage_snapshot(&UsageSnapshotRecord {
+                account_id: account_id.to_string(),
+                used_percent: Some(18.0),
+                window_minutes: Some(180),
+                resets_at: Some(now + 300),
+                secondary_used_percent: Some(28.0),
+                secondary_window_minutes: Some(10_080),
+                secondary_resets_at: Some(now + 600),
+                credits_json: None,
+                captured_at: now,
+            })
+            .expect("insert usage snapshot");
+        storage
+            .upsert_account_metadata(account_id, Some("note"), Some("tag"))
+            .expect("insert metadata");
+        storage
+            .upsert_account_subscription(account_id, true, Some("team"), Some("plus"), None, None)
+            .expect("insert subscription");
+        storage
+            .set_quota_source_model_assignments(
+                "openai_account",
+                account_id,
+                &["gpt-visible".to_string()],
+            )
+            .expect("insert model assignment");
+        storage
+            .upsert_account_quota_capacity_override(account_id, Some(100), Some(200))
+            .expect("insert quota override");
+
+        let snapshot = storage
+            .load_account_summary_storage_snapshot_with_options(
+                &[account_id.to_string()],
+                AccountSummaryStorageSnapshotOptions::light(),
+            )
+            .expect("load light account summary snapshot");
+
+        assert_eq!(snapshot.tokens.len(), 1);
+        assert_eq!(snapshot.usage_snapshots.len(), 1);
+        assert!(snapshot.metadata.is_empty());
+        assert!(snapshot.subscriptions.is_empty());
+        assert!(snapshot.model_assignments.is_empty());
+        assert!(snapshot.quota_overrides.is_empty());
     }
 
     #[test]

@@ -159,6 +159,27 @@ pub struct AccountSummaryStorageSnapshot {
     pub quota_overrides: Vec<AccountQuotaCapacityOverride>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AccountSummaryStorageSnapshotOptions {
+    pub include_details: bool,
+}
+
+impl Default for AccountSummaryStorageSnapshotOptions {
+    fn default() -> Self {
+        Self {
+            include_details: true,
+        }
+    }
+}
+
+impl AccountSummaryStorageSnapshotOptions {
+    pub fn light() -> Self {
+        Self {
+            include_details: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountStatusCount {
     pub status: String,

@@ -2,7 +2,8 @@ use codexmanager_core::{
     rpc::types::{AccountListResult, AccountSummary},
     storage::{
         Account, AccountListSummaryRow, AccountMetadata, AccountQuotaCapacityOverride,
-        AccountSubscription, AccountSummaryStorageSnapshot, AccountTokenPlan, UsageSnapshotRecord,
+        AccountSubscription, AccountSummaryStorageSnapshot, AccountSummaryStorageSnapshotOptions,
+        AccountTokenPlan, UsageSnapshotRecord,
     },
 };
 use std::collections::HashMap;
@@ -188,12 +189,25 @@ pub(crate) fn build_account_summary_context_from_rows(
     storage: &codexmanager_core::storage::Storage,
     accounts: Vec<AccountListSummaryRow>,
 ) -> Result<AccountSummaryContext, String> {
-    build_account_summary_context_for_items(storage, accounts)
+    build_account_summary_context_from_rows_with_options(
+        storage,
+        accounts,
+        AccountSummaryStorageSnapshotOptions::default(),
+    )
+}
+
+pub(crate) fn build_account_summary_context_from_rows_with_options(
+    storage: &codexmanager_core::storage::Storage,
+    accounts: Vec<AccountListSummaryRow>,
+    options: AccountSummaryStorageSnapshotOptions,
+) -> Result<AccountSummaryContext, String> {
+    build_account_summary_context_for_items(storage, accounts, options)
 }
 
 fn build_account_summary_context_for_items<A>(
     storage: &codexmanager_core::storage::Storage,
     accounts: Vec<A>,
+    options: AccountSummaryStorageSnapshotOptions,
 ) -> Result<AccountSummaryContext, String>
 where
     A: Into<AccountSummaryParts> + AsAccountId,
@@ -208,7 +222,7 @@ where
         .iter()
         .map(|account| account.account_id().to_string())
         .collect::<Vec<_>>();
-    let setup = load_account_summary_setup(storage, &account_ids)?;
+    let setup = load_account_summary_setup(storage, &account_ids, options)?;
     let items = build_account_summary_items(accounts, &setup);
     Ok(AccountSummaryContext {
         items,
@@ -235,9 +249,10 @@ impl AsAccountId for AccountListSummaryRow {
 fn load_account_summary_setup(
     storage: &codexmanager_core::storage::Storage,
     account_ids: &[String],
+    options: AccountSummaryStorageSnapshotOptions,
 ) -> Result<AccountSummarySetup, String> {
     let snapshot = storage
-        .load_account_summary_storage_snapshot(account_ids)
+        .load_account_summary_storage_snapshot_with_options(account_ids, options)
         .map_err(|err| format!("load account summary snapshot failed: {err}"))?;
     Ok(account_summary_setup_from_snapshot(snapshot))
 }

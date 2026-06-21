@@ -26,6 +26,7 @@ export function buildStartupSnapshotQueryKey(
   requestLogLimit = STARTUP_SNAPSHOT_REQUEST_LOG_LIMIT,
   dayStartTs?: number | null,
   includeApiModels = true,
+  includeAccountDetails = true,
 ) {
   return [
     "startup-snapshot",
@@ -33,6 +34,7 @@ export function buildStartupSnapshotQueryKey(
     requestLogLimit,
     dayStartTs || null,
     includeApiModels,
+    includeAccountDetails,
   ] as const;
 }
 
