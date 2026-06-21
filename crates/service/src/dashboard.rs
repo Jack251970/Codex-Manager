@@ -447,7 +447,11 @@ pub(crate) fn read_member_dashboard_summary(
 
     let (top_keys, top_models) =
         read_member_usage_breakdown(&storage, &api_keys, &key_ids, day_start, day_end)?;
-    let available_model_count = read_available_model_count(&storage)?;
+    let available_model_count = if include_details {
+        Some(read_available_model_count(&storage)?)
+    } else {
+        None
+    };
     let recent_logs = if include_details {
         requestlog_list::read_request_log_page_for_key_ids_with_storage(
             &storage,
@@ -695,7 +699,7 @@ fn build_alerts(
     wallet: Option<&MemberDashboardWalletResult>,
     api_key_summary: &MemberDashboardApiKeySummary,
     usage_today: &MemberDashboardUsageToday,
-    available_model_count: usize,
+    available_model_count: Option<usize>,
 ) -> Vec<MemberDashboardAlert> {
     let mut alerts = Vec::new();
     if api_key_summary.total_count == 0 {
@@ -752,7 +756,7 @@ fn build_alerts(
         }
     }
 
-    if available_model_count == 0 {
+    if available_model_count == Some(0) {
         alerts.push(MemberDashboardAlert {
             kind: "no_available_model".to_string(),
             severity: "critical".to_string(),
@@ -1070,6 +1074,28 @@ mod tests {
 
         assert!(top_keys.is_empty());
         assert!(top_models.is_empty());
+    }
+
+    #[test]
+    fn member_alerts_skip_available_model_warning_when_count_is_not_loaded() {
+        let api_key_summary = super::MemberDashboardApiKeySummary {
+            total_count: 1,
+            enabled_count: 1,
+            disabled_count: 0,
+            last_used_at: None,
+        };
+        let usage_today = super::MemberDashboardUsageToday::default();
+
+        let light_alerts = super::build_alerts(false, None, &api_key_summary, &usage_today, None);
+        assert!(!light_alerts
+            .iter()
+            .any(|item| item.kind == "no_available_model"));
+
+        let detail_alerts =
+            super::build_alerts(false, None, &api_key_summary, &usage_today, Some(0));
+        assert!(detail_alerts
+            .iter()
+            .any(|item| item.kind == "no_available_model"));
     }
 
     #[test]
