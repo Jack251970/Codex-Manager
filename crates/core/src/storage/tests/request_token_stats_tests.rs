@@ -685,6 +685,22 @@ fn daily_range_query_matches_created_at_index() {
 }
 
 #[test]
+fn summarize_request_token_stats_between_short_circuits_empty_range() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+
+    let summary = storage
+        .summarize_request_token_stats_between(10_000, 10_000)
+        .expect("summarize empty token range");
+
+    assert_eq!(summary.input_tokens, 0);
+    assert_eq!(summary.cached_input_tokens, 0);
+    assert_eq!(summary.output_tokens, 0);
+    assert_eq!(summary.reasoning_output_tokens, 0);
+    assert_eq!(summary.estimated_cost_usd, 0.0);
+}
+
+#[test]
 fn daily_usage_query_skips_owner_joins() {
     let sql = super::raw_token_rollup_select(
         "?1 + CAST((t.created_at - ?1) / ?3 AS INTEGER) * ?3 AS bucket_start,",

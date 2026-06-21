@@ -493,6 +493,15 @@ impl Storage {
         start_ts: i64,
         end_ts: i64,
     ) -> Result<RequestLogTodaySummary> {
+        if end_ts <= start_ts {
+            return Ok(RequestLogTodaySummary {
+                input_tokens: 0,
+                cached_input_tokens: 0,
+                output_tokens: 0,
+                reasoning_output_tokens: 0,
+                estimated_cost_usd: 0.0,
+            });
+        }
         let mut stmt = self.conn.prepare(
             "WITH combined AS (
                 SELECT
