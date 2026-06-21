@@ -1,6 +1,6 @@
 use codexmanager_core::{
     auth::parse_id_token_claims,
-    storage::{AccountSubscription, AccountTokenPlan, Storage, Token, UsageSnapshotRecord},
+    storage::{AccountSubscription, AccountTokenPlan, Token, UsageSnapshotRecord},
 };
 use serde_json::Value;
 
@@ -227,10 +227,9 @@ pub(crate) fn is_single_window_long_usage_snapshot(snapshot: &UsageSnapshotRecor
 ///
 /// # 返回
 /// 返回函数执行结果
-pub(crate) fn is_free_or_single_window_account(
-    storage: &Storage,
-    account_id: &str,
+pub(crate) fn is_free_or_single_window_account_with_snapshot(
     token: &Token,
+    snapshot: Option<&UsageSnapshotRecord>,
 ) -> bool {
     if is_free_plan_type(extract_plan_type_from_id_token(&token.id_token).as_deref())
         || is_free_plan_type(extract_plan_type_from_id_token(&token.access_token).as_deref())
@@ -238,13 +237,10 @@ pub(crate) fn is_free_or_single_window_account(
         return true;
     }
 
-    storage
-        .latest_usage_snapshot_for_account(account_id)
-        .ok()
-        .flatten()
+    snapshot
         .map(|snapshot| {
             is_free_plan_from_credits_json(snapshot.credits_json.as_deref())
-                || is_single_window_long_usage_snapshot(&snapshot)
+                || is_single_window_long_usage_snapshot(snapshot)
         })
         .unwrap_or(false)
 }
@@ -385,7 +381,7 @@ fn normalize_plan_type(value: &str) -> Option<ResolvedAccountPlan> {
 mod tests {
     use super::{
         account_matches_plan_filter_with_snapshot, extract_plan_type_from_credits_json,
-        extract_plan_type_from_id_token, is_free_or_single_window_account,
+        extract_plan_type_from_id_token, is_free_or_single_window_account_with_snapshot,
         is_free_plan_from_credits_json, is_free_plan_type, is_single_window_long_usage_snapshot,
         normalize_plan_type, resolve_account_plan,
     };
@@ -607,24 +603,21 @@ mod tests {
             last_refresh: now,
         };
         storage.insert_token(&token).expect("insert token");
-        storage
-            .insert_usage_snapshot(&UsageSnapshotRecord {
-                account_id: "acc-weekly".to_string(),
-                used_percent: Some(25.0),
-                window_minutes: Some(10_080),
-                resets_at: None,
-                secondary_used_percent: None,
-                secondary_window_minutes: None,
-                secondary_resets_at: None,
-                credits_json: None,
-                captured_at: now,
-            })
-            .expect("insert usage");
+        let snapshot = UsageSnapshotRecord {
+            account_id: "acc-weekly".to_string(),
+            used_percent: Some(25.0),
+            window_minutes: Some(10_080),
+            resets_at: None,
+            secondary_used_percent: None,
+            secondary_window_minutes: None,
+            secondary_resets_at: None,
+            credits_json: None,
+            captured_at: now,
+        };
 
-        assert!(is_free_or_single_window_account(
-            &storage,
-            "acc-weekly",
-            &token
+        assert!(is_free_or_single_window_account_with_snapshot(
+            &token,
+            Some(&snapshot)
         ));
     }
 

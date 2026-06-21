@@ -1,4 +1,4 @@
-use codexmanager_core::storage::{Account, Storage, Token};
+use codexmanager_core::storage::{Account, Storage, Token, UsageSnapshotRecord};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -103,12 +103,11 @@ pub(crate) fn prepare_gateway_candidates(
 ///
 /// # 返回
 /// 返回函数执行结果
-pub(in super::super) fn free_account_model_override(
-    storage: &Storage,
-    account: &Account,
+pub(in super::super) fn free_account_model_override_with_snapshot(
     token: &Token,
+    snapshot: Option<&UsageSnapshotRecord>,
 ) -> Option<String> {
-    if !crate::account_plan::is_free_or_single_window_account(storage, account.id.as_str(), token) {
+    if !crate::account_plan::is_free_or_single_window_account_with_snapshot(token, snapshot) {
         return None;
     }
     let configured = super::super::super::current_free_account_max_model();
@@ -132,23 +131,16 @@ pub(in super::super) fn free_account_model_override(
 ///
 /// # 返回
 /// 返回函数执行结果
-pub(in super::super) fn allow_openai_fallback_for_account(
-    storage: &Storage,
-    account: &Account,
+pub(in super::super) fn allow_openai_fallback_for_account_with_snapshot(
     token: &Token,
+    snapshot: Option<&UsageSnapshotRecord>,
 ) -> bool {
     if let Some(plan) = crate::account_plan::resolve_token_account_plan(token) {
         return matches!(plan.normalized.as_str(), "free" | "go" | "plus" | "pro");
     }
 
-    let snapshot = storage
-        .latest_usage_snapshot_for_account(account.id.as_str())
-        .ok()
-        .flatten();
     let token_plan = crate::account_plan::token_plan_from_token(token);
-    let Some(plan) =
-        crate::account_plan::resolve_account_plan(Some(&token_plan), snapshot.as_ref())
-    else {
+    let Some(plan) = crate::account_plan::resolve_account_plan(Some(&token_plan), snapshot) else {
         return false;
     };
     matches!(plan.normalized.as_str(), "free" | "go" | "plus" | "pro")
@@ -198,8 +190,8 @@ pub(in super::super) fn candidate_skip_reason_for_proxy(
 #[cfg(test)]
 mod tests {
     use super::{
-        allow_openai_fallback_for_account, candidate_skip_reason_for_proxy,
-        free_account_model_override, CandidateSkipReason,
+        allow_openai_fallback_for_account_with_snapshot, candidate_skip_reason_for_proxy,
+        free_account_model_override_with_snapshot, CandidateSkipReason,
     };
     use codexmanager_core::storage::{
         now_ts, Account, ModelSourceMapping, ModelSourceModel, Storage, Token, UsageSnapshotRecord,
@@ -302,7 +294,11 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        let actual = free_account_model_override(&storage, &account, &token);
+        let snapshot = storage
+            .latest_usage_snapshot_for_account(account.id.as_str())
+            .ok()
+            .flatten();
+        let actual = free_account_model_override_with_snapshot(&token, snapshot.as_ref());
 
         let _ = crate::gateway::set_free_account_max_model(&original);
 
@@ -583,7 +579,11 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        let actual = free_account_model_override(&storage, &account, &token);
+        let snapshot = storage
+            .latest_usage_snapshot_for_account(account.id.as_str())
+            .ok()
+            .flatten();
+        let actual = free_account_model_override_with_snapshot(&token, snapshot.as_ref());
 
         let _ = crate::gateway::set_free_account_max_model(&original);
 
@@ -659,7 +659,11 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        let actual = free_account_model_override(&storage, &account, &token);
+        let snapshot = storage
+            .latest_usage_snapshot_for_account(account.id.as_str())
+            .ok()
+            .flatten();
+        let actual = free_account_model_override_with_snapshot(&token, snapshot.as_ref());
 
         let _ = crate::gateway::set_free_account_max_model(&original);
 
@@ -709,8 +713,8 @@ mod tests {
             last_refresh: now,
         };
 
-        assert!(allow_openai_fallback_for_account(
-            &storage, &account, &token
+        assert!(allow_openai_fallback_for_account_with_snapshot(
+            &token, None
         ));
     }
 
@@ -757,8 +761,8 @@ mod tests {
             last_refresh: now,
         };
 
-        assert!(!allow_openai_fallback_for_account(
-            &storage, &account, &token
+        assert!(!allow_openai_fallback_for_account_with_snapshot(
+            &token, None
         ));
     }
 
