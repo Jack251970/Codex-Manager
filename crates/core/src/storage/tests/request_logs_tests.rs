@@ -678,6 +678,88 @@ fn request_logs_support_time_range_filters() {
 }
 
 #[test]
+fn request_log_queries_short_circuit_empty_time_ranges() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+    let request_log_id = storage
+        .insert_request_log(&RequestLog {
+            trace_id: Some("trc-empty-range".to_string()),
+            key_id: Some("gk-empty-range".to_string()),
+            account_id: Some("acc-empty-range".to_string()),
+            request_path: "/v1/responses".to_string(),
+            method: "POST".to_string(),
+            status_code: Some(200),
+            created_at: 1_000,
+            ..Default::default()
+        })
+        .expect("insert request log");
+    storage
+        .insert_request_token_stat(&RequestTokenStat {
+            request_log_id,
+            key_id: Some("gk-empty-range".to_string()),
+            account_id: Some("acc-empty-range".to_string()),
+            model: Some("gpt-5".to_string()),
+            total_tokens: Some(10),
+            estimated_cost_usd: Some(0.01),
+            created_at: 1_000,
+            ..RequestTokenStat::default()
+        })
+        .expect("insert token stat");
+
+    let key_ids = ["gk-empty-range".to_string()];
+    assert!(storage
+        .list_request_logs_paginated(None, None, Some(2_000), Some(2_000), 0, 20)
+        .expect("list empty range")
+        .is_empty());
+    assert!(
+        storage
+            .list_request_logs_paginated_for_keys(
+                None,
+                None,
+                Some(2_000),
+                Some(2_000),
+                0,
+                20,
+                &key_ids,
+            )
+            .expect("list keyed empty range")
+            .is_empty()
+    );
+    assert_eq!(
+        storage
+            .count_request_logs(None, None, Some(2_000), Some(2_000))
+            .expect("count empty range"),
+        0
+    );
+    assert_eq!(
+        storage
+            .count_request_logs_for_keys(None, None, Some(2_000), Some(2_000), &key_ids)
+            .expect("count keyed empty range"),
+        0
+    );
+    assert_eq!(
+        storage
+            .summarize_request_logs_filtered(None, None, Some(2_000), Some(2_000))
+            .expect("summarize empty range")
+            .count,
+        0
+    );
+    assert_eq!(
+        storage
+            .summarize_request_logs_filtered_for_keys(
+                None,
+                None,
+                Some(2_000),
+                Some(2_000),
+                &key_ids,
+            )
+            .expect("summarize keyed empty range")
+            .count,
+        0
+    );
+}
+
+#[test]
 fn request_logs_for_empty_key_sets_return_empty_results() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");

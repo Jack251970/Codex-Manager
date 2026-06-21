@@ -18,6 +18,10 @@ fn request_log_retention_days() -> i64 {
         .unwrap_or(DEFAULT_REQUEST_LOG_RETENTION_DAYS)
 }
 
+fn empty_optional_range(start_ts: Option<i64>, end_ts: Option<i64>) -> bool {
+    matches!((start_ts, end_ts), (Some(start), Some(end)) if end <= start)
+}
+
 impl Storage {
     /// 函数 `ensure_request_logs_indexes`
     ///
@@ -314,6 +318,9 @@ impl Storage {
         if normalized_limit == 0 {
             return Ok(Vec::new());
         }
+        if empty_optional_range(start_ts, end_ts) {
+            return Ok(Vec::new());
+        }
         let normalized_offset = offset.max(0);
         let include_account_lookup = self.has_table("accounts")?;
         let filters = build_request_log_filters(
@@ -340,6 +347,9 @@ impl Storage {
     ) -> Result<Vec<RequestLog>> {
         let normalized_limit = normalize_request_log_limit(limit);
         if normalized_limit == 0 {
+            return Ok(Vec::new());
+        }
+        if empty_optional_range(start_ts, end_ts) {
             return Ok(Vec::new());
         }
         let Some(key_filter) = KeyIdSqlFilter::create(self, "r.key_id", key_ids)? else {
@@ -440,6 +450,9 @@ impl Storage {
         start_ts: Option<i64>,
         end_ts: Option<i64>,
     ) -> Result<i64> {
+        if empty_optional_range(start_ts, end_ts) {
+            return Ok(0);
+        }
         let include_account_lookup = self.has_table("accounts")?;
         let filters = build_request_log_filters(
             query,
@@ -474,6 +487,9 @@ impl Storage {
         end_ts: Option<i64>,
         key_ids: &[String],
     ) -> Result<i64> {
+        if empty_optional_range(start_ts, end_ts) {
+            return Ok(0);
+        }
         let Some(key_filter) = KeyIdSqlFilter::create(self, "r.key_id", key_ids)? else {
             return Ok(0);
         };
@@ -523,6 +539,9 @@ impl Storage {
         start_ts: Option<i64>,
         end_ts: Option<i64>,
     ) -> Result<RequestLogQuerySummary> {
+        if empty_optional_range(start_ts, end_ts) {
+            return Ok(empty_request_log_query_summary());
+        }
         let include_account_lookup = self.has_table("accounts")?;
         let filters = build_request_log_filters(
             query,
@@ -578,6 +597,9 @@ impl Storage {
         end_ts: Option<i64>,
         key_ids: &[String],
     ) -> Result<RequestLogQuerySummary> {
+        if empty_optional_range(start_ts, end_ts) {
+            return Ok(empty_request_log_query_summary());
+        }
         let Some(key_filter) = KeyIdSqlFilter::create(self, "r.key_id", key_ids)? else {
             return Ok(empty_request_log_query_summary());
         };
