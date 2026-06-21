@@ -361,6 +361,8 @@ fn init_tracks_schema_migrations_and_is_idempotent() {
         "095_model_catalog_scope_order_index",
         "096_api_keys_list_order_index",
         "097_tokens_refresh_due_order_index",
+        "098_accounts_list_order_index",
+        "099_model_groups_list_order_index",
     ] {
         let applied: i64 = storage
             .conn

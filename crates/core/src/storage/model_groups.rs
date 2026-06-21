@@ -61,6 +61,8 @@ impl Storage {
             );
             CREATE INDEX IF NOT EXISTS idx_model_groups_status_sort
                 ON model_groups(status, sort, name);
+            CREATE INDEX IF NOT EXISTS idx_model_groups_list_order
+                ON model_groups(sort ASC, name ASC, created_at ASC, id ASC);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_model_groups_default
                 ON model_groups(is_default)
                 WHERE is_default = 1;
@@ -676,6 +678,39 @@ mod tests {
         assert!(snapshot.user_assignments.iter().any(|assignment| {
             assignment.user_id == "usr_snapshot" && assignment.group_id == DEFAULT_MODEL_GROUP_ID
         }));
+    }
+
+    #[test]
+    fn list_model_groups_uses_list_order_index() {
+        let storage = Storage::open_in_memory().expect("open storage");
+        storage.init().expect("init storage");
+
+        let mut stmt = storage
+            .conn
+            .prepare(
+                "EXPLAIN QUERY PLAN
+                 SELECT id, name, description, status, sort, is_default,
+                        rate_multiplier_millis, created_at, updated_at
+                 FROM model_groups
+                 ORDER BY sort ASC, name ASC, created_at ASC",
+            )
+            .expect("prepare explain");
+        let mut rows = stmt.query([]).expect("query explain");
+        let mut plan = String::new();
+        while let Some(row) = rows.next().expect("read explain row") {
+            let detail: String = row.get(3).expect("plan detail");
+            plan.push_str(&detail);
+            plan.push('\n');
+        }
+
+        assert!(
+            plan.contains("idx_model_groups_list_order"),
+            "expected model group list-order index in plan, got {plan}"
+        );
+        assert!(
+            !plan.contains("USE TEMP B-TREE FOR ORDER BY"),
+            "model group list query should avoid temp sorting, got {plan}"
+        );
     }
 
     #[test]
