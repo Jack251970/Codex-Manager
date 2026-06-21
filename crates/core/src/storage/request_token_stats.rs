@@ -297,6 +297,10 @@ fn optional_hourly_rollup_range_clause(start_ts: Option<i64>, end_ts: Option<i64
     }
 }
 
+fn is_empty_optional_range(start_ts: Option<i64>, end_ts: Option<i64>) -> bool {
+    matches!((start_ts, end_ts), (Some(start), Some(end)) if end <= start)
+}
+
 fn map_api_key_token_usage_summary(row: &Row<'_>) -> Result<ApiKeyTokenUsageSummary> {
     Ok(ApiKeyTokenUsageSummary {
         key_id: row.get(0)?,
@@ -716,6 +720,9 @@ impl Storage {
         key_ids: Option<&[String]>,
         limit: Option<usize>,
     ) -> Result<Vec<TokenUsageSummary>> {
+        if is_empty_optional_range(start_ts, end_ts) {
+            return Ok(Vec::new());
+        }
         if limit == Some(0) {
             return Ok(Vec::new());
         }
@@ -863,6 +870,9 @@ impl Storage {
         end_ts: Option<i64>,
         key_ids: Option<&[String]>,
     ) -> Result<Vec<ApiKeyModelTokenUsageSummary>> {
+        if is_empty_optional_range(start_ts, end_ts) {
+            return Ok(Vec::new());
+        }
         let Some(key_ids) = key_ids else {
             return self.query_request_token_stats_by_key_and_model(start_ts, end_ts, None);
         };

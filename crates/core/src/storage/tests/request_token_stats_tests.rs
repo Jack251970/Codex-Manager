@@ -1202,6 +1202,49 @@ fn summaries_for_empty_key_lists_return_empty_results() {
         .is_empty());
 }
 
+#[test]
+fn model_summaries_short_circuit_empty_optional_ranges() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+    storage
+        .insert_request_token_stat(&RequestTokenStat {
+            request_log_id: 1,
+            key_id: Some("key-a".to_string()),
+            account_id: Some("acc-a".to_string()),
+            model: Some("gpt-5".to_string()),
+            total_tokens: Some(15),
+            estimated_cost_usd: Some(0.10),
+            created_at: 100,
+            ..RequestTokenStat::default()
+        })
+        .expect("insert raw stat");
+
+    assert!(storage
+        .summarize_request_token_stats_by_model(Some(200), Some(200))
+        .expect("summarize model empty range")
+        .is_empty());
+    assert!(storage
+        .summarize_request_token_stats_by_model_for_keys(
+            Some(200),
+            Some(200),
+            &["key-a".to_string()],
+        )
+        .expect("summarize model keys empty range")
+        .is_empty());
+    assert!(storage
+        .summarize_request_token_stats_by_key_and_model(Some(200), Some(200))
+        .expect("summarize key model empty range")
+        .is_empty());
+    assert!(storage
+        .summarize_request_token_stats_by_key_and_model_for_keys(
+            Some(200),
+            Some(200),
+            &["key-a".to_string()],
+        )
+        .expect("summarize key model keys empty range")
+        .is_empty());
+}
+
 /// 函数 `summaries_for_large_key_lists_use_temp_filter`
 ///
 /// 作者: gaohongshun
