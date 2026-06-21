@@ -1,6 +1,6 @@
 use codexmanager_core::storage::{
-    now_ts, ApiKeyOwner, AppUser, AppUserSession, AppWallet, AppWalletLedgerEntry, BillingRule,
-    PublicAppUserWithWallet, Storage,
+    now_ts, ApiKeyOwner, AppUser, AppUserAccessSummary, AppUserSession, AppWallet,
+    AppWalletLedgerEntry, BillingRule, PublicAppUserWithWallet, Storage,
 };
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -411,7 +411,7 @@ pub fn update_app_user(input: AppUserUpdateInput) -> Result<AppUserPublicResult,
         return Err("用户 ID 不能为空".to_string());
     }
     let current = storage
-        .find_app_user_by_id(user_id)
+        .find_app_user_access_summary_by_id(user_id)
         .map_err(|err| format!("read app user failed: {err}"))?
         .ok_or_else(|| "用户不存在".to_string())?;
     let next_role = input
@@ -482,7 +482,7 @@ pub fn delete_app_user(user_id: &str) -> Result<(), String> {
         return Err("用户 ID 不能为空".to_string());
     }
     let user = storage
-        .find_app_user_by_id(user_id)
+        .find_app_user_access_summary_by_id(user_id)
         .map_err(|err| format!("read app user failed: {err}"))?
         .ok_or_else(|| "用户不存在".to_string())?;
     if user.role == "admin" && user.status == "active" {
@@ -1255,16 +1255,19 @@ fn app_user_can_own_wallet(user: &AppUser) -> bool {
     user.role != "admin"
 }
 
-fn ensure_user_can_own_wallet(storage: &Storage, user_id: &str) -> Result<AppUser, String> {
+fn ensure_user_can_own_wallet(
+    storage: &Storage,
+    user_id: &str,
+) -> Result<AppUserAccessSummary, String> {
     let user_id = user_id.trim();
     if user_id.is_empty() {
         return Err("用户归属需要 userId".to_string());
     }
     let user = storage
-        .find_app_user_by_id(user_id)
+        .find_app_user_access_summary_by_id(user_id)
         .map_err(|err| format!("read app user failed: {err}"))?
         .ok_or_else(|| "用户不存在".to_string())?;
-    if !app_user_can_own_wallet(&user) {
+    if user.role == "admin" {
         return Err("管理员账号不参与额度分发".to_string());
     }
     if user.status != "active" {

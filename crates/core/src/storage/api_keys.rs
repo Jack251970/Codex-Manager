@@ -2,8 +2,8 @@ use rusqlite::{params_from_iter, Result, Row};
 
 use super::key_id_filters::{key_id_in_clause, normalize_key_ids, SQLITE_IN_CLAUSE_BATCH_SIZE};
 use super::{
-    now_ts, ApiKey, ApiKeyCodexProfileCandidate, ApiKeyListSummary, ApiKeyProfileConfig,
-    ApiKeyQuotaSummary, ApiKeyStatus, Storage,
+    now_ts, ApiKey, ApiKeyCodexProfileCandidate, ApiKeyGatewayAuth, ApiKeyListSummary,
+    ApiKeyProfileConfig, ApiKeyQuotaSummary, ApiKeyStatus, Storage,
 };
 
 const API_KEY_SELECT_SQL: &str = "SELECT
@@ -321,6 +321,29 @@ impl Storage {
             Ok(Some(ApiKeyStatus {
                 id: row.get(0)?,
                 status: row.get(1)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn find_api_key_gateway_auth_by_id(
+        &self,
+        key_id: &str,
+    ) -> Result<Option<ApiKeyGatewayAuth>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT k.id, k.status, s.key_value
+             FROM api_keys k
+             LEFT JOIN api_key_secrets s ON s.key_id = k.id
+             WHERE k.id = ?1
+             LIMIT 1",
+        )?;
+        let mut rows = stmt.query([key_id])?;
+        if let Some(row) = rows.next()? {
+            Ok(Some(ApiKeyGatewayAuth {
+                id: row.get(0)?,
+                status: row.get(1)?,
+                secret: row.get(2)?,
             }))
         } else {
             Ok(None)

@@ -350,16 +350,15 @@ pub(crate) fn apply_gateway(
     let gateway_base_url = normalize_gateway_base_url(base_url);
 
     let storage = open_storage()?;
-    let api_key = storage
-        .find_api_key_status_by_id(api_key_id)
+    let gateway_auth = storage
+        .find_api_key_gateway_auth_by_id(api_key_id)
         .map_err(|err| format!("read api key failed: {err}"))?
         .ok_or_else(|| "api key not found".to_string())?;
-    if !api_key_status_is_active(&api_key.status) {
+    if !api_key_status_is_active(&gateway_auth.status) {
         return Err("api key is disabled".to_string());
     }
-    let secret = storage
-        .find_api_key_secret_by_id(api_key_id)
-        .map_err(|err| format!("read api key secret failed: {err}"))?
+    let secret = gateway_auth
+        .secret
         .ok_or_else(|| "api key secret not found".to_string())?;
     if secret.trim().is_empty() {
         return Err("api key secret is empty".to_string());
@@ -379,7 +378,7 @@ pub(crate) fn apply_gateway(
             profile_dir: profile_key(&profile_dir),
             mode: CodexProfileMode::Gateway,
             account_id: None,
-            api_key_id: Some(api_key.id),
+            api_key_id: Some(gateway_auth.id),
             gateway_base_url: Some(gateway_base_url),
             provider_id: PROVIDER_ID.to_string(),
             updated_at: now_ts(),

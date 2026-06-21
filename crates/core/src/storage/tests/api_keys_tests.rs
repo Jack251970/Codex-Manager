@@ -453,6 +453,48 @@ fn api_key_exists_helpers_read_minimal_key_state() {
 }
 
 #[test]
+fn api_key_gateway_auth_reads_status_and_secret_in_one_query() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+
+    let mut active_key = make_test_api_key(44);
+    active_key.status = "active".to_string();
+    storage
+        .insert_api_key(&active_key)
+        .expect("insert active api key");
+    storage
+        .upsert_api_key_secret("key-0044", "sk-live-test")
+        .expect("insert active api key secret");
+
+    let mut disabled_key = make_test_api_key(45);
+    disabled_key.status = "disabled".to_string();
+    storage
+        .insert_api_key(&disabled_key)
+        .expect("insert disabled api key");
+
+    let active_auth = storage
+        .find_api_key_gateway_auth_by_id("key-0044")
+        .expect("find active gateway auth")
+        .expect("active gateway auth exists");
+    assert_eq!(active_auth.id, "key-0044");
+    assert_eq!(active_auth.status, "active");
+    assert_eq!(active_auth.secret.as_deref(), Some("sk-live-test"));
+
+    let disabled_auth = storage
+        .find_api_key_gateway_auth_by_id("key-0045")
+        .expect("find disabled gateway auth")
+        .expect("disabled gateway auth exists");
+    assert_eq!(disabled_auth.id, "key-0045");
+    assert_eq!(disabled_auth.status, "disabled");
+    assert!(disabled_auth.secret.is_none());
+
+    assert!(storage
+        .find_api_key_gateway_auth_by_id("key-missing")
+        .expect("find missing gateway auth")
+        .is_none());
+}
+
+#[test]
 fn api_key_profile_config_reads_update_profile_fields_only() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");

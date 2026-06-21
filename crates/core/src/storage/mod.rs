@@ -774,6 +774,13 @@ pub struct ApiKeyStatus {
 }
 
 #[derive(Debug, Clone)]
+pub struct ApiKeyGatewayAuth {
+    pub id: String,
+    pub status: String,
+    pub secret: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ApiKeyProfileConfig {
     pub protocol_type: String,
     pub upstream_base_url: Option<String>,

@@ -3,7 +3,9 @@ use codexmanager_core::auth::{
     normalize_workspace_id, parse_id_token_claims, DEFAULT_CLIENT_ID, DEFAULT_ISSUER,
 };
 use codexmanager_core::rpc::types::LoginStartResult;
-use codexmanager_core::storage::{now_ts, Account, AccountAuthRefreshTarget, Storage, Token};
+use codexmanager_core::storage::{
+    now_ts, Account, AccountAuthRefreshTarget, AccountWorkspaceIdentity, Storage, Token,
+};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -306,9 +308,13 @@ pub(crate) fn refresh_current_chatgpt_auth_tokens(
     }
 
     let refreshed_account = storage
-        .find_account_by_id(&account.id)
+        .find_account_workspace_identity_by_id(&account.id)
         .map_err(|err| err.to_string())?
-        .unwrap_or(account);
+        .unwrap_or_else(|| AccountWorkspaceIdentity {
+            id: account.id,
+            chatgpt_account_id: account.chatgpt_account_id,
+            workspace_id: account.workspace_id,
+        });
     let stored_chatgpt_account_id =
         normalize_chatgpt_account_id(refreshed_account.chatgpt_account_id.as_deref());
     let stored_workspace_id = normalize_workspace_id(refreshed_account.workspace_id.as_deref());
