@@ -366,6 +366,7 @@ fn init_tracks_schema_migrations_and_is_idempotent() {
         "100_user_model_groups_group_lookup_index",
         "101_events_account_cleanup_index",
         "102_app_users_list_order_index",
+        "103_app_project_user_lookup_indexes",
     ] {
         let applied: i64 = storage
             .conn

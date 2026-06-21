@@ -1084,6 +1084,9 @@ impl Storage {
         self.conn.execute_batch(include_str!(
             "../../migrations/102_app_users_list_order_index.sql"
         ))?;
+        self.conn.execute_batch(include_str!(
+            "../../migrations/103_app_project_user_lookup_indexes.sql"
+        ))?;
         Ok(())
     }
 }
@@ -1416,6 +1419,41 @@ mod tests {
         assert!(
             !plan.contains("USE TEMP B-TREE FOR ORDER BY"),
             "app user list query should avoid temp sorting, got {plan}"
+        );
+    }
+
+    #[test]
+    fn app_project_user_relationship_queries_use_lookup_indexes() {
+        let storage = Storage::open_in_memory().expect("open storage");
+        storage.init().expect("init storage");
+
+        let owned_projects_plan = collect_query_plan(
+            &storage,
+            "EXPLAIN QUERY PLAN
+             SELECT id
+             FROM app_projects
+             WHERE owner_user_id = 'user-1'",
+        );
+        let memberships_plan = collect_query_plan(
+            &storage,
+            "EXPLAIN QUERY PLAN
+             SELECT project_id
+             FROM app_project_members
+             WHERE user_id = 'user-1'
+             ORDER BY project_id ASC",
+        );
+
+        assert!(
+            owned_projects_plan.contains("idx_app_projects_owner_user_lookup"),
+            "expected owned project lookup to use owner user index, got {owned_projects_plan}"
+        );
+        assert!(
+            memberships_plan.contains("idx_app_project_members_user_lookup"),
+            "expected project member lookup to use user lookup index, got {memberships_plan}"
+        );
+        assert!(
+            !memberships_plan.contains("USE TEMP B-TREE FOR ORDER BY"),
+            "project member lookup should avoid temp sorting, got {memberships_plan}"
         );
     }
 
