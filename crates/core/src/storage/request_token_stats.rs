@@ -402,6 +402,14 @@ impl Storage {
         if cutoff_ts <= 0 {
             return Ok(0);
         }
+        let pending_count: i64 = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM request_token_stats WHERE created_at < ?1)",
+            [cutoff_ts],
+            |row| row.get(0),
+        )?;
+        if pending_count == 0 {
+            return Ok(0);
+        }
         let now = now_ts();
         let tx = self.conn.unchecked_transaction()?;
         tx.execute(

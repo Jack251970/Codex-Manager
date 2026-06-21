@@ -685,6 +685,27 @@ fn daily_range_query_matches_created_at_index() {
 }
 
 #[test]
+fn rollup_request_token_stats_short_circuits_empty_raw_stats() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+
+    let deleted = storage
+        .rollup_request_token_stats_before(i64::MAX)
+        .expect("roll up empty raw stats");
+    assert_eq!(deleted, 0);
+
+    let hourly_rows: i64 = storage
+        .conn
+        .query_row(
+            "SELECT COUNT(1) FROM request_token_stat_hourly_rollups",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count hourly rollups");
+    assert_eq!(hourly_rows, 0);
+}
+
+#[test]
 fn dashboard_rollups_survive_cleared_request_logs() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");
