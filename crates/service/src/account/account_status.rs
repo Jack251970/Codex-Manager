@@ -25,6 +25,12 @@ pub(crate) struct GatewayErrorFollowUp {
     pub should_mark_default_cooldown: bool,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct AccountStatusContext {
+    pub status: String,
+    pub reason: Option<String>,
+}
+
 /// 函数 `latest_status_reason`
 ///
 /// 作者: gaohongshun
@@ -44,6 +50,20 @@ fn latest_status_reason(storage: &Storage, account_id: &str) -> Option<String> {
         .and_then(|mut reasons| reasons.remove(account_id))
 }
 
+pub(crate) fn load_account_status_context(
+    storage: &Storage,
+    account_id: &str,
+) -> AccountStatusContext {
+    AccountStatusContext {
+        status: storage
+            .find_account_status_by_id(account_id)
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+        reason: latest_status_reason(storage, account_id),
+    }
+}
+
 /// 函数 `set_account_status`
 ///
 /// 作者: gaohongshun
@@ -56,15 +76,33 @@ fn latest_status_reason(storage: &Storage, account_id: &str) -> Option<String> {
 /// # 返回
 /// 无
 pub(crate) fn set_account_status(storage: &Storage, account_id: &str, status: &str, reason: &str) {
+    set_account_status_with_context(storage, account_id, status, reason, None);
+}
+
+pub(crate) fn set_account_status_with_context(
+    storage: &Storage,
+    account_id: &str,
+    status: &str,
+    reason: &str,
+    context: Option<&AccountStatusContext>,
+) {
     let (account_exists, changed) = storage
         .update_account_status_if_changed_with_existence(account_id, status)
         .unwrap_or((false, false));
     if changed {
         crate::gateway::invalidate_candidate_cache();
     }
-    if account_exists
-        && (changed || latest_status_reason(storage, account_id).as_deref() != Some(reason))
-    {
+    let should_insert_event = if !account_exists || changed {
+        account_exists
+    } else {
+        let latest_reason = context
+            .filter(|context| context.status.trim().eq_ignore_ascii_case(status))
+            .and_then(|context| context.reason.as_deref())
+            .map(str::to_string)
+            .or_else(|| latest_status_reason(storage, account_id));
+        latest_reason.as_deref() != Some(reason)
+    };
+    if should_insert_event {
         let _ = storage.insert_event(&Event {
             account_id: Some(account_id.to_string()),
             event_type: "account_status_update".to_string(),
