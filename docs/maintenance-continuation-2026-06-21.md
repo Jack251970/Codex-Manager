@@ -5861,3 +5861,26 @@
   - No behavior change or feature removal was intended; this is a module-boundary cleanup for the request rewrite surface.
   - No SQLite migration or new index was involved in this service-layer slice.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - accounts basic SQL helper split
+
+- Latest completed slice in this continuation:
+  - Reconfirmed the worktree after commit `887a955f`; branch was clean and `main...origin/main [ahead 27]`.
+  - Re-scanned current `reqwest` client construction points across `crates` and `apps/src-tauri/src`.
+  - Current client-reuse finding:
+    - Gateway upstream clients, async upstream clients, retry clients, model picker clients, usage/subscription clients, account warmup client, plugin runtime client, auth clients, and web service probe client already use cached clients or startup-scoped state.
+    - Remaining `Client::new()`/builder hits inspected in aggregate API, postprocess, and protocol aggregate API were test-local clients, not production hot-path repeated construction.
+  - Re-scanned large storage/service files and selected `crates/core/src/storage/accounts.rs` because it remained the largest storage module and contains many SQL helper functions mixed into the business storage implementation.
+  - Files touched:
+    - `crates/core/src/storage/mod.rs`
+    - `crates/core/src/storage/accounts.rs`
+    - `crates/core/src/storage/accounts_sql.rs`
+  - Added `accounts_sql.rs` and moved the independent basic `accounts` table SQL helpers into it, including count, by-id, status, update, preferred-account, and base list-order SQL helpers.
+  - Kept complex quota/gateway/latest-usage CTE SQL in `accounts.rs` because it still shares local helper context and was not part of this safe mechanical split.
+- Validation passed so far:
+  - `cargo fmt` was run after the split.
+  - `cargo test -p codexmanager-core accounts -- --nocapture` passed: 74 matching core library tests plus 2 matching storage integration tests.
+  - `cargo test -p codexmanager-core` passed: 349 core library tests, 7 auth integration tests, 29 storage integration tests, 1 usage integration test, 1 version integration test, and 0 doctests.
+- Notes:
+  - No SQLite migration or new index was added; no current query-plan evidence justified adding an index in this slice.
+  - No feature removal was attempted; the client scan did not find a safe production hot-path fresh-client construction candidate requiring code change.
+  - Goal remains active after this slice.

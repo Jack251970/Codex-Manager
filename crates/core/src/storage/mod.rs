@@ -7,6 +7,7 @@ mod account_manager;
 mod account_metadata;
 mod account_subscriptions;
 mod accounts;
+mod accounts_sql;
 mod aggregate_apis;
 mod api_key_quota_limits;
 mod api_keys;
