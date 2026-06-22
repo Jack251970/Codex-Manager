@@ -5696,3 +5696,25 @@
   - No SQLite migration or new index was added; existing plans already use the intended range indexes.
   - No feature removal was attempted; no current safe-removal proof was found.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - request token total rollup SQL helper
+
+- Latest completed slice in this continuation:
+  - Continued the SQLite/core maintainability track in `crates/core/src/storage/request_token_stats.rs` after the daily rollup helper commit.
+  - Found duplicate total rollup `WITH combined` wrappers in:
+    - `query_request_token_stats_query_between(...)`
+    - `summarize_request_token_stats_for_user_between(...)`
+  - Added storage-local SQL helper:
+    - `request_token_stats_total_rollup_sql(raw, hourly)`
+  - Updated both production total rollup paths to use the helper while preserving their different raw/hourly predicates, owner joins, and parameter sets at the call sites.
+  - Added EXPLAIN coverage in `total_rollup_query_includes_raw_and_hourly_sources` to verify the helper-backed total rollup query still reads raw token stats via `idx_request_token_stats_created_at` and hourly rollups via `idx_request_token_stat_hourly_rollups_bucket_start`.
+- Validation passed for this slice:
+  - `cargo test -p codexmanager-core total_rollup_query_includes_raw_and_hourly_sources -- --nocapture` passed: 1 matching core library test.
+  - `cargo test -p codexmanager-core request_token_stats -- --nocapture` passed: 24 matching core library tests and 2 matching storage integration tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed; Git only reported LF-to-CRLF working-copy conversion warnings.
+  - `cargo test -p codexmanager-core` passed with 345 core library tests, 7 auth integration tests, 29 storage integration tests, 1 usage integration test, 1 version integration test, and 0 doc-tests.
+- Notes:
+  - No SQLite migration or new index was added; existing range indexes are still used.
+  - No feature removal was attempted; no current safe-removal proof was found.
+  - Local `./skills/skill-router/SKILL.md` is absent in this checkout; this pass continued with repository evidence and root `AGENTS.md` instead of pretending to execute the missing local skill.
+  - Goal remains active after this slice.

@@ -700,6 +700,32 @@ fn daily_range_query_matches_created_at_index() {
 }
 
 #[test]
+fn total_rollup_query_includes_raw_and_hourly_sources() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+    let raw =
+        super::raw_token_rollup_select("", "t.created_at >= ?1 AND t.created_at < ?2", "", false);
+    let hourly = super::hourly_token_rollup_select("", super::hourly_rollup_range_clause(), "");
+    let sql = super::request_token_stats_total_rollup_sql(&raw, &hourly);
+
+    let details = collect_query_plan_details_with_params(
+        &storage,
+        &format!("EXPLAIN QUERY PLAN {sql}"),
+        vec![Value::Integer(0), Value::Integer(604800)],
+    );
+
+    assert_uses_index(
+        &details,
+        "idx_request_token_stats_created_at",
+        "total raw rollup",
+    );
+    assert_uses_index(
+        &details,
+        "idx_request_token_stat_hourly_rollups_bucket_start",
+        "total hourly rollup",
+    );
+}
+#[test]
 fn daily_rollup_query_includes_raw_and_hourly_sources() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");

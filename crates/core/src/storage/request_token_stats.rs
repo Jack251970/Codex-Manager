@@ -327,6 +327,18 @@ fn request_token_stats_by_key_sql(
     )
 }
 
+fn request_token_stats_total_rollup_sql(raw: &str, hourly: &str) -> String {
+    format!(
+        "WITH combined AS (
+            {raw}
+            UNION ALL
+            {hourly}
+         )
+         SELECT
+            {COMBINED_ROLLUP_COLUMNS}
+         FROM combined"
+    )
+}
 fn request_token_stats_daily_rollup_sql(raw: &str, hourly: &str) -> String {
     format!(
         "WITH combined AS (
@@ -790,16 +802,8 @@ impl Storage {
             ),
             "",
         );
-        let sql = format!(
-            "WITH combined AS (
-                {raw}
-                UNION ALL
-                {hourly}
-             )
-             SELECT
-                {COMBINED_ROLLUP_COLUMNS}
-             FROM combined"
-        );
+        let sql = request_token_stats_total_rollup_sql(&raw, &hourly);
+
         let mut stmt = self.conn.prepare(&sql)?;
         let usage = if let Some(params) = optional_range_params(start_ts, end_ts) {
             stmt.query_row(params_from_iter(params), |row| {
@@ -1273,16 +1277,8 @@ impl Storage {
             &format!("{} AND h.owner_user_id = ?3", hourly_rollup_range_clause()),
             "",
         );
-        let sql = format!(
-            "WITH combined AS (
-                {raw}
-                UNION ALL
-                {hourly}
-             )
-             SELECT
-                {COMBINED_ROLLUP_COLUMNS}
-             FROM combined"
-        );
+        let sql = request_token_stats_total_rollup_sql(&raw, &hourly);
+
         self.conn
             .query_row(&sql, params![start_ts, end_ts, user_id.trim()], |row| {
                 token_usage_rollup_from_row(row, 0)
