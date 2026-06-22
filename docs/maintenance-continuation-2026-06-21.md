@@ -6112,3 +6112,22 @@
   - No SQLite migration or new index was added; existing usage query-plan assertions were preserved unchanged in the moved test file.
   - No feature removal was attempted in this slice.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - tokens storage tests module split
+
+- Latest completed slice in this continuation:
+  - Continued the core storage modularity scan after confirming `request_token_stats.rs` and `api_keys.rs` already use external test files.
+  - Reconfirmed `crates/core/src/storage/tokens.rs` as a storage module with an EOF `#[cfg(test)] mod tests` block containing pure token storage test code.
+  - Files touched:
+    - `crates/core/src/storage/tokens.rs`
+    - `crates/core/src/storage/tokens_tests.rs`
+  - Moved the inline token list/refresh/chunk/query-plan tests into `tokens_tests.rs` and left the parent module with `#[path = "tokens_tests.rs"] mod tests;`.
+  - No token production logic or SQL text was changed; tests remain a child module and still access private helpers through `super`.
+- Validation passed so far:
+  - `cargo fmt` passed after the split.
+  - `cargo test -p codexmanager-core tokens -- --nocapture` passed: 21 matching core library tests and 3 matching storage integration tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed with only LF-to-CRLF warnings and exit code 0.
+- Notes:
+  - No SQLite migration or new index was added; existing token query-plan assertions were preserved unchanged in the moved test file.
+  - No feature removal was attempted in this slice.
+  - Goal remains active after this slice.
