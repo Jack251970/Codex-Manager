@@ -9,6 +9,7 @@ mod account_subscriptions;
 mod accounts;
 mod accounts_sql;
 mod aggregate_apis;
+mod aggregate_apis_sql;
 mod api_key_quota_limits;
 mod api_keys;
 mod conversation_bindings;

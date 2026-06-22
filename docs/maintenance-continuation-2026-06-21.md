@@ -5884,3 +5884,22 @@
   - No SQLite migration or new index was added; no current query-plan evidence justified adding an index in this slice.
   - No feature removal was attempted; the client scan did not find a safe production hot-path fresh-client construction candidate requiring code change.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - aggregate API basic SQL helper split
+
+- Latest completed slice in this continuation:
+  - Continued the core storage modularity pass after extracting `accounts_sql.rs`.
+  - Re-scanned `crates/core/src/storage/aggregate_apis.rs`, another large storage module with a long basic SQL helper block mixed into the storage implementation.
+  - Files touched:
+    - `crates/core/src/storage/mod.rs`
+    - `crates/core/src/storage/aggregate_apis.rs`
+    - `crates/core/src/storage/aggregate_apis_sql.rs`
+  - Added `aggregate_apis_sql.rs` and moved the independent base SQL constants and helpers into it, including direct lookup, joined secret lookup, update/delete helpers, overview stats SQL, supplier identity SQL, and supplier model list/delete SQL.
+  - Kept chunked list/filter SQL helpers in `aggregate_apis.rs` because they remain coupled to the surrounding batch/filter code.
+- Validation passed so far:
+  - `cargo fmt` was run after the split.
+  - `cargo test -p codexmanager-core aggregate_api -- --nocapture` passed: 29 matching core library tests plus 1 matching storage integration test.
+  - `cargo test -p codexmanager-core` passed: 349 core library tests, 7 auth integration tests, 29 storage integration tests, 1 usage integration test, 1 version integration test, and 0 doctests.
+- Notes:
+  - No SQLite migration or new index was added; this is a maintainability-only SQL helper extraction.
+  - No feature removal was attempted in this slice.
+  - Goal remains active after this slice.
