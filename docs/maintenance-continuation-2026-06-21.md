@@ -5974,3 +5974,24 @@
   - No SQLite migration or new index was added in this service-layer test-module split.
   - No feature removal was attempted; this was a maintainability cleanup.
   - Goal remains active after this slice.
+
+## 2026-06-22 continuation - local validation request tests split
+
+- Latest completed slice in this continuation:
+  - Continued service-layer modularity after splitting response WebSocket tests.
+  - Re-scanned `crates/service/src/gateway/local_validation/request.rs`, which already used `tests/request_tests.rs` but still kept two EOF inline test modules for image request adaptation and removed OpenAI compatibility paths.
+  - Files touched:
+    - `crates/service/src/gateway/local_validation/request.rs`
+    - `crates/service/src/gateway/local_validation/tests/request_images_tests.rs`
+    - `crates/service/src/gateway/local_validation/tests/request_removed_path_tests.rs`
+  - Moved the remaining inline tests into focused files under `local_validation/tests/` and left the parent module with explicit `#[path = ...]` declarations.
+  - No local validation production logic was changed; the tests remain child modules and still access the same private helpers through `super`.
+- Validation passed so far:
+  - `cargo fmt` passed after the split.
+  - `cargo test -p codexmanager-service local_validation::request -- --nocapture` passed: 65 matching service library tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed with only LF-to-CRLF warnings and exit code 0.
+- Notes:
+  - No SQLite migration or new index was added in this service-layer test-module split.
+  - No feature removal was attempted; this was a maintainability cleanup.
+  - Goal remains active after this slice.
