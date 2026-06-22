@@ -6150,3 +6150,22 @@
   - No SQLite migration or new index was added; existing model group query-plan assertions were preserved unchanged in the moved test file.
   - No feature removal was attempted in this slice.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - quota pools storage tests module split
+
+- Latest completed slice in this continuation:
+  - Continued the core storage modularity scan after splitting model group storage tests.
+  - Reconfirmed `crates/core/src/storage/quota_pools.rs` as a storage module with an EOF `#[cfg(test)] mod tests` block containing pure quota pool storage test code.
+  - Files touched:
+    - `crates/core/src/storage/quota_pools.rs`
+    - `crates/core/src/storage/quota_pools_tests.rs`
+  - Moved the inline quota pool/source assignment/query-plan tests into `quota_pools_tests.rs` and left the parent module with `#[path = "quota_pools_tests.rs"] mod tests;`.
+  - No quota pool production logic or SQL text was changed; tests remain a child module and still access private helpers through `super`.
+- Validation passed so far:
+  - `cargo fmt` passed after the split.
+  - `cargo test -p codexmanager-core quota_pools -- --nocapture` passed: 9 matching core library tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed with only LF-to-CRLF warnings and exit code 0.
+- Notes:
+  - No SQLite migration or new index was added; existing quota pool query-plan assertions were preserved unchanged in the moved test file.
+  - No feature removal was attempted in this slice.
+  - Goal remains active after this slice.
