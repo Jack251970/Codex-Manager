@@ -6229,3 +6229,25 @@
   - No SQLite migration or new index was added; existing account sidecar query-plan assertions were preserved unchanged in the moved test files.
   - No feature removal was attempted in this slice.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - request log filters and settings tests module split
+
+- Latest completed slice in this continuation:
+  - Continued the core storage modularity scan after splitting account sidecar storage tests.
+  - Reconfirmed `crates/core/src/storage/request_log_filters.rs` and `crates/core/src/storage/settings.rs` each had EOF `#[cfg(test)] mod tests` blocks containing pure storage helper tests.
+  - Files touched:
+    - `crates/core/src/storage/request_log_filters.rs`
+    - `crates/core/src/storage/request_log_filters_tests.rs`
+    - `crates/core/src/storage/settings.rs`
+    - `crates/core/src/storage/settings_tests.rs`
+  - Moved the inline request-log filter and settings tests into focused sibling test files and left each parent module with `#[path = ...] mod tests;`.
+  - No request-log filter or settings production logic or SQL text was changed; tests remain child modules and still access private helpers through `super`.
+- Validation passed so far:
+  - `cargo fmt` passed after the split.
+  - `cargo test -p codexmanager-core request_log_filters -- --nocapture` passed: 1 matching core library test.
+  - `cargo test -p codexmanager-core settings -- --nocapture` passed: 2 matching core library tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed with only LF-to-CRLF warnings and exit code 0.
+- Notes:
+  - No SQLite migration or new index was added; existing query-plan and filter-behavior assertions were preserved unchanged in the moved test files.
+  - No feature removal was attempted in this slice.
+  - Goal remains active after this slice.
