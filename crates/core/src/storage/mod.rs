@@ -1828,6 +1828,10 @@ impl Storage {
             "110_accounts_preferred_lookup_index",
             include_str!("../../migrations/110_accounts_preferred_lookup_index.sql"),
         )?;
+        self.apply_sql_migration(
+            "111_model_source_platform_slug_lookup_indexes",
+            include_str!("../../migrations/111_model_source_platform_slug_lookup_indexes.sql"),
+        )?;
         self.ensure_api_key_rotation_columns()?;
         self.ensure_aggregate_apis_table()?;
         self.ensure_aggregate_api_supplier_model_tables()?;

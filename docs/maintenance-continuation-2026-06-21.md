@@ -5329,3 +5329,45 @@
   - Continue SQLite work only when production SQL/helper/EXPLAIN alignment or a real query-plan issue is visible.
   - Continue client reuse only if a production/request/frequent background path repeatedly constructs a stable-config client.
   - Continue feature removal only with current call-site evidence plus tests proving it is safe.
+## 2026-06-22 tail marker - model source platform slug lookup indexes
+
+- Latest completed slice in this continuation:
+  - Scanned `auto_associate_source_models(...)` in `crates/service/src/apikey/apikey_models.rs` and confirmed it calls platform-slug reverse lookups on real service paths.
+  - Files touched:
+    - `crates/core/src/storage/model_sources.rs`
+    - `crates/core/src/storage/mod.rs`
+    - `crates/core/migrations/111_model_source_platform_slug_lookup_indexes.sql`
+  - Added migration and `ensure_model_source_tables()` coverage for:
+    - `idx_model_source_mappings_source_platform` on `(source_kind, source_id, platform_model_slug)`.
+    - `idx_model_source_mappings_kind_enabled_platform` on `(source_kind, enabled, platform_model_slug)`.
+  - Extracted storage-local SQL helpers:
+    - `model_source_mapping_platform_slugs_for_source_sql()`
+    - `enabled_model_source_mapping_platform_slugs_for_kind_sql()`
+    - `enabled_model_source_mapping_platform_slugs_sql()`
+  - Expanded EXPLAIN coverage:
+    - `model_source_lookup_queries_use_composite_indexes` now verifies source-specific platform slug lookup uses `idx_model_source_mappings_source_platform` and avoids temp ORDER BY sorting.
+    - The same test verifies source-kind enabled platform slug lookup uses `idx_model_source_mappings_kind_enabled_platform` and avoids temp ORDER BY sorting.
+- Validation:
+  - `cargo test -p codexmanager-core model_source_lookup_queries_use_composite_indexes -- --nocapture` passed:
+    - 1 matching core library test.
+  - `cargo fmt --check` passed.
+  - `cargo test -p codexmanager-core model_sources -- --nocapture` passed:
+    - 6 matching core library tests.
+  - `cargo test -p codexmanager-core migration_tests -- --nocapture` passed:
+    - 17 matching core library tests.
+  - `cargo test -p codexmanager-core` passed:
+    - 338 core library tests.
+    - 7 auth integration tests.
+    - 29 storage integration tests.
+    - 1 usage integration test.
+    - 1 version integration test.
+    - doc-tests with 0 tests.
+- Notes:
+  - This is a real SQLite optimization slice, not only helper extraction; existing databases need migration `111_model_source_platform_slug_lookup_indexes`.
+  - No feature removal was attempted; no current safe-removal proof was found.
+  - Upstream HTTP client scan in this slice did not find a new high-frequency stable-config rebuild path suitable for reuse changes.
+- Next continuation constraints:
+  - Goal remains active.
+  - Continue SQLite work only when production SQL/helper/EXPLAIN alignment or a real query-plan issue is visible.
+  - Continue client reuse only if a production/request/frequent background path repeatedly constructs a stable-config client.
+  - Continue feature removal only with current call-site evidence plus tests proving it is safe.

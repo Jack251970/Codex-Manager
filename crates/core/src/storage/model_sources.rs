@@ -100,6 +100,10 @@ impl Storage {
             );
             CREATE INDEX IF NOT EXISTS idx_model_source_mappings_source
                 ON model_source_mappings(source_kind, source_id, enabled);
+            CREATE INDEX IF NOT EXISTS idx_model_source_mappings_source_platform
+                ON model_source_mappings(source_kind, source_id, platform_model_slug);
+            CREATE INDEX IF NOT EXISTS idx_model_source_mappings_kind_enabled_platform
+                ON model_source_mappings(source_kind, enabled, platform_model_slug);
             CREATE INDEX IF NOT EXISTS idx_model_source_mappings_platform_enabled_priority_weight
                 ON model_source_mappings(platform_model_slug, enabled, priority DESC, weight DESC, source_kind, source_id, upstream_model);
             CREATE INDEX IF NOT EXISTS idx_model_source_mappings_platform_source_enabled_priority
@@ -414,13 +418,9 @@ impl Storage {
         if source_kind.is_empty() || source_id.is_empty() {
             return Ok(Vec::new());
         }
-        let mut stmt = self.conn.prepare(
-            "SELECT DISTINCT platform_model_slug
-             FROM model_source_mappings
-             WHERE source_kind = ?1
-               AND source_id = ?2
-             ORDER BY platform_model_slug ASC",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare(model_source_mapping_platform_slugs_for_source_sql())?;
         let rows = stmt.query_map(params![source_kind, source_id], |row| {
             row.get::<_, String>(0)
         })?;
@@ -435,24 +435,17 @@ impl Storage {
         if source_kind.is_empty() {
             return Ok(Vec::new());
         }
-        let mut stmt = self.conn.prepare(
-            "SELECT DISTINCT platform_model_slug
-             FROM model_source_mappings
-             WHERE source_kind = ?1
-               AND enabled = 1
-             ORDER BY platform_model_slug ASC",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare(enabled_model_source_mapping_platform_slugs_for_kind_sql())?;
         let rows = stmt.query_map(params![source_kind], |row| row.get::<_, String>(0))?;
         rows.collect()
     }
 
     pub fn list_enabled_model_source_mapping_platform_slugs(&self) -> Result<Vec<String>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT DISTINCT platform_model_slug
-             FROM model_source_mappings
-             WHERE enabled = 1
-             ORDER BY platform_model_slug ASC",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare(enabled_model_source_mapping_platform_slugs_sql())?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
         rows.collect()
     }
@@ -1036,6 +1029,29 @@ fn model_route_source_ids_for_kind_sql() -> &'static str {
      ORDER BY source_id ASC"
 }
 
+fn model_source_mapping_platform_slugs_for_source_sql() -> &'static str {
+    "SELECT DISTINCT platform_model_slug
+     FROM model_source_mappings
+     WHERE source_kind = ?1
+       AND source_id = ?2
+     ORDER BY platform_model_slug ASC"
+}
+
+fn enabled_model_source_mapping_platform_slugs_for_kind_sql() -> &'static str {
+    "SELECT DISTINCT platform_model_slug
+     FROM model_source_mappings
+     WHERE source_kind = ?1
+       AND enabled = 1
+     ORDER BY platform_model_slug ASC"
+}
+
+fn enabled_model_source_mapping_platform_slugs_sql() -> &'static str {
+    "SELECT DISTINCT platform_model_slug
+     FROM model_source_mappings
+     WHERE enabled = 1
+     ORDER BY platform_model_slug ASC"
+}
+
 fn model_source_mapping_preferences_for_source_sql() -> &'static str {
     "SELECT source_kind, source_id, upstream_model, preference, updated_at
      FROM model_source_mapping_preferences
@@ -1380,6 +1396,45 @@ mod tests {
                 .iter()
                 .any(|detail| detail.contains("use temp b-tree for order by")),
             "expected mapping source id list to avoid temp sorting, got {mapping_source_id_details:?}"
+        );
+
+        let source_platform_slug_details = collect_query_plan_details_with_params(
+            &storage,
+            &format!(
+                "EXPLAIN QUERY PLAN {}",
+                model_source_mapping_platform_slugs_for_source_sql()
+            ),
+            vec![
+                Value::Text("openai_account".to_string()),
+                Value::Text("acc-routing-1".to_string()),
+            ],
+        );
+        assert!(source_platform_slug_details
+            .iter()
+            .any(|detail| detail.contains("idx_model_source_mappings_source_platform")));
+        assert!(
+            !source_platform_slug_details
+                .iter()
+                .any(|detail| detail.contains("use temp b-tree for order by")),
+            "expected source platform slug list to avoid temp sorting, got {source_platform_slug_details:?}"
+        );
+
+        let kind_platform_slug_details = collect_query_plan_details_with_params(
+            &storage,
+            &format!(
+                "EXPLAIN QUERY PLAN {}",
+                enabled_model_source_mapping_platform_slugs_for_kind_sql()
+            ),
+            vec![Value::Text("openai_account".to_string())],
+        );
+        assert!(kind_platform_slug_details
+            .iter()
+            .any(|detail| detail.contains("idx_model_source_mappings_kind_enabled_platform")));
+        assert!(
+            !kind_platform_slug_details
+                .iter()
+                .any(|detail| detail.contains("use temp b-tree for order by")),
+            "expected kind platform slug list to avoid temp sorting, got {kind_platform_slug_details:?}"
         );
 
         let source_mapping_details = collect_query_plan_details_with_params(
