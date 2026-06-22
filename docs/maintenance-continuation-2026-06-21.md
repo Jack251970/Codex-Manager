@@ -5815,3 +5815,26 @@
   - No SQLite migration or new index was added; this slice proves the existing event status lookup index is still used by the token refresh eligibility query.
   - No feature removal was attempted; no current safe-removal proof was found.
   - Goal remains active after this slice.
+
+## 2026-06-22 continuation - event count SQL helper
+
+- Latest completed slice in this continuation:
+  - Continued the core storage modularity scan after token refresh query-plan coverage.
+  - Found `Storage::event_count()` still kept its SQL inline while the same module already exposed helper-backed SQL for cleanup and latest status reads.
+  - Files touched:
+    - `crates/core/src/storage/events.rs`
+    - `crates/core/src/storage/tests/events_tests.rs`
+  - Added storage-local SQL helper:
+    - `event_count_sql()`
+  - Updated `Storage::event_count()` to use the helper and added `event_count_counts_inserted_events` to cover the helper-backed read path.
+- Validation passed for this slice:
+  - `cargo test -p codexmanager-core event_count_counts_inserted_events -- --nocapture` passed: 1 matching core library test.
+  - `cargo fmt` was run after the initial edit to normalize Rust spacing.
+  - `cargo test -p codexmanager-core events -- --nocapture` passed: 7 matching core library tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed; Git only reported LF-to-CRLF working-copy conversion warnings.
+  - `cargo test -p codexmanager-core` passed with 349 core library tests, 7 auth integration tests, 29 storage integration tests, 1 usage integration test, 1 version integration test, and 0 doc-tests.
+- Notes:
+  - No SQLite migration or new index was added; this is a maintainability-only helper extraction for an existing count query.
+  - No feature removal was attempted; no current safe-removal proof was found.
+  - Goal remains active after this slice.

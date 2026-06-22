@@ -42,8 +42,7 @@ impl Storage {
     /// # 返回
     /// 返回函数执行结果
     pub fn event_count(&self) -> Result<i64> {
-        self.conn
-            .query_row("SELECT COUNT(1) FROM events", [], |row| row.get(0))
+        self.conn.query_row(event_count_sql(), [], |row| row.get(0))
     }
 
     /// 函数 `latest_account_status_reasons`
@@ -108,6 +107,9 @@ impl Storage {
     }
 }
 
+fn event_count_sql() -> &'static str {
+    "SELECT COUNT(1) FROM events"
+}
 pub(super) fn delete_events_for_account_sql() -> &'static str {
     "DELETE FROM events WHERE account_id = ?1"
 }

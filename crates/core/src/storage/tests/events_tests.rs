@@ -11,6 +11,30 @@ fn collect_query_plan(storage: &Storage, sql: &str) -> String {
     }
     plan
 }
+#[test]
+fn event_count_counts_inserted_events() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+
+    assert_eq!(storage.event_count().expect("initial count"), 0);
+
+    for (account_id, event_type, created_at) in [
+        (Some("acc-1"), "account_status_update", 10),
+        (Some("acc-2"), "usage_refresh", 20),
+        (None, "system", 30),
+    ] {
+        storage
+            .insert_event(&Event {
+                account_id: account_id.map(str::to_string),
+                event_type: event_type.to_string(),
+                message: "event".to_string(),
+                created_at,
+            })
+            .expect("insert event");
+    }
+
+    assert_eq!(storage.event_count().expect("count events"), 3);
+}
 
 /// 函数 `latest_account_status_reasons_returns_latest_reason_per_account`
 ///
