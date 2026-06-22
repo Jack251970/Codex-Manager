@@ -6035,3 +6035,23 @@
   - No SQLite migration or new index was added; the existing account manager query-plan assertions were preserved unchanged in the moved test file.
   - No feature removal was attempted in this slice.
   - Goal remains active after this slice.
+## 2026-06-22 continuation - plugin storage tests module split
+
+- Latest completed slice in this continuation:
+  - Continued the core storage modularity scan after splitting account manager storage tests.
+  - Reconfirmed `crates/core/src/storage/plugins.rs` as a large storage module and found its EOF `#[cfg(test)] mod tests` block was pure plugin storage test code.
+  - Files touched:
+    - `crates/core/src/storage/plugins.rs`
+    - `crates/core/src/storage/plugins_tests.rs`
+  - Moved the inline plugin install/task/run-log storage tests into `plugins_tests.rs` and left the parent module with `#[path = "plugins_tests.rs"] mod tests;`.
+  - No plugin storage production logic or SQL text was changed; tests remain a child module and still access private SQL helpers through `super`.
+- Validation passed so far:
+  - `cargo fmt` passed after the split.
+  - `cargo test -p codexmanager-core plugins -- --nocapture` passed: 28 matching core library tests.
+  - `cargo fmt --check` passed.
+  - `git diff --check` passed with only LF-to-CRLF warnings and exit code 0.
+- Notes:
+  - No SQLite migration or new index was added; existing plugin query-plan assertions were preserved unchanged in the moved test file.
+  - Client scan rechecked usage/auth/warmup/model-picker paths; they already use cached clients or stable runtime-scoped clients, so no additional client reuse edit was made in this slice.
+  - No feature removal was attempted in this slice.
+  - Goal remains active after this slice.
