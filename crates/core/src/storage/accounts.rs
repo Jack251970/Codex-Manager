@@ -453,12 +453,7 @@ impl Storage {
         &self,
         account_id: &str,
     ) -> Result<Option<AccountDirectAuthProfile>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, issuer, chatgpt_account_id, status
-             FROM accounts
-             WHERE id = ?1
-             LIMIT 1",
-        )?;
+        let mut stmt = self.conn.prepare(account_direct_auth_profile_by_id_sql())?;
         let mut rows = stmt.query([account_id])?;
         if let Some(row) = rows.next()? {
             Ok(Some(AccountDirectAuthProfile {
@@ -831,12 +826,7 @@ impl Storage {
     /// # 返回
     /// 返回函数执行结果
     pub fn find_account_by_id(&self, account_id: &str) -> Result<Option<Account>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, label, issuer, chatgpt_account_id, workspace_id, group_name, sort, status, created_at, updated_at
-             FROM accounts
-             WHERE id = ?1
-             LIMIT 1",
-        )?;
+        let mut stmt = self.conn.prepare(account_by_id_sql())?;
         let mut rows = stmt.query([account_id])?;
         if let Some(row) = rows.next()? {
             Ok(Some(map_account_row(row)?))
@@ -846,12 +836,7 @@ impl Storage {
     }
 
     pub fn find_account_status_by_id(&self, account_id: &str) -> Result<Option<String>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT status
-             FROM accounts
-             WHERE id = ?1
-             LIMIT 1",
-        )?;
+        let mut stmt = self.conn.prepare(account_status_by_id_sql())?;
         let mut rows = stmt.query([account_id])?;
         if let Some(row) = rows.next()? {
             Ok(Some(row.get(0)?))
@@ -1466,6 +1451,27 @@ fn build_account_where_clause(
 /// 返回函数执行结果
 fn qualified_column(table_name: &str, column: &str) -> String {
     format!("{table_name}.{column}")
+}
+
+fn account_direct_auth_profile_by_id_sql() -> &'static str {
+    "SELECT id, issuer, chatgpt_account_id, status
+     FROM accounts
+     WHERE id = ?1
+     LIMIT 1"
+}
+
+fn account_by_id_sql() -> &'static str {
+    "SELECT id, label, issuer, chatgpt_account_id, workspace_id, group_name, sort, status, created_at, updated_at
+     FROM accounts
+     WHERE id = ?1
+     LIMIT 1"
+}
+
+fn account_status_by_id_sql() -> &'static str {
+    "SELECT status
+     FROM accounts
+     WHERE id = ?1
+     LIMIT 1"
 }
 
 fn account_workspace_identity_by_id_sql() -> &'static str {
@@ -2411,6 +2417,16 @@ mod tests {
             Some(account.id.clone())
         );
 
+        let plan = collect_query_plan_with_params(
+            &storage,
+            &format!("EXPLAIN QUERY PLAN {}", account_by_id_sql()),
+            rusqlite::params![account.id.as_str()],
+        );
+        assert!(
+            plan.contains("sqlite_autoindex_accounts_1"),
+            "expected account lookup to use account primary-key index, got {plan}"
+        );
+
         let token = storage
             .find_token_by_account_id(account.id.as_str())
             .expect("find token")
@@ -2639,6 +2655,16 @@ mod tests {
         assert!(!storage
             .account_exists("acc-status-missing")
             .expect("missing account exists"));
+
+        let plan = collect_query_plan_with_params(
+            &storage,
+            &format!("EXPLAIN QUERY PLAN {}", account_status_by_id_sql()),
+            rusqlite::params!["acc-status-helper"],
+        );
+        assert!(
+            plan.contains("sqlite_autoindex_accounts_1"),
+            "expected account status lookup to use account primary-key index, got {plan}"
+        );
     }
 
     #[test]
@@ -3917,6 +3943,19 @@ mod tests {
             .find_account_direct_auth_profile_by_id("acc-missing-direct-auth")
             .expect("find missing direct auth profile")
             .is_none());
+
+        let plan = collect_query_plan_with_params(
+            &storage,
+            &format!(
+                "EXPLAIN QUERY PLAN {}",
+                account_direct_auth_profile_by_id_sql()
+            ),
+            rusqlite::params!["acc-direct-auth-profile"],
+        );
+        assert!(
+            plan.contains("sqlite_autoindex_accounts_1"),
+            "expected direct auth profile lookup to use account primary-key index, got {plan}"
+        );
     }
 
     #[test]
