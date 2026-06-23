@@ -6372,3 +6372,25 @@
 - Notes:
   - No feature removal was attempted in this slice.
   - Goal remains active after this slice.
+## 2026-06-23 continuation - final client and SQLite audit checkpoint
+
+- Latest audit slice:
+  - Re-scanned non-test production paths for `reqwest::Client` construction across `crates/service/src`, `crates/web/src`, and `apps/src-tauri/src`.
+  - Confirmed gateway upstream request clients are already cached through `OnceLock`/`RwLock` and account/proxy-aware client pools in `crates/service/src/gateway/core/runtime_config.rs`.
+  - Confirmed model picker, usage HTTP, auth token exchange, plugin runtime, account warmup, and web service probe clients are already cached or runtime-scoped.
+  - Confirmed `crates/service/src/aggregate_api.rs` primarily receives `&reqwest::blocking::Client` instead of constructing clients in helper functions.
+  - Confirmed `crates/web/src/main.rs` and `crates/service/src/http/proxy_runtime.rs` construct local service proxy clients at startup/state initialization rather than per upstream request.
+  - Remaining Tauri updater client construction is command/update scoped, not part of the gateway upstream hot path.
+- SQLite audit evidence:
+  - Re-scanned query-plan coverage and index declarations.
+  - Current tests contain 444 `EXPLAIN QUERY PLAN` / query-plan helper references across storage tests.
+  - Storage and migration files already contain targeted indexes for request logs, request token stats/reporting, accounts, aggregate APIs, model sources, model catalog, model groups, plugins, account manager, quota pools, tokens, events, and related hot lookup paths.
+  - No new SQLite migration/index was added because this checkpoint found no new unverified slow query evidence. Continue to require current call-path and `EXPLAIN` proof before adding more indexes.
+- Current time estimate:
+  - Inline test modularity sweep is complete for non-test production files in `crates/core`, `crates/service`, and `crates/web`.
+  - Recommended remaining work is now final validation plus closeout/reporting, estimated about 1.5-3 hours.
+  - If a stricter extra polish pass is requested after closeout, budget an additional 0.5-1.5 days, but current evidence suggests diminishing returns.
+- Notes:
+  - No feature removal was attempted in this audit because no safe unused feature candidate was proven by call-chain evidence.
+  - No production code change was made in this audit slice.
+  - Goal remains active until final validation/closeout is complete.
