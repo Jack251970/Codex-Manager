@@ -144,14 +144,25 @@ fn check_account_proxy_with_options<'a>(
             }
         };
 
+    let mut retrieved_geo = None;
     let mut geo_error = match check_proxy_geo(&client, proxy_url, cached_flag_lookup) {
-        Ok((geo, latency_ms)) => {
-            return ProxyHealthCheckResult {
-                status: STATUS_OK,
-                latency_ms: Some(latency_ms),
-                last_error: None,
-                geo: Some(geo),
-            };
+        Ok((geo, _ipwhois_latency_ms)) => {
+            // Measure actual latency to Cloudflare CDN instead of using the ipwhois response time
+            let latency_outcome = super::proxy_testing::latency::run_proxy_latency_test(
+                proxy_url,
+                "http://cp.cloudflare.com/generate_204",
+                true,
+            );
+            if latency_outcome.status == "ok" {
+                return ProxyHealthCheckResult {
+                    status: STATUS_OK,
+                    latency_ms: latency_outcome.url_latency_ms,
+                    last_error: None,
+                    geo: Some(geo),
+                };
+            }
+            retrieved_geo = Some(geo);
+            latency_outcome.error
         }
         Err(err) => Some(err),
     };
@@ -165,11 +176,16 @@ fn check_account_proxy_with_options<'a>(
         let started_at = Instant::now();
         match client.get(target).send() {
             Ok(response) if response.status().is_success() => {
+                let geo_to_return = if let Some(geo) = retrieved_geo.clone() {
+                    Some(geo)
+                } else {
+                    geo_error.take().map(ProxyGeoInfo::error)
+                };
                 return ProxyHealthCheckResult {
                     status: STATUS_OK,
                     latency_ms: Some(started_at.elapsed().as_millis().min(i64::MAX as u128) as i64),
                     last_error: None,
-                    geo: geo_error.take().map(ProxyGeoInfo::error),
+                    geo: geo_to_return,
                 };
             }
             Ok(response) => {
@@ -185,6 +201,11 @@ fn check_account_proxy_with_options<'a>(
                     err,
                 );
                 if looks_like_local_proxy_runtime_error(&context.parsed_proxy_url, &mapped) {
+                    let geo_to_return = if let Some(geo) = retrieved_geo.clone() {
+                        Some(geo)
+                    } else {
+                        geo_error.take().map(ProxyGeoInfo::error)
+                    };
                     return ProxyHealthCheckResult {
                         status: STATUS_RUNTIME_ERROR,
                         latency_ms: None,
@@ -192,7 +213,7 @@ fn check_account_proxy_with_options<'a>(
                             "local proxy runtime unavailable: {}",
                             mapped.message
                         )),
-                        geo: geo_error.take().map(ProxyGeoInfo::error),
+                        geo: geo_to_return,
                     };
                 }
                 last_error = Some(format!(
@@ -210,7 +231,11 @@ fn check_account_proxy_with_options<'a>(
         last_error: Some(
             last_error.unwrap_or_else(|| "proxy test did not have any target URLs".to_string()),
         ),
-        geo: geo_error.take().map(ProxyGeoInfo::error),
+        geo: if let Some(geo) = retrieved_geo {
+            Some(geo)
+        } else {
+            geo_error.take().map(ProxyGeoInfo::error)
+        },
     }
 }
 
