@@ -224,6 +224,7 @@ const MEMBER_METHOD_ALLOWLIST: &[&str] = &[
     "appSettings/get",
     "dashboard/memberSummary",
     "requestlog/list",
+    "requestlog/list_with_summary",
     "requestlog/summary",
     "requestlog/today_summary",
     "startup/snapshot",
