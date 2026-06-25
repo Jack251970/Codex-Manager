@@ -1856,6 +1856,7 @@ export function normalizeAppSettings(payload: unknown): AppSettings {
     freeAccountMaxModelOptions: asArray(source.freeAccountMaxModelOptions).map((item) =>
       asString(item)
     ),
+    modelCatalogAutoRemoteFetch: asBoolean(source.modelCatalogAutoRemoteFetch, true),
     modelForwardRules: asString(source.modelForwardRules ?? source.model_forward_rules),
     compactModelForwardRules: asString(
       source.compactModelForwardRules ?? source.compact_model_forward_rules

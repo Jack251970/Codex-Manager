@@ -1898,10 +1898,7 @@ fn delete_catalog_entry_sets_unlinked_preference_and_prevents_auto_recreation() 
         .is_empty());
 
     let prefs: Vec<_> = storage
-        .list_model_source_mapping_preferences(
-            ROUTING_SOURCE_KIND_AGGREGATE_API,
-            "agg-unlink",
-        )
+        .list_model_source_mapping_preferences(ROUTING_SOURCE_KIND_AGGREGATE_API, "agg-unlink")
         .expect("list preferences")
         .into_iter()
         .filter(|p| p.upstream_model == "gpt-unlink")
@@ -1999,10 +1996,7 @@ fn delete_catalog_entry_sets_unlinked_preference_for_multiple_sources() {
         .is_empty());
 
     let account_prefs: Vec<_> = storage
-        .list_model_source_mapping_preferences(
-            ROUTING_SOURCE_KIND_OPENAI_ACCOUNT,
-            "acc-multi",
-        )
+        .list_model_source_mapping_preferences(ROUTING_SOURCE_KIND_OPENAI_ACCOUNT, "acc-multi")
         .expect("list account preferences")
         .into_iter()
         .filter(|p| p.upstream_model == "gpt-multi")
@@ -2011,10 +2005,7 @@ fn delete_catalog_entry_sets_unlinked_preference_for_multiple_sources() {
     assert_eq!(account_prefs[0].preference, PREF_UNLINKED);
 
     let aggregate_prefs: Vec<_> = storage
-        .list_model_source_mapping_preferences(
-            ROUTING_SOURCE_KIND_AGGREGATE_API,
-            "agg-multi",
-        )
+        .list_model_source_mapping_preferences(ROUTING_SOURCE_KIND_AGGREGATE_API, "agg-multi")
         .expect("list aggregate preferences")
         .into_iter()
         .filter(|p| p.upstream_model == "gpt-multi")
@@ -2084,10 +2075,7 @@ fn unlink_preference_blocks_mapping_when_platform_model_exists() {
         .expect("delete mapping with unlink");
 
     let prefs_after_delete: Vec<_> = storage
-        .list_model_source_mapping_preferences(
-            ROUTING_SOURCE_KIND_AGGREGATE_API,
-            "agg-test",
-        )
+        .list_model_source_mapping_preferences(ROUTING_SOURCE_KIND_AGGREGATE_API, "agg-test")
         .expect("list preferences")
         .into_iter()
         .filter(|p| p.upstream_model == "gpt-exists")
@@ -2103,8 +2091,7 @@ fn unlink_preference_blocks_mapping_when_platform_model_exists() {
     )
     .expect("auto associate with auto_create=false");
 
-    let catalog =
-        read_managed_model_catalog_from_storage(&storage).expect("read catalog");
+    let catalog = read_managed_model_catalog_from_storage(&storage).expect("read catalog");
     assert!(
         catalog
             .items

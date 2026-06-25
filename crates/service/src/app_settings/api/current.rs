@@ -12,25 +12,26 @@ use super::author_links::{
 use super::{
     current_background_tasks_snapshot_value, current_env_overrides,
     current_gateway_account_max_inflight, current_gateway_compact_model_forward_rules,
-    current_gateway_free_account_max_model, current_gateway_model_forward_rules,
-    current_gateway_originator, current_gateway_quota_guard, current_gateway_residency_requirement,
-    current_gateway_sse_keepalive_interval_ms, current_gateway_upstream_stream_timeout_ms,
-    current_gateway_upstream_total_timeout_ms, current_gateway_user_agent_version,
-    current_saved_service_addr, current_service_bind_mode, default_gateway_originator,
-    default_gateway_user_agent_version, env_override_catalog_value, env_override_reserved_keys,
-    env_override_unsupported_keys, normalize_optional_text, normalize_ui_appearance_preset,
-    normalize_ui_locale, normalize_ui_theme, parse_bool_with_default,
-    residency_requirement_options, save_env_overrides_value, save_persisted_app_setting,
-    save_persisted_bool_setting, sync_runtime_settings_from_storage,
+    current_gateway_free_account_max_model, current_gateway_model_catalog_auto_remote_fetch,
+    current_gateway_model_forward_rules, current_gateway_originator, current_gateway_quota_guard,
+    current_gateway_residency_requirement, current_gateway_sse_keepalive_interval_ms,
+    current_gateway_upstream_stream_timeout_ms, current_gateway_upstream_total_timeout_ms,
+    current_gateway_user_agent_version, current_saved_service_addr, current_service_bind_mode,
+    default_gateway_originator, default_gateway_user_agent_version, env_override_catalog_value,
+    env_override_reserved_keys, env_override_unsupported_keys, normalize_optional_text,
+    normalize_ui_appearance_preset, normalize_ui_locale, normalize_ui_theme,
+    parse_bool_with_default, residency_requirement_options, save_env_overrides_value,
+    save_persisted_app_setting, save_persisted_bool_setting, sync_runtime_settings_from_storage,
     APP_SETTING_AUTHOR_SERVER_RECOMMENDATIONS_KEY, APP_SETTING_AUTHOR_SPONSORS_KEY,
     APP_SETTING_CLOSE_TO_TRAY_ON_CLOSE_KEY, APP_SETTING_ENV_OVERRIDES_KEY,
     APP_SETTING_GATEWAY_ACCOUNT_MAX_INFLIGHT_KEY, APP_SETTING_GATEWAY_BACKGROUND_TASKS_KEY,
     APP_SETTING_GATEWAY_COMPACT_MODEL_FORWARD_RULES_KEY,
-    APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY, APP_SETTING_GATEWAY_MODEL_FORWARD_RULES_KEY,
-    APP_SETTING_GATEWAY_ORIGINATOR_KEY, APP_SETTING_GATEWAY_QUOTA_GUARD_KEY,
-    APP_SETTING_GATEWAY_RESIDENCY_REQUIREMENT_KEY, APP_SETTING_GATEWAY_ROUTE_STRATEGY_KEY,
-    APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY, APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY,
-    APP_SETTING_GATEWAY_UPSTREAM_STREAM_TIMEOUT_MS_KEY,
+    APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY,
+    APP_SETTING_GATEWAY_MODEL_CATALOG_AUTO_REMOTE_FETCH_KEY,
+    APP_SETTING_GATEWAY_MODEL_FORWARD_RULES_KEY, APP_SETTING_GATEWAY_ORIGINATOR_KEY,
+    APP_SETTING_GATEWAY_QUOTA_GUARD_KEY, APP_SETTING_GATEWAY_RESIDENCY_REQUIREMENT_KEY,
+    APP_SETTING_GATEWAY_ROUTE_STRATEGY_KEY, APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY,
+    APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY, APP_SETTING_GATEWAY_UPSTREAM_STREAM_TIMEOUT_MS_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_TOTAL_TIMEOUT_MS_KEY, APP_SETTING_GATEWAY_USER_AGENT_VERSION_KEY,
     APP_SETTING_LIGHTWEIGHT_MODE_ON_CLOSE_TO_TRAY_KEY, APP_SETTING_PLUGIN_MARKET_MODE_KEY,
     APP_SETTING_PLUGIN_MARKET_SOURCE_URL_KEY, APP_SETTING_SERVICE_ADDR_KEY,
@@ -186,6 +187,7 @@ fn current_app_settings_value_inner(
     };
     let route_strategy = crate::gateway::current_route_strategy().to_string();
     let free_account_max_model = current_gateway_free_account_max_model();
+    let model_catalog_auto_remote_fetch = current_gateway_model_catalog_auto_remote_fetch();
     let model_forward_rules = current_gateway_model_forward_rules();
     let compact_model_forward_rules = current_gateway_compact_model_forward_rules();
     let account_max_inflight = current_gateway_account_max_inflight();
@@ -256,6 +258,7 @@ fn current_app_settings_value_inner(
             &service_listen_mode,
             &route_strategy,
             &free_account_max_model,
+            model_catalog_auto_remote_fetch,
             &model_forward_rules,
             &compact_model_forward_rules,
             account_max_inflight,
@@ -281,6 +284,7 @@ fn current_app_settings_value_inner(
             &service_listen_mode,
             &route_strategy,
             &free_account_max_model,
+            model_catalog_auto_remote_fetch,
             &model_forward_rules,
             &gateway_originator,
             &gateway_user_agent_version,
@@ -347,6 +351,10 @@ fn current_app_settings_value_inner(
         "webAccessPasswordConfigured": web_access_password_configured(),
     });
     if let Some(object) = result.as_object_mut() {
+        object.insert(
+            "modelCatalogAutoRemoteFetch".to_string(),
+            model_catalog_auto_remote_fetch.into(),
+        );
         object.insert("runtimeTimeZone".to_string(), runtime_time_zone);
         object.insert("webAuthMode".to_string(), current_web_auth_mode().into());
         object.insert(
@@ -536,6 +544,7 @@ fn persist_current_snapshot(
     service_listen_mode: &str,
     route_strategy: &str,
     free_account_max_model: &str,
+    model_catalog_auto_remote_fetch: bool,
     model_forward_rules: &str,
     compact_model_forward_rules: &str,
     account_max_inflight: usize,
@@ -581,6 +590,10 @@ fn persist_current_snapshot(
     let _ = save_persisted_app_setting(
         APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY,
         Some(free_account_max_model),
+    );
+    let _ = save_persisted_bool_setting(
+        APP_SETTING_GATEWAY_MODEL_CATALOG_AUTO_REMOTE_FETCH_KEY,
+        model_catalog_auto_remote_fetch,
     );
     let _ = save_persisted_app_setting(
         APP_SETTING_GATEWAY_MODEL_FORWARD_RULES_KEY,
@@ -665,6 +678,18 @@ fn persisted_text_value(value: Option<&str>) -> String {
     normalize_optional_text(value).unwrap_or_default()
 }
 
+fn save_persisted_bool_setting_if_changed(
+    settings: &HashMap<String, String>,
+    key: &str,
+    value: bool,
+) {
+    let text = if value { "1" } else { "0" };
+    if settings.get(key).map(String::as_str) == Some(text) {
+        return;
+    }
+    let _ = save_persisted_bool_setting(key, value);
+}
+
 fn save_app_setting_if_changed(settings: &HashMap<String, String>, key: &str, value: Option<&str>) {
     let text = persisted_text_value(value);
     if settings.get(key).map(String::as_str) == Some(text.as_str()) {
@@ -696,6 +721,7 @@ fn persist_get_snapshot_if_changed(
     service_listen_mode: &str,
     route_strategy: &str,
     free_account_max_model: &str,
+    model_catalog_auto_remote_fetch: bool,
     model_forward_rules: &str,
     gateway_originator: &str,
     gateway_user_agent_version: &str,
@@ -721,6 +747,11 @@ fn persist_get_snapshot_if_changed(
         settings,
         APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY,
         Some(free_account_max_model),
+    );
+    save_persisted_bool_setting_if_changed(
+        settings,
+        APP_SETTING_GATEWAY_MODEL_CATALOG_AUTO_REMOTE_FETCH_KEY,
+        model_catalog_auto_remote_fetch,
     );
     save_app_setting_if_changed(
         settings,
