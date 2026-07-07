@@ -11,8 +11,15 @@
   <a href="docs/ru/README.md">Русский</a>|
   <a href="docs/ko/README.md">한국어</a>|
   <a href="https://github.com/qxcnm/Codex-Manager">GitHub 主仓库</a>|
+  <a href="https://atomgit.com/qxnm/Codex-Manager">AtomGit 国内托管</a>|
   <a href="https://qxnm.top">官网</a>|
   <a href="#赞助商">赞助商</a>
+</p>
+
+<p align="center">
+  <a href="https://atomgit.com/qxnm/Codex-Manager">
+    <img src="https://atomgit.com/qxnm/Codex-Manager/star/badge.svg" alt="AtomGitStars" />
+  </a>
 </p>
 
 <p align="center"><strong>本地桌面端 + 服务进程的 Codex 账号池管理器</strong></p>
