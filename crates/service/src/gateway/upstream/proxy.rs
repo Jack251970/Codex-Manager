@@ -187,8 +187,27 @@ fn direct_upstream_model_matches_route(
         if !ids.is_empty() {
             return Ok(true);
         }
+        if *source_kind == "aggregate_api" && has_active_aggregate_model_override(storage)? {
+            return Ok(true);
+        }
     }
     Ok(false)
+}
+
+fn has_active_aggregate_model_override(
+    storage: &codexmanager_core::storage::Storage,
+) -> Result<bool, String> {
+    let apis = storage
+        .list_aggregate_apis()
+        .map_err(|err| err.to_string())?;
+    Ok(apis.iter().any(|api| {
+        api.status.trim().eq_ignore_ascii_case("active")
+            && api
+                .model_override
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|value| !value.is_empty())
+    }))
 }
 
 fn bootstrap_model_routes_for_plan(
@@ -355,7 +374,14 @@ fn apply_aggregate_model_filter(
     let allowed = source_ids
         .into_iter()
         .collect::<std::collections::HashSet<_>>();
-    candidates.retain(|api| allowed.contains(&api.id));
+    candidates.retain(|api| {
+        allowed.contains(&api.id)
+            || api
+                .model_override
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|value| !value.is_empty())
+    });
     if candidates.is_empty() {
         Err(format!("model_unavailable: {model}"))
     } else {

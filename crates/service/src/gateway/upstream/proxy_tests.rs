@@ -60,6 +60,38 @@ fn insert_test_aggregate_api_with_provider(storage: &Storage, id: &str, provider
         .expect("insert aggregate api");
 }
 
+fn insert_test_aggregate_api_with_model_override(storage: &Storage, id: &str, model: &str) {
+    let now = now_ts();
+    storage
+        .insert_aggregate_api(&AggregateApi {
+            id: id.to_string(),
+            provider_type: "codex".to_string(),
+            supplier_name: Some(id.to_string()),
+            sort: 0,
+            url: format!("https://{id}.example/v1"),
+            auth_type: "apikey".to_string(),
+            auth_params_json: None,
+            action: None,
+            model_override: Some(model.to_string()),
+            status: "active".to_string(),
+            created_at: now,
+            updated_at: now,
+            last_test_at: None,
+            last_test_status: None,
+            last_test_error: None,
+            balance_query_enabled: false,
+            balance_query_template: None,
+            balance_query_base_url: None,
+            balance_query_user_id: None,
+            balance_query_config_json: None,
+            last_balance_at: None,
+            last_balance_status: None,
+            last_balance_error: None,
+            last_balance_json: None,
+        })
+        .expect("insert aggregate api");
+}
+
 fn seed_platform_catalog(storage: &Storage, slug: &str) {
     crate::apikey_models::save_managed_model_catalog_with_storage(
         storage,
@@ -99,6 +131,37 @@ fn seed_source_model(storage: &Storage, source_kind: &str, source_id: &str, upst
             updated_at: now,
         })
         .expect("seed source model");
+}
+
+#[test]
+fn aggregate_route_model_validation_accepts_model_override_candidate() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+    seed_platform_catalog(&storage, "gpt-5.4");
+    insert_test_aggregate_api_with_model_override(&storage, "agg-minimax", "MiniMax-M3");
+
+    model_route_error(
+        &storage,
+        "key-route",
+        Some("gpt-5.4"),
+        execution_plan(GatewayUpstreamRouteKind::AggregateApi),
+    )
+    .expect("aggregate override should make the route usable for client models");
+}
+
+#[test]
+fn aggregate_candidate_filter_keeps_model_override_candidate_for_client_model() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+    insert_test_aggregate_api_with_model_override(&storage, "agg-minimax", "MiniMax-M3");
+
+    let candidates =
+        resolve_aggregate_candidates_for_route(&storage, "openai_responses", None, Some("gpt-5.4"))
+            .expect("resolve aggregate candidates");
+
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].id, "agg-minimax");
+    assert_eq!(candidates[0].model_override.as_deref(), Some("MiniMax-M3"));
 }
 
 /// 函数 `exhausted_gateway_error_includes_attempts_skips_and_last_error`

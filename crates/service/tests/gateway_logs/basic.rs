@@ -1,4 +1,5 @@
 use super::*;
+use codexmanager_core::storage::AggregateApi;
 use codexmanager_core::storage::RequestTokenStat;
 
 const MISSING_AUTH_JSON_OPENAI_API_KEY_ERROR: &str =
@@ -557,6 +558,172 @@ fn gateway_applies_saved_model_forward_rules_to_codex_responses_request() {
             .and_then(serde_json::Value::as_str),
         Some("gpt-5.4-mini")
     );
+}
+
+#[test]
+fn gateway_aggregate_api_model_override_rewrites_minimax_responses_request() {
+    let _lock = test_env_guard();
+    let dir = new_test_dir("codexmanager-gateway-aggregate-minimax-model-override");
+    let db_path: PathBuf = dir.join("codexmanager.db");
+    let _db_guard = EnvGuard::set("CODEXMANAGER_DB_PATH", db_path.to_string_lossy().as_ref());
+
+    let response = serde_json::json!({
+        "id": "resp_minimax_model_override",
+        "model": "MiniMax-M3",
+        "output": [{
+            "type": "message",
+            "role": "assistant",
+            "content": [{ "type": "output_text", "text": "ok" }]
+        }],
+        "usage": { "input_tokens": 2, "output_tokens": 1, "total_tokens": 3 }
+    });
+    let (upstream_addr, upstream_rx, upstream_join) =
+        start_mock_upstream_once(&serde_json::to_string(&response).expect("serialize response"));
+
+    let storage = Storage::open(&db_path).expect("open db");
+    storage.init().expect("init schema");
+    let now = now_ts();
+    let aggregate_id = "agg_minimax_model_override";
+    seed_model_catalog_models(&storage, &["gpt-5.4", "MiniMax-M3"]);
+    storage
+        .insert_aggregate_api(&AggregateApi {
+            id: aggregate_id.to_string(),
+            provider_type: "codex".to_string(),
+            supplier_name: Some("Minimax".to_string()),
+            sort: 5,
+            url: format!("http://{upstream_addr}/v1"),
+            auth_type: "apikey".to_string(),
+            auth_params_json: None,
+            action: None,
+            model_override: Some("MiniMax-M3".to_string()),
+            status: "active".to_string(),
+            created_at: now,
+            updated_at: now,
+            last_test_at: None,
+            last_test_status: None,
+            last_test_error: None,
+            balance_query_enabled: false,
+            balance_query_template: None,
+            balance_query_base_url: None,
+            balance_query_user_id: None,
+            balance_query_config_json: None,
+            last_balance_at: None,
+            last_balance_status: None,
+            last_balance_error: None,
+            last_balance_json: None,
+        })
+        .expect("insert aggregate api");
+    storage
+        .upsert_aggregate_api_secret(aggregate_id, "upstream-secret")
+        .expect("insert aggregate secret");
+    storage
+        .upsert_model_source_model(&ModelSourceModel {
+            source_kind: "aggregate_api".to_string(),
+            source_id: aggregate_id.to_string(),
+            upstream_model: "MiniMax-M3".to_string(),
+            display_name: Some("MiniMax-M3".to_string()),
+            status: "available".to_string(),
+            discovery_kind: "manual".to_string(),
+            last_synced_at: Some(now),
+            extra_json: "{}".to_string(),
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("insert aggregate source model");
+    storage
+        .upsert_model_source_mapping(&ModelSourceMapping {
+            id: "mapping_minimax_model_override".to_string(),
+            platform_model_slug: "MiniMax-M3".to_string(),
+            source_kind: "aggregate_api".to_string(),
+            source_id: aggregate_id.to_string(),
+            upstream_model: "MiniMax-M3".to_string(),
+            enabled: true,
+            priority: 0,
+            weight: 1,
+            billing_model_slug: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("insert aggregate source mapping");
+
+    let platform_key = "pk_minimax_model_override";
+    storage
+        .insert_api_key(&ApiKey {
+            id: "gk_minimax_model_override".to_string(),
+            name: Some("minimax-model-override".to_string()),
+            model_slug: None,
+            reasoning_effort: None,
+            service_tier: None,
+            rotation_strategy: "aggregate_api_rotation".to_string(),
+            aggregate_api_id: Some(aggregate_id.to_string()),
+            account_plan_filter: None,
+            aggregate_api_url: None,
+            client_type: "codex".to_string(),
+            protocol_type: "openai_compat".to_string(),
+            auth_scheme: "authorization_bearer".to_string(),
+            upstream_base_url: None,
+            static_headers_json: None,
+            key_hash: hash_platform_key_for_test(platform_key),
+            status: "active".to_string(),
+            created_at: now,
+            last_used_at: None,
+        })
+        .expect("insert api key");
+
+    let server = codexmanager_service::start_one_shot_server().expect("start server");
+    let request = serde_json::json!({
+        "model": "gpt-5.4",
+        "input": [{
+            "role": "user",
+            "content": [{ "type": "input_text", "text": "hello" }]
+        }],
+        "stream": false
+    });
+    let request = serde_json::to_string(&request).expect("serialize request");
+    let (status, response_body) = post_http_raw(
+        &server.addr,
+        "/v1/responses",
+        &request,
+        &[
+            ("Content-Type", "application/json"),
+            ("Authorization", &format!("Bearer {platform_key}")),
+        ],
+    );
+    server.join();
+    assert_eq!(status, 200, "gateway response: {response_body}");
+
+    let captured = upstream_rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("receive upstream request");
+    upstream_join.join().expect("join upstream");
+    assert_eq!(captured.path, "/v1/responses");
+    let request_body: serde_json::Value =
+        serde_json::from_slice(&decode_upstream_request_body(&captured))
+            .expect("parse upstream request body");
+    assert_eq!(
+        request_body
+            .get("model")
+            .and_then(serde_json::Value::as_str),
+        Some("MiniMax-M3")
+    );
+    assert_eq!(
+        request_body
+            .get("input")
+            .and_then(serde_json::Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(|item| item.get("content"))
+            .and_then(serde_json::Value::as_str),
+        Some("hello")
+    );
+
+    let log = storage
+        .list_request_logs(Some("key:=gk_minimax_model_override"), 10)
+        .expect("list request logs")
+        .into_iter()
+        .find(|item| item.request_path == "/v1/responses")
+        .expect("request log");
+    assert_eq!(log.model.as_deref(), Some("gpt-5.4"));
+    assert_eq!(log.upstream_model.as_deref(), Some("MiniMax-M3"));
 }
 
 #[test]
