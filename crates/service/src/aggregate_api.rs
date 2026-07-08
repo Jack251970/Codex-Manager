@@ -2512,7 +2512,7 @@ pub(crate) fn test_aggregate_api_connection(
     let secret = api_with_secrets
         .secret_value
         .ok_or_else(|| "aggregate api secret not found".to_string())?;
-    let client = gateway::upstream_client();
+    let client = gateway::upstream_client_for_aggregate_url(api.url.as_str());
     let started_at = Instant::now();
     let provider_type = normalize_provider_type_value(api.provider_type.as_str());
     let result = match provider_type.as_str() {
@@ -2562,7 +2562,7 @@ pub(crate) fn discover_aggregate_api_models(api_id: &str) -> Result<Vec<String>,
         return Ok(vec![model_override.to_string()]);
     }
 
-    let client = gateway::upstream_client();
+    let client = gateway::upstream_client_for_aggregate_url(api.url.as_str());
     let provider_type = normalize_provider_type_value(api.provider_type.as_str());
     match provider_type.as_str() {
         AGGREGATE_API_PROVIDER_CLAUDE => {
@@ -2605,7 +2605,7 @@ pub(crate) fn refresh_aggregate_api_balance(
     let template = default_balance_query_template(normalize_balance_query_template(
         api.balance_query_template.clone(),
     )?);
-    let client = gateway::upstream_client();
+    let client = gateway::upstream_client_for_aggregate_url(api.url.as_str());
     let started_at = Instant::now();
     let result = match template.as_str() {
         AGGREGATE_API_BALANCE_TEMPLATE_NEW_API => {

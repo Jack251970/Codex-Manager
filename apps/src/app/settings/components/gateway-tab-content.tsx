@@ -2,7 +2,9 @@ import { ShieldCheck } from "lucide-react";
 import { AppSettings } from "@/types";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -47,12 +49,16 @@ export function GatewayTabContent({
   upstreamProxyInput,
   upstreamProxyDraft,
   setUpstreamProxyDraft,
+  upstreamProxyBypassInput,
+  upstreamProxyBypassDraft,
+  setUpstreamProxyBypassDraft,
 }: {
   t: (value: string) => string;
   snapshot: AppSettings;
   updateSettings: {
     mutate: (patch: Partial<AppSettings>) => void;
     mutateAsync: (patch: Partial<AppSettings>) => Promise<unknown>;
+    isPending: boolean;
   };
   onModelCatalogAutoRemoteFetchChange: (checked: boolean) => void;
   quotaGuardInputValues: {
@@ -87,7 +93,25 @@ export function GatewayTabContent({
   upstreamProxyInput: string;
   upstreamProxyDraft: string | null;
   setUpstreamProxyDraft: React.Dispatch<React.SetStateAction<string | null>>;
+  upstreamProxyBypassInput: string;
+  upstreamProxyBypassDraft: string | null;
+  setUpstreamProxyBypassDraft: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
+  const upstreamProxyBypassSavedValue = snapshot.upstreamProxyBypassHosts || "";
+  const upstreamProxyBypassDirty =
+    upstreamProxyBypassDraft != null && upstreamProxyBypassInput !== upstreamProxyBypassSavedValue;
+  const saveUpstreamProxyBypassDraft = () => {
+    if (upstreamProxyBypassDraft == null) return;
+    if (!upstreamProxyBypassDirty) {
+      setUpstreamProxyBypassDraft(null);
+      return;
+    }
+    void updateSettings
+      .mutateAsync({ upstreamProxyBypassHosts: upstreamProxyBypassInput })
+      .then(() => setUpstreamProxyBypassDraft(null))
+      .catch(() => undefined);
+  };
+
   return (
     <Card className="glass-card mission-panel shadow-sm">
       <CardHeader>
@@ -322,6 +346,42 @@ export function GatewayTabContent({
             }}
           />
           <p className="text-[10px] text-muted-foreground">{t("支持 http/https/socks5，留空表示直连。")}</p>
+        </div>
+
+        <div className="grid gap-2">
+          <div className="flex max-w-2xl flex-wrap items-center justify-between gap-2">
+            <Label>{t("代理 Bypass 域名")}</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={upstreamProxyBypassDraft == null}
+                onClick={() => setUpstreamProxyBypassDraft(null)}
+              >
+                {t("恢复")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!upstreamProxyBypassDirty || updateSettings.isPending}
+                onClick={saveUpstreamProxyBypassDraft}
+              >
+                {t("保存")}
+              </Button>
+            </div>
+          </div>
+          <Textarea
+            placeholder={t("留空表示不绕过代理")}
+            className="min-h-24 max-w-2xl resize-y font-mono text-sm"
+            value={upstreamProxyBypassInput}
+            onChange={(event) => setUpstreamProxyBypassDraft(event.target.value)}
+            onBlur={saveUpstreamProxyBypassDraft}
+          />
+          <p className="text-[10px] text-muted-foreground">
+            {t("一行一个或用逗号分隔；命中的上游域名会绕过全局代理直连。支持精确域名和")} <code>*.</code>
+            {t("通配。")}
+          </p>
         </div>
 
         <div className="grid gap-4 border-t pt-6 md:grid-cols-3">

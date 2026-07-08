@@ -1887,6 +1887,7 @@ export function normalizeAppSettings(payload: unknown): AppSettings {
       DEFAULT_AUTHOR_SERVER_RECOMMENDATIONS
     ),
     upstreamProxyUrl: asString(source.upstreamProxyUrl),
+    upstreamProxyBypassHosts: asString(source.upstreamProxyBypassHosts),
     upstreamStreamTimeoutMs: asInteger(source.upstreamStreamTimeoutMs, 300_000, 0),
     upstreamTotalTimeoutMs: asInteger(source.upstreamTotalTimeoutMs, 0, 0),
     sseKeepaliveIntervalMs: asInteger(source.sseKeepaliveIntervalMs, 15_000, 1),
