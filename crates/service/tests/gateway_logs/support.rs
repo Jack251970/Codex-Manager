@@ -197,6 +197,26 @@ pub(super) fn hash_platform_key_for_test(key: &str) -> String {
     out
 }
 
+pub(super) struct GatewayModelForwardRulesResetGuard;
+
+impl GatewayModelForwardRulesResetGuard {
+    pub(super) fn reset() -> Self {
+        reset_gateway_model_forward_rules_for_test();
+        Self
+    }
+}
+
+impl Drop for GatewayModelForwardRulesResetGuard {
+    fn drop(&mut self) {
+        reset_gateway_model_forward_rules_for_test();
+    }
+}
+
+fn reset_gateway_model_forward_rules_for_test() {
+    codexmanager_service::set_gateway_model_forward_rules("")
+        .expect("reset gateway model forward rules");
+}
+
 /// 函数 `seed_model_catalog_models`
 ///
 /// 作者: gaohongshun

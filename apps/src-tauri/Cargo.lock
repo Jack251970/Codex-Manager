@@ -8,6 +8,7 @@ version = "0.4.0"
 dependencies = [
  "codexmanager-core",
  "codexmanager-service",
+ "glib",
  "log",
  "reqwest 0.12.28",
  "rfd",

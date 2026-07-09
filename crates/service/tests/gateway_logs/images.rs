@@ -22,6 +22,7 @@ fn gateway_images_generation_wraps_codex_sse_as_openai_images_json() {
 
     let storage = Storage::open(&db_path).expect("open db");
     storage.init().expect("init db");
+    let _rules_guard = GatewayModelForwardRulesResetGuard::reset();
     seed_model_catalog_models(&storage, &["gpt-5.4-mini", "gpt-5.4"]);
     let now = now_ts();
     storage
@@ -150,6 +151,7 @@ fn native_codex_responses_auto_injects_image_generation_tool() {
 
     let storage = Storage::open(&db_path).expect("open db");
     storage.init().expect("init db");
+    let _rules_guard = GatewayModelForwardRulesResetGuard::reset();
     seed_model_catalog_models(&storage, &["gpt-5.4-mini", "gpt-5.4"]);
     let now = now_ts();
     storage
@@ -289,6 +291,7 @@ fn native_codex_image_generation_responses_request_passthroughs_tool_and_sse() {
 
     let storage = Storage::open(&db_path).expect("open db");
     storage.init().expect("init db");
+    let _rules_guard = GatewayModelForwardRulesResetGuard::reset();
     seed_model_catalog_models(&storage, &["gpt-5.4-mini", "gpt-5.4"]);
     let now = now_ts();
     storage

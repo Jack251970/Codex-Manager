@@ -788,9 +788,6 @@ impl Storage {
              ON aggregate_apis(sort ASC, updated_at DESC, id ASC)",
             [],
         )?;
-        self.ensure_aggregate_api_balance_query_lookup_index()?;
-        self.ensure_aggregate_api_status_order_index()?;
-        self.ensure_aggregate_api_provider_status_order_index()?;
         self.ensure_column("aggregate_apis", "provider_type", "TEXT")?;
         self.ensure_column("aggregate_apis", "supplier_name", "TEXT")?;
         self.ensure_column("aggregate_apis", "sort", "INTEGER DEFAULT 0")?;
@@ -815,6 +812,9 @@ impl Storage {
         self.ensure_column("aggregate_apis", "last_balance_status", "TEXT")?;
         self.ensure_column("aggregate_apis", "last_balance_error", "TEXT")?;
         self.ensure_column("aggregate_apis", "last_balance_json", "TEXT")?;
+        self.ensure_aggregate_api_balance_query_lookup_index()?;
+        self.ensure_aggregate_api_status_order_index()?;
+        self.ensure_aggregate_api_provider_status_order_index()?;
         self.conn.execute(
             "UPDATE aggregate_apis
              SET provider_type = COALESCE(NULLIF(TRIM(provider_type), ''), 'codex')

@@ -53,13 +53,22 @@ impl InputSizeLimitError {
 ///
 /// # 返回
 /// 返回函数执行结果
+#[cfg(test)]
 pub(crate) fn parse_request_metadata(body: &[u8]) -> ParsedRequestMetadata {
-    if body.is_empty() {
-        return ParsedRequestMetadata::default();
-    }
-    let Ok(value) = serde_json::from_slice::<Value>(body) else {
+    let Some(value) = parse_request_json_value(body) else {
         return ParsedRequestMetadata::default();
     };
+    parse_request_metadata_from_value(&value)
+}
+
+pub(crate) fn parse_request_json_value(body: &[u8]) -> Option<Value> {
+    if body.is_empty() {
+        return None;
+    }
+    serde_json::from_slice::<Value>(body).ok()
+}
+
+pub(crate) fn parse_request_metadata_from_value(value: &Value) -> ParsedRequestMetadata {
     let Some(object) = value.as_object() else {
         return ParsedRequestMetadata::default();
     };
@@ -122,16 +131,6 @@ pub(crate) fn parse_request_metadata(body: &[u8]) -> ParsedRequestMetadata {
     }
 }
 
-pub(crate) fn inspect_service_tier_for_log(body: &[u8]) -> ServiceTierLogDiagnostic {
-    if body.is_empty() {
-        return ServiceTierLogDiagnostic::default();
-    }
-    let Ok(value) = serde_json::from_slice::<Value>(body) else {
-        return ServiceTierLogDiagnostic::default();
-    };
-    inspect_service_tier_value(value.get("service_tier"))
-}
-
 pub(crate) fn validate_text_input_limit_for_path(
     path: &str,
     body: &[u8],
@@ -139,9 +138,19 @@ pub(crate) fn validate_text_input_limit_for_path(
     if body.is_empty() || !is_text_input_limit_path(path) {
         return Ok(());
     }
-    let Ok(value) = serde_json::from_slice::<Value>(body) else {
+    let Some(value) = parse_request_json_value(body) else {
         return Ok(());
     };
+    validate_text_input_limit_for_value(path, &value)
+}
+
+pub(crate) fn validate_text_input_limit_for_value(
+    path: &str,
+    value: &Value,
+) -> Result<(), InputSizeLimitError> {
+    if !is_text_input_limit_path(path) {
+        return Ok(());
+    }
     let actual_chars = count_path_text_input_chars(path, &value);
     if actual_chars > MAX_TEXT_INPUT_CHARS {
         return Err(InputSizeLimitError {

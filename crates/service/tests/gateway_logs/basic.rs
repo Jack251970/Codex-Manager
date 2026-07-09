@@ -458,6 +458,7 @@ fn gateway_applies_saved_model_forward_rules_to_codex_responses_request() {
     let platform_key = "pk_saved_model_forward_rules";
     let storage = Storage::open(&db_path).expect("open db");
     storage.init().expect("init schema");
+    let _rules_guard = GatewayModelForwardRulesResetGuard::reset();
     let now = now_ts();
     seed_model_catalog_models(&storage, &["spark", "gpt-5.4-mini"]);
     storage
@@ -579,6 +580,7 @@ fn gateway_applies_migrated_legacy_compact_model_forward_rules() {
     let platform_key = "pk_legacy_compact_forward_rules";
     let storage = Storage::open(&db_path).expect("open db");
     storage.init().expect("init schema");
+    let _rules_guard = GatewayModelForwardRulesResetGuard::reset();
     let now = now_ts();
     seed_model_catalog_models(&storage, &["gpt-5.4", "gpt-5.4-openai-compact"]);
     storage

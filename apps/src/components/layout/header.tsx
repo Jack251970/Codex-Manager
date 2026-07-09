@@ -169,7 +169,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex min-h-[72px] items-center gap-3 glass-header px-4 xl:px-5">
+      <header className="sticky top-0 z-30 grid min-h-[72px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 glass-header px-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:px-5">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
         <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/80 text-primary shadow-sm">
@@ -200,7 +200,7 @@ export function Header() {
           ) : null}
         </div>
 
-        <div className="hidden min-w-[180px] max-w-[360px] flex-[0_1_360px] items-center justify-center xl:flex 2xl:max-w-[420px] 2xl:flex-[0_1_420px]">
+        <div className="hidden w-[min(36vw,420px)] min-w-[260px] items-center justify-center xl:flex">
           <div className="grid h-9 w-full grid-cols-[minmax(0,1fr)] items-center gap-2 rounded-md border border-border/60 bg-background/55 px-1.5 shadow-[inset_0_1px_0_rgb(255_255_255/0.16)] 2xl:grid-cols-[auto_minmax(0,1fr)_auto] 2xl:px-2.5">
             <div className="hidden items-center gap-1.5 font-mono text-[10px] uppercase text-muted-foreground 2xl:flex">
               <RadioTower className="h-3.5 w-3.5 text-primary" />
@@ -214,7 +214,7 @@ export function Header() {
           </div>
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2 justify-self-end">
           <LanguageSwitcher compact triggerClassName="w-[112px] 2xl:w-[124px]" />
 
           {canManageService ? (

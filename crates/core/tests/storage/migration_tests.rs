@@ -873,6 +873,66 @@ fn sql_migration_can_fallback_to_compat_when_schema_already_exists() {
     assert_eq!(applied_004, 1);
 }
 
+#[test]
+fn init_repairs_legacy_aggregate_api_balance_columns_before_indexes() {
+    let storage = Storage::open_in_memory().expect("open in memory");
+    storage
+        .conn
+        .execute_batch(
+            "CREATE TABLE aggregate_apis (
+                id TEXT PRIMARY KEY,
+                provider_type TEXT NOT NULL DEFAULT 'codex',
+                supplier_name TEXT,
+                sort INTEGER NOT NULL DEFAULT 0,
+                url TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                last_test_at INTEGER,
+                last_test_status TEXT,
+                last_test_error TEXT
+            );",
+        )
+        .expect("create legacy aggregate_apis table");
+    storage
+        .ensure_migrations_table()
+        .expect("ensure migration tracker");
+    storage
+        .conn
+        .execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES ('054_aggregate_api_balance_query', 1)",
+            [],
+        )
+        .expect("insert legacy balance migration marker");
+
+    storage.init().expect("repair legacy aggregate API schema");
+
+    assert!(storage
+        .has_column("aggregate_apis", "balance_query_enabled")
+        .expect("check balance query column"));
+    assert!(storage
+        .has_column("aggregate_apis", "last_balance_json")
+        .expect("check balance result column"));
+    assert!(storage
+        .has_table("aggregate_api_balance_secrets")
+        .expect("check balance secrets table"));
+
+    for index in [
+        "idx_aggregate_apis_balance_query_lookup",
+        "idx_aggregate_apis_balance_query_order",
+    ] {
+        let exists: i64 = storage
+            .conn
+            .query_row(
+                "SELECT COUNT(1) FROM sqlite_master WHERE type = 'index' AND name = ?1",
+                [index],
+                |row| row.get(0),
+            )
+            .expect("check aggregate balance index");
+        assert_eq!(exists, 1, "index {index} should be created after columns");
+    }
+}
+
 /// 函数 `api_key_profile_migration_backfills_existing_keys`
 ///
 /// 作者: gaohongshun

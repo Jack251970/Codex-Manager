@@ -1587,6 +1587,8 @@ impl Storage {
                 s.ensure_aggregate_api_balance_secrets_table()
             },
         )?;
+        self.ensure_aggregate_apis_table()?;
+        self.ensure_aggregate_api_balance_secrets_table()?;
         self.apply_sql_or_compat_migration(
             "055_model_price_rules",
             include_str!("../../migrations/055_model_price_rules.sql"),

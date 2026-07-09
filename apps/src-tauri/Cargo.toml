@@ -32,5 +32,8 @@ zip = { version = "2.2", default-features = false, features = ["deflate"] }
 rfd = "0.15"
 rusqlite = { path = "../../crates/rusqlite", features = ["bundled", "backup"] }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+glib = "0.18"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }

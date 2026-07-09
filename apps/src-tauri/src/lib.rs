@@ -1,6 +1,9 @@
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 
+#[cfg(target_os = "linux")]
+use std::sync::OnceLock;
+
 mod app_shell;
 mod app_storage;
 mod commands;
@@ -14,6 +17,13 @@ use app_shell::{
 };
 
 const USAGE_REFRESH_COMPLETED_EVENT: &str = "usage-refresh-completed";
+#[cfg(target_os = "linux")]
+const AYATANA_APPINDICATOR_LOG_DOMAIN: &str = "libayatana-appindicator";
+#[cfg(target_os = "linux")]
+const AYATANA_DEPRECATED_MESSAGE: &str =
+    "libayatana-appindicator is deprecated. Please use libayatana-appindicator-glib in newly written code.";
+#[cfg(target_os = "linux")]
+static AYATANA_LOG_HANDLER_ID: OnceLock<glib::LogHandlerId> = OnceLock::new();
 
 #[derive(Clone, Serialize)]
 struct UsageRefreshCompletedPayload {
@@ -22,6 +32,33 @@ struct UsageRefreshCompletedPayload {
     total: usize,
     completed_at: i64,
 }
+
+#[cfg(target_os = "linux")]
+fn is_known_ayatana_deprecation_notice(domain: Option<&str>, message: &str) -> bool {
+    domain == Some(AYATANA_APPINDICATOR_LOG_DOMAIN)
+        && message.trim() == AYATANA_DEPRECATED_MESSAGE
+}
+
+#[cfg(target_os = "linux")]
+fn install_ayatana_deprecation_notice_filter() {
+    let _ = AYATANA_LOG_HANDLER_ID.get_or_init(|| {
+        glib::log_set_handler(
+            Some(AYATANA_APPINDICATOR_LOG_DOMAIN),
+            glib::LogLevels::LEVEL_WARNING,
+            false,
+            false,
+            |domain, level, message| {
+                if is_known_ayatana_deprecation_notice(domain, message) {
+                    return;
+                }
+                glib::log_default_handler(domain, level, Some(message));
+            },
+        )
+    });
+}
+
+#[cfg(not(target_os = "linux"))]
+fn install_ayatana_deprecation_notice_filter() {}
 
 /// 函数 `run`
 ///
@@ -36,6 +73,8 @@ struct UsageRefreshCompletedPayload {
 /// 无
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_ayatana_deprecation_notice_filter();
+
     let app = tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::new()

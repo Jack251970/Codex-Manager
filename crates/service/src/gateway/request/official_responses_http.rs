@@ -60,6 +60,13 @@ fn is_standard_responses_path(path: &str) -> bool {
     normalized == "/v1/responses"
 }
 
+fn is_official_responses_normalize_path(path: &str) -> bool {
+    path == "/v1/responses"
+        || path.starts_with("/v1/responses?")
+        || path == "/v1/responses/compact"
+        || path.starts_with("/v1/responses/compact?")
+}
+
 pub(crate) fn is_responses_path(path: &str) -> bool {
     is_standard_responses_path(path) || is_compact_path(path)
 }
@@ -738,19 +745,37 @@ pub(crate) fn apply_codex_http_request_rules(
     result
 }
 
+#[cfg(test)]
 pub(crate) fn normalize_official_responses_http_body(path: &str, body: Vec<u8>) -> Vec<u8> {
-    if !(path == "/v1/responses"
-        || path.starts_with("/v1/responses?")
-        || path == "/v1/responses/compact"
-        || path.starts_with("/v1/responses/compact?"))
-    {
+    if !is_official_responses_normalize_path(path) {
         return body;
     }
 
-    let Ok(request) = serde_json::from_slice::<OfficialResponsesHttpRequest>(&body) else {
+    let Ok(value) = serde_json::from_slice::<Value>(&body) else {
         return body;
     };
-    serde_json::to_vec(&request).unwrap_or(body)
+    normalize_official_responses_http_body_with_value(path, body, value).0
+}
+
+pub(crate) fn normalize_official_responses_http_body_with_value(
+    path: &str,
+    body: Vec<u8>,
+    value: Value,
+) -> (Vec<u8>, Option<Value>) {
+    if !is_official_responses_normalize_path(path) {
+        return (body, Some(value));
+    }
+
+    let Ok(request) = serde_json::from_value::<OfficialResponsesHttpRequest>(value.clone()) else {
+        return (body, Some(value));
+    };
+    let Ok(normalized_value) = serde_json::to_value(&request) else {
+        return (body, Some(value));
+    };
+    let Ok(normalized_body) = serde_json::to_vec(&normalized_value) else {
+        return (body, Some(value));
+    };
+    (normalized_body, Some(normalized_value))
 }
 
 #[cfg(test)]

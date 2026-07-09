@@ -128,15 +128,17 @@ pub(crate) use metrics::{
     begin_rpc_request, duration_to_millis, gateway_metrics_prometheus,
     record_usage_refresh_outcome, GatewayCandidateSkipReason,
 };
-pub(super) use official_responses_http::normalize_official_responses_http_body;
+pub(super) use official_responses_http::normalize_official_responses_http_body_with_value;
 use protocol_adapter::build_gemini_error_body;
 use protocol_adapter::{
     adapt_request_for_protocol, GeminiStreamOutputMode, ResponseAdapter, ToolNameRestoreMap,
 };
+#[cfg(test)]
+pub(super) use request_helpers::parse_request_metadata;
 pub(super) use request_helpers::{
-    inspect_service_tier_for_log, inspect_service_tier_value, is_html_content_type,
-    is_upstream_challenge_response, normalize_models_path, parse_request_metadata,
-    validate_text_input_limit_for_path,
+    inspect_service_tier_value, is_html_content_type, is_upstream_challenge_response,
+    normalize_models_path, parse_request_json_value, parse_request_metadata_from_value,
+    validate_text_input_limit_for_path, validate_text_input_limit_for_value,
 };
 #[cfg(test)]
 use request_helpers::{should_drop_incoming_header, should_drop_incoming_header_for_failover};

@@ -7,6 +7,7 @@ use base64::Engine;
 use bytes::Bytes;
 use codexmanager_core::storage::{ApiKey, ConversationBinding};
 use reqwest::Method;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tiny_http::Request;
 
@@ -653,18 +654,39 @@ fn adapt_openai_chat_completions_body_to_responses(body: Vec<u8>) -> Result<Vec<
         .map_err(|err| format!("serialize responses compatibility request failed: {err}"))
 }
 
-fn default_omitted_responses_stream_to_true(body: Vec<u8>) -> Vec<u8> {
-    let Ok(mut payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
-        return body;
+fn default_omitted_responses_stream_to_true_snapshot(body: Vec<u8>) -> ParsedRequestBodySnapshot {
+    let Some(mut payload) = super::super::parse_request_json_value(&body) else {
+        return ParsedRequestBodySnapshot {
+            body,
+            value: None,
+            metadata: ParsedRequestMetadata::default(),
+        };
     };
     let Some(obj) = payload.as_object_mut() else {
-        return body;
+        let metadata = super::super::parse_request_metadata_from_value(&payload);
+        return ParsedRequestBodySnapshot {
+            body,
+            value: Some(payload),
+            metadata,
+        };
     };
-    if obj.contains_key("stream") {
-        return body;
+    let mut rewritten_body = body;
+    if !obj.contains_key("stream") {
+        obj.insert("stream".to_string(), serde_json::Value::Bool(true));
+        if let Ok(serialized) = serde_json::to_vec(&payload) {
+            rewritten_body = serialized;
+        }
     }
-    obj.insert("stream".to_string(), serde_json::Value::Bool(true));
-    serde_json::to_vec(&payload).unwrap_or(body)
+    let metadata = super::super::parse_request_metadata_from_value(&payload);
+    ParsedRequestBodySnapshot {
+        body: rewritten_body,
+        value: Some(payload),
+        metadata,
+    }
+}
+
+fn default_omitted_responses_stream_to_true(body: Vec<u8>) -> Vec<u8> {
+    default_omitted_responses_stream_to_true_snapshot(body).body
 }
 
 const DEFAULT_IMAGES_TOOL_MODEL: &str = "gpt-image-2";
@@ -1574,6 +1596,57 @@ fn resolve_client_is_stream(
             && normalized_path.contains(":streamGenerateContent"))
 }
 
+struct ParsedRequestBodySnapshot {
+    body: Vec<u8>,
+    value: Option<Value>,
+    metadata: ParsedRequestMetadata,
+}
+
+fn normalize_official_responses_body_snapshot(
+    path: &str,
+    body: Vec<u8>,
+) -> ParsedRequestBodySnapshot {
+    let Some(value) = super::super::parse_request_json_value(&body) else {
+        return ParsedRequestBodySnapshot {
+            body,
+            value: None,
+            metadata: ParsedRequestMetadata::default(),
+        };
+    };
+    let (body, value) =
+        super::super::normalize_official_responses_http_body_with_value(path, body, value);
+    let metadata = value
+        .as_ref()
+        .map(super::super::parse_request_metadata_from_value)
+        .unwrap_or_default();
+    ParsedRequestBodySnapshot {
+        body,
+        value,
+        metadata,
+    }
+}
+
+fn validate_text_input_limit_for_snapshot(
+    path: &str,
+    value: Option<&Value>,
+) -> Result<(), super::super::request_helpers::InputSizeLimitError> {
+    let Some(value) = value else {
+        return Ok(());
+    };
+    super::super::validate_text_input_limit_for_value(path, value)
+}
+
+fn validate_text_input_limit_for_body_or_snapshot(
+    path: &str,
+    body: &[u8],
+    value: Option<&Value>,
+) -> Result<(), super::super::request_helpers::InputSizeLimitError> {
+    if let Some(value) = value {
+        return super::super::validate_text_input_limit_for_value(path, value);
+    }
+    super::super::validate_text_input_limit_for_path(path, body)
+}
+
 /// 函数 `apply_passthrough_request_overrides`
 ///
 /// 作者: gaohongshun
@@ -1618,13 +1691,13 @@ fn apply_passthrough_request_overrides(
             None,
             true,
         );
-    let rewritten_body = super::super::normalize_official_responses_http_body(
+    let normalized = normalize_official_responses_body_snapshot(
         transport_request_path(path).as_str(),
         rewritten_body,
     );
-    let request_meta = super::super::parse_request_metadata(&rewritten_body);
+    let request_meta = normalized.metadata;
     (
-        rewritten_body,
+        normalized.body,
         request_meta.model.or(api_key.model_slug.clone()),
         request_meta
             .reasoning_effort
@@ -1686,7 +1759,11 @@ pub(super) fn build_local_validation_result(
             crate::gateway::bilingual_error("不支持的请求方法", "unsupported method"),
         )
     })?;
-    let initial_service_tier_diagnostic = super::super::inspect_service_tier_for_log(&body);
+    let initial_request_value = super::super::parse_request_json_value(&body);
+    let initial_service_tier_diagnostic = initial_request_value
+        .as_ref()
+        .map(|value| super::super::inspect_service_tier_value(value.get("service_tier")))
+        .unwrap_or_default();
     super::super::log_client_service_tier(
         trace_id.as_str(),
         "http",
@@ -1695,7 +1772,10 @@ pub(super) fn build_local_validation_result(
         initial_service_tier_diagnostic.raw_value.as_deref(),
         initial_service_tier_diagnostic.normalized_value.as_deref(),
     );
-    let initial_request_meta = super::super::parse_request_metadata(&body);
+    let initial_request_meta = initial_request_value
+        .as_ref()
+        .map(super::super::parse_request_metadata_from_value)
+        .unwrap_or_default();
     let native_codex_client = is_native_codex_client_request(&incoming_headers);
     let compact_gateway_mode =
         is_compact_subagent_request(normalized_path.as_str(), &incoming_headers)
@@ -1768,16 +1848,23 @@ pub(super) fn build_local_validation_result(
             effective_service_tier_for_log.as_deref(),
             api_key.service_tier.as_deref(),
         );
+        let mut rewritten_body_value_for_validation = None;
         if is_non_native_openai_responses_api_request(
             effective_protocol_type,
             logical_path.as_str(),
             native_codex_client,
         ) {
-            rewritten_body = default_omitted_responses_stream_to_true(rewritten_body);
+            let snapshot = default_omitted_responses_stream_to_true_snapshot(rewritten_body);
+            rewritten_body = snapshot.body;
+            rewritten_body_value_for_validation = snapshot.value;
         }
         let transport_path = transport_request_path(logical_path.as_str());
-        super::super::validate_text_input_limit_for_path(&transport_path, &rewritten_body)
-            .map_err(|err| LocalValidationError::new(400, err.message()))?;
+        validate_text_input_limit_for_body_or_snapshot(
+            &transport_path,
+            &rewritten_body,
+            rewritten_body_value_for_validation.as_ref(),
+        )
+        .map_err(|err| LocalValidationError::new(400, err.message()))?;
         let incoming_headers = incoming_headers
             .with_conversation_id_override(initial_local_conversation_id.as_deref());
         let is_stream = resolve_client_is_stream(
@@ -1839,17 +1926,21 @@ pub(super) fn build_local_validation_result(
         compact_model_override_for_logical_request.as_deref(),
     )
     .0;
+    let mut passthrough_body_value_for_validation = None;
     if is_non_native_openai_responses_api_request(
         effective_protocol_type,
         logical_path.as_str(),
         native_codex_client,
     ) {
-        passthrough_body = default_omitted_responses_stream_to_true(passthrough_body);
+        let snapshot = default_omitted_responses_stream_to_true_snapshot(passthrough_body);
+        passthrough_body = snapshot.body;
+        passthrough_body_value_for_validation = snapshot.value;
     }
     let passthrough_transport_path = transport_request_path(logical_path.as_str());
-    super::super::validate_text_input_limit_for_path(
+    validate_text_input_limit_for_body_or_snapshot(
         &passthrough_transport_path,
         &passthrough_body,
+        passthrough_body_value_for_validation.as_ref(),
     )
     .map_err(|err| LocalValidationError::new(400, err.message()))?;
     let original_body = body.clone();
@@ -2076,11 +2167,16 @@ pub(super) fn build_local_validation_result(
     }
     response_adapter = maybe_wrap_compact_response_adapter(path.as_str(), response_adapter);
     let normalized_transport_path = transport_request_path(path.as_str());
-    body = super::super::normalize_official_responses_http_body(&normalized_transport_path, body);
-    super::super::validate_text_input_limit_for_path(&normalized_transport_path, &body)
-        .map_err(|err| LocalValidationError::new(400, err.message()))?;
+    let normalized_body =
+        normalize_official_responses_body_snapshot(&normalized_transport_path, body);
+    validate_text_input_limit_for_snapshot(
+        &normalized_transport_path,
+        normalized_body.value.as_ref(),
+    )
+    .map_err(|err| LocalValidationError::new(400, err.message()))?;
 
-    let request_meta = super::super::parse_request_metadata(&body);
+    let request_meta = normalized_body.metadata;
+    body = normalized_body.body;
     let client_model_for_log = client_request_meta.model.clone();
     let model_for_log = request_meta.model.or(api_key.model_slug.clone());
     let model_source_for_log = resolve_override_source_for_log(
