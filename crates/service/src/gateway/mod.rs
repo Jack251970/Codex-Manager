@@ -795,6 +795,14 @@ pub(crate) fn current_upstream_proxy_url() -> Option<String> {
     runtime_config::upstream_proxy_url()
 }
 
+pub(crate) fn current_upstream_proxy_bypass_hosts() -> String {
+    runtime_config::upstream_proxy_bypass_hosts()
+}
+
+pub(crate) fn upstream_client_for_aggregate_url(url: &str) -> reqwest::blocking::Client {
+    runtime_config::upstream_client_for_aggregate_url(url)
+}
+
 pub(crate) fn apply_blocking_upstream_proxy(
     builder: reqwest::blocking::ClientBuilder,
     proxy_url: Option<&str>,
@@ -831,6 +839,10 @@ pub(crate) fn set_upstream_proxy_url(proxy_url: Option<&str>) -> Result<Option<S
     // 中文注释：用量轮询和 token 刷新复用独立 HTTP client，代理变更后同步重建，避免继续走旧网络路径。
     crate::usage_http::reload_usage_http_client_from_env();
     Ok(applied)
+}
+
+pub(crate) fn set_upstream_proxy_bypass_hosts(raw: Option<&str>) -> String {
+    runtime_config::set_upstream_proxy_bypass_hosts(raw)
 }
 
 /// 函数 `current_upstream_stream_timeout_ms`

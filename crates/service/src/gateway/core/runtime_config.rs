@@ -11,6 +11,7 @@ static UPSTREAM_CLIENT: OnceLock<RwLock<Client>> = OnceLock::new();
 static ASYNC_UPSTREAM_CLIENT: OnceLock<RwLock<reqwest::Client>> = OnceLock::new();
 static RETRY_UPSTREAM_CLIENT: OnceLock<RwLock<Client>> = OnceLock::new();
 static ASYNC_RETRY_UPSTREAM_CLIENT: OnceLock<RwLock<reqwest::Client>> = OnceLock::new();
+static DIRECT_UPSTREAM_CLIENT: OnceLock<RwLock<Client>> = OnceLock::new();
 static UPSTREAM_CLIENT_POOL: OnceLock<RwLock<UpstreamClientPool>> = OnceLock::new();
 static ACCOUNT_CANDIDATE_CLIENTS: OnceLock<
     RwLock<HashMap<AccountCandidateClientKey, AccountCandidateClients>>,
@@ -21,6 +22,8 @@ static AGGREGATE_CANDIDATE_CLIENTS: OnceLock<RwLock<HashMap<AggregateCandidateCl
 static UPSTREAM_CLIENT_BUILD_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[cfg(test)]
 static ASYNC_UPSTREAM_CLIENT_BUILD_COUNT: AtomicUsize = AtomicUsize::new(0);
+#[cfg(test)]
+static DIRECT_UPSTREAM_CLIENT_BUILD_COUNT: AtomicUsize = AtomicUsize::new(0);
 static RUNTIME_CONFIG_LOADED: OnceLock<()> = OnceLock::new();
 static REQUEST_GATE_WAIT_TIMEOUT_MS: AtomicU64 =
     AtomicU64::new(DEFAULT_REQUEST_GATE_WAIT_TIMEOUT_MS);
@@ -42,6 +45,7 @@ static CODEX_IMAGE_GENERATION_ENABLED: AtomicBool =
 static CODEX_IMAGE_GENERATION_AUTO_INJECT_TOOL: AtomicBool =
     AtomicBool::new(DEFAULT_CODEX_IMAGE_GENERATION_AUTO_INJECT_TOOL);
 static UPSTREAM_PROXY_URL: OnceLock<RwLock<Option<String>>> = OnceLock::new();
+static UPSTREAM_PROXY_BYPASS_HOSTS: OnceLock<RwLock<Vec<String>>> = OnceLock::new();
 static FREE_ACCOUNT_MAX_MODEL: OnceLock<RwLock<String>> = OnceLock::new();
 static COMPACT_MODEL: OnceLock<RwLock<String>> = OnceLock::new();
 static COMPACT_API_PATH: OnceLock<RwLock<String>> = OnceLock::new();
@@ -98,6 +102,7 @@ const ENV_TOKEN_EXCHANGE_CLIENT_ID: &str = "CODEXMANAGER_CLIENT_ID";
 const ENV_TOKEN_EXCHANGE_ISSUER: &str = "CODEXMANAGER_ISSUER";
 const ENV_PROXY_LIST: &str = "CODEXMANAGER_PROXY_LIST";
 const ENV_UPSTREAM_PROXY_URL: &str = "CODEXMANAGER_UPSTREAM_PROXY_URL";
+const ENV_UPSTREAM_PROXY_BYPASS_HOSTS: &str = "CODEXMANAGER_UPSTREAM_PROXY_BYPASS_HOSTS";
 const ENV_FREE_ACCOUNT_MAX_MODEL: &str = "CODEXMANAGER_FREE_ACCOUNT_MAX_MODEL";
 const ENV_COMPACT_MODEL: &str = "CODEXMANAGER_COMPACT_MODEL";
 const ENV_COMPACT_API_PATH: &str = "CODEXMANAGER_COMPACT_API_PATH";
@@ -213,6 +218,14 @@ impl UpstreamClientPool {
 pub(crate) fn upstream_client() -> Client {
     ensure_runtime_config_loaded();
     crate::lock_utils::read_recover(upstream_client_lock(), "upstream_client").clone()
+}
+
+pub(crate) fn upstream_client_for_aggregate_url(url: &str) -> Client {
+    ensure_runtime_config_loaded();
+    if aggregate_api_should_bypass_upstream_proxy(url) {
+        return direct_upstream_client();
+    }
+    upstream_client()
 }
 
 /// 函数 `upstream_client_for_account`
@@ -361,7 +374,12 @@ fn aggregate_candidate_client_key(
     aggregate_api_id: &str,
     url: &str,
 ) -> Result<AggregateCandidateClientKey, String> {
-    AggregateCandidateClientKey::new(aggregate_api_id, url, current_upstream_proxy_url())
+    let proxy_profile = if aggregate_api_should_bypass_upstream_proxy(url) {
+        None
+    } else {
+        current_upstream_proxy_url()
+    };
+    AggregateCandidateClientKey::new(aggregate_api_id, url, proxy_profile)
 }
 
 fn aggregate_candidate_client_for_key(key: AggregateCandidateClientKey) -> Client {
@@ -429,6 +447,27 @@ fn build_upstream_client() -> Client {
 fn build_async_upstream_client() -> reqwest::Client {
     let proxy_url = current_upstream_proxy_url();
     build_async_upstream_client_with_proxy(proxy_url.as_deref())
+}
+
+fn build_direct_upstream_client() -> Client {
+    #[cfg(test)]
+    DIRECT_UPSTREAM_CLIENT_BUILD_COUNT.fetch_add(1, Ordering::SeqCst);
+
+    Client::builder()
+        .no_proxy()
+        .timeout(None::<Duration>)
+        .connect_timeout(upstream_connect_timeout_cached())
+        .pool_max_idle_per_host(32)
+        .pool_idle_timeout(Some(Duration::from_secs(90)))
+        .tcp_keepalive(Some(Duration::from_secs(30)))
+        .build()
+        .unwrap_or_else(|err| {
+            log::warn!(
+                "event=gateway_direct_upstream_client_build_failed err={}",
+                err
+            );
+            Client::new()
+        })
 }
 
 pub(crate) fn apply_blocking_upstream_proxy(
@@ -761,6 +800,15 @@ pub(crate) fn front_proxy_max_body_bytes() -> usize {
 pub(super) fn upstream_proxy_url() -> Option<String> {
     ensure_runtime_config_loaded();
     current_upstream_proxy_url()
+}
+
+pub(super) fn upstream_proxy_bypass_hosts() -> String {
+    ensure_runtime_config_loaded();
+    crate::lock_utils::read_recover(
+        upstream_proxy_bypass_hosts_cell(),
+        "upstream_proxy_bypass_hosts",
+    )
+    .join("\n")
 }
 
 /// 函数 `current_free_account_max_model`
@@ -1189,6 +1237,24 @@ pub(super) fn set_upstream_proxy_url(proxy_url: Option<&str>) -> Result<Option<S
     Ok(normalized)
 }
 
+pub(super) fn set_upstream_proxy_bypass_hosts(raw: Option<&str>) -> String {
+    ensure_runtime_config_loaded();
+    let normalized = normalize_upstream_proxy_bypass_hosts(raw);
+
+    if normalized.is_empty() {
+        std::env::remove_var(ENV_UPSTREAM_PROXY_BYPASS_HOSTS);
+    } else {
+        std::env::set_var(ENV_UPSTREAM_PROXY_BYPASS_HOSTS, normalized.as_str());
+    }
+
+    let mut cached_bypass_hosts = crate::lock_utils::write_recover(
+        upstream_proxy_bypass_hosts_cell(),
+        "upstream_proxy_bypass_hosts",
+    );
+    *cached_bypass_hosts = parse_upstream_proxy_bypass_hosts(normalized.as_str());
+    normalized
+}
+
 /// 函数 `set_upstream_stream_timeout_ms`
 ///
 /// 作者: gaohongshun
@@ -1369,6 +1435,16 @@ pub(super) fn reload_from_env() {
     *cached_proxy_url = converted_proxy;
     drop(cached_proxy_url);
 
+    let bypass_hosts = normalize_upstream_proxy_bypass_hosts(
+        env_non_empty(ENV_UPSTREAM_PROXY_BYPASS_HOSTS).as_deref(),
+    );
+    let mut cached_bypass_hosts = crate::lock_utils::write_recover(
+        upstream_proxy_bypass_hosts_cell(),
+        "upstream_proxy_bypass_hosts",
+    );
+    *cached_bypass_hosts = parse_upstream_proxy_bypass_hosts(bypass_hosts.as_str());
+    drop(cached_bypass_hosts);
+
     let free_account_max_model = env_non_empty(ENV_FREE_ACCOUNT_MAX_MODEL)
         .and_then(|value| normalize_model_slug(value.as_str()).ok())
         .unwrap_or_else(|| DEFAULT_FREE_ACCOUNT_MAX_MODEL.to_string());
@@ -1521,6 +1597,14 @@ fn retry_upstream_client_lock() -> &'static RwLock<Client> {
     RETRY_UPSTREAM_CLIENT.get_or_init(|| RwLock::new(build_upstream_client()))
 }
 
+fn direct_upstream_client() -> Client {
+    crate::lock_utils::read_recover(direct_upstream_client_lock(), "direct_upstream_client").clone()
+}
+
+fn direct_upstream_client_lock() -> &'static RwLock<Client> {
+    DIRECT_UPSTREAM_CLIENT.get_or_init(|| RwLock::new(build_direct_upstream_client()))
+}
+
 fn async_retry_upstream_client() -> reqwest::Client {
     crate::lock_utils::read_recover(
         async_retry_upstream_client_lock(),
@@ -1595,6 +1679,12 @@ fn refresh_upstream_clients_from_runtime_config() {
     );
     *async_retry_client_lock = async_retry_client;
     drop(async_retry_client_lock);
+
+    let direct_client = build_direct_upstream_client();
+    let mut direct_client_lock =
+        crate::lock_utils::write_recover(direct_upstream_client_lock(), "direct_upstream_client");
+    *direct_client_lock = direct_client;
+    drop(direct_client_lock);
 
     let pool = build_upstream_client_pool();
     let mut pool_lock =
@@ -1690,6 +1780,16 @@ fn async_upstream_client_build_count_for_test() -> usize {
     ASYNC_UPSTREAM_CLIENT_BUILD_COUNT.load(Ordering::SeqCst)
 }
 
+#[cfg(test)]
+fn reset_direct_upstream_client_build_count_for_test() {
+    DIRECT_UPSTREAM_CLIENT_BUILD_COUNT.store(0, Ordering::SeqCst);
+}
+
+#[cfg(test)]
+fn direct_upstream_client_build_count_for_test() -> usize {
+    DIRECT_UPSTREAM_CLIENT_BUILD_COUNT.load(Ordering::SeqCst)
+}
+
 /// 函数 `upstream_proxy_url_cell`
 ///
 /// 作者: gaohongshun
@@ -1703,6 +1803,10 @@ fn async_upstream_client_build_count_for_test() -> usize {
 /// 返回函数执行结果
 fn upstream_proxy_url_cell() -> &'static RwLock<Option<String>> {
     UPSTREAM_PROXY_URL.get_or_init(|| RwLock::new(None))
+}
+
+fn upstream_proxy_bypass_hosts_cell() -> &'static RwLock<Vec<String>> {
+    UPSTREAM_PROXY_BYPASS_HOSTS.get_or_init(|| RwLock::new(Vec::new()))
 }
 
 /// 函数 `free_account_max_model_cell`
@@ -2431,6 +2535,75 @@ fn normalize_upstream_proxy_url(proxy_url: Option<&str>) -> Result<Option<String
     Ok(normalized)
 }
 
+fn parse_upstream_proxy_bypass_hosts(raw: &str) -> Vec<String> {
+    raw.split(|ch| matches!(ch, ',' | ';' | '\n' | '\r'))
+        .filter_map(normalize_upstream_proxy_bypass_host)
+        .fold(Vec::new(), |mut hosts, host| {
+            if !hosts.contains(&host) {
+                hosts.push(host);
+            }
+            hosts
+        })
+}
+
+fn normalize_upstream_proxy_bypass_hosts(raw: Option<&str>) -> String {
+    raw.map(parse_upstream_proxy_bypass_hosts)
+        .unwrap_or_default()
+        .join("\n")
+}
+
+fn normalize_upstream_proxy_bypass_host(raw: &str) -> Option<String> {
+    let mut value = raw
+        .trim()
+        .trim_matches('"')
+        .trim_matches('\'')
+        .to_ascii_lowercase();
+    if value.is_empty() {
+        return None;
+    }
+    if let Some(fragment_start) = value.find('#') {
+        value.truncate(fragment_start);
+        value = value.trim().to_string();
+    }
+    if value.is_empty() {
+        return None;
+    }
+
+    if let Some(rest) = value.strip_prefix("*.") {
+        let normalized = normalize_exact_bypass_host(rest)?;
+        return Some(format!("*.{normalized}"));
+    }
+
+    normalize_exact_bypass_host(value.as_str())
+}
+
+fn normalize_exact_bypass_host(raw: &str) -> Option<String> {
+    let candidate = raw.trim().trim_end_matches('.');
+    if candidate.is_empty() {
+        return None;
+    }
+    if let Ok(parsed) = reqwest::Url::parse(candidate) {
+        return parsed
+            .host_str()
+            .map(|host| host.trim_end_matches('.').to_ascii_lowercase());
+    }
+
+    let without_path = candidate.split('/').next().unwrap_or(candidate);
+    let parse_target = format!("https://{without_path}");
+    if let Ok(parsed) = reqwest::Url::parse(parse_target.as_str()) {
+        return parsed
+            .host_str()
+            .map(|host| host.trim_end_matches('.').to_ascii_lowercase());
+    }
+
+    without_path
+        .split(':')
+        .next()
+        .map(str::trim)
+        .filter(|host| !host.is_empty())
+        .map(|host| host.trim_end_matches('.').to_ascii_lowercase())
+}
+
 /// 函数 `parse_proxy_list_env`
 ///
 /// 作者: gaohongshun
@@ -2452,6 +2625,28 @@ fn parse_proxy_list_env() -> Vec<String> {
         .take(MAX_UPSTREAM_PROXY_POOL_SIZE)
         .map(rewrite_socks_proxy_url)
         .collect()
+}
+
+pub(crate) fn aggregate_api_should_bypass_upstream_proxy(url: &str) -> bool {
+    let Ok(parsed) = reqwest::Url::parse(url.trim()) else {
+        return false;
+    };
+    let Some(host) = parsed.host_str().map(|value| value.to_ascii_lowercase()) else {
+        return false;
+    };
+    crate::lock_utils::read_recover(
+        upstream_proxy_bypass_hosts_cell(),
+        "upstream_proxy_bypass_hosts",
+    )
+    .iter()
+    .any(|pattern| bypass_host_pattern_matches(pattern, host.as_str()))
+}
+
+fn bypass_host_pattern_matches(pattern: &str, host: &str) -> bool {
+    if let Some(suffix) = pattern.strip_prefix("*.") {
+        return host.ends_with(&format!(".{suffix}"));
+    }
+    host == pattern
 }
 
 /// 函数 `stable_proxy_index`

@@ -79,6 +79,7 @@ export interface AppSettings {
   authorSponsors: SponsorLinkItem[];
   authorServerRecommendations: SponsorLinkItem[];
   upstreamProxyUrl: string;
+  upstreamProxyBypassHosts: string;
   upstreamStreamTimeoutMs: number;
   upstreamTotalTimeoutMs: number;
   sseKeepaliveIntervalMs: number;

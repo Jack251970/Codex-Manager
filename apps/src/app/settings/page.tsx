@@ -303,6 +303,9 @@ function AdminSettingsPage() {
   const [upstreamProxyDraft, setUpstreamProxyDraft] = useState<string | null>(
     null,
   );
+  const [upstreamProxyBypassDraft, setUpstreamProxyBypassDraft] = useState<
+    string | null
+  >(null);
   const [gatewayOriginatorDraft, setGatewayOriginatorDraft] = useState<
     string | null
   >(null);
@@ -727,6 +730,8 @@ function AdminSettingsPage() {
 
   const upstreamProxyInput =
     upstreamProxyDraft ?? (snapshot?.upstreamProxyUrl || "");
+  const upstreamProxyBypassInput =
+    upstreamProxyBypassDraft ?? (snapshot?.upstreamProxyBypassHosts || "");
   const gatewayOriginatorDefault =
     snapshot?.gatewayOriginatorDefault || DEFAULT_CODEX_ORIGINATOR;
   const gatewayOriginatorInput =
@@ -1459,6 +1464,9 @@ function AdminSettingsPage() {
             upstreamProxyInput={upstreamProxyInput}
             upstreamProxyDraft={upstreamProxyDraft}
             setUpstreamProxyDraft={setUpstreamProxyDraft}
+            upstreamProxyBypassInput={upstreamProxyBypassInput}
+            upstreamProxyBypassDraft={upstreamProxyBypassDraft}
+            setUpstreamProxyBypassDraft={setUpstreamProxyBypassDraft}
           />
         </TabsContent>
 

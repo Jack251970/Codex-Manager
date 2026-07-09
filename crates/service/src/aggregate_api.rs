@@ -1317,6 +1317,22 @@ fn build_codex_probe_body() -> serde_json::Value {
     })
 }
 
+fn is_minimax_aggregate_api(api: &AggregateApi) -> bool {
+    if api
+        .supplier_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .is_some_and(|value| value.to_ascii_lowercase().contains("minimax"))
+    {
+        return true;
+    }
+    reqwest::Url::parse(api.url.as_str())
+        .ok()
+        .and_then(|url| url.host_str().map(|host| host.to_ascii_lowercase()))
+        .is_some_and(|host| host == "minimax.io" || host.ends_with(".minimax.io"))
+}
+
 fn build_gemini_probe_body() -> serde_json::Value {
     json!({
         "contents": [{
@@ -1646,11 +1662,19 @@ fn probe_codex_responses_endpoint(
             "stream": false
         })
     } else if let Some(model_override) = api.model_override.as_deref() {
-        let mut body = build_codex_probe_body();
-        if let Some(obj) = body.as_object_mut() {
-            obj.insert("model".to_string(), json!(model_override));
+        if is_minimax_aggregate_api(api) {
+            json!({
+                "model": model_override,
+                "input": "Who are you?",
+                "stream": false
+            })
+        } else {
+            let mut body = build_codex_probe_body();
+            if let Some(obj) = body.as_object_mut() {
+                obj.insert("model".to_string(), json!(model_override));
+            }
+            body
         }
-        body
     } else {
         build_codex_probe_body()
     };
@@ -2510,7 +2534,7 @@ pub(crate) fn test_aggregate_api_connection(
     let secret = api_with_secrets
         .secret_value
         .ok_or_else(|| "aggregate api secret not found".to_string())?;
-    let client = gateway::upstream_client();
+    let client = gateway::upstream_client_for_aggregate_url(api.url.as_str());
     let started_at = Instant::now();
     let provider_type = normalize_provider_type_value(api.provider_type.as_str());
     let result = match provider_type.as_str() {
@@ -2560,7 +2584,7 @@ pub(crate) fn discover_aggregate_api_models(api_id: &str) -> Result<Vec<String>,
         return Ok(vec![model_override.to_string()]);
     }
 
-    let client = gateway::upstream_client();
+    let client = gateway::upstream_client_for_aggregate_url(api.url.as_str());
     let provider_type = normalize_provider_type_value(api.provider_type.as_str());
     match provider_type.as_str() {
         AGGREGATE_API_PROVIDER_CLAUDE => {
@@ -2603,7 +2627,7 @@ pub(crate) fn refresh_aggregate_api_balance(
     let template = default_balance_query_template(normalize_balance_query_template(
         api.balance_query_template.clone(),
     )?);
-    let client = gateway::upstream_client();
+    let client = gateway::upstream_client_for_aggregate_url(api.url.as_str());
     let started_at = Instant::now();
     let result = match template.as_str() {
         AGGREGATE_API_BALANCE_TEMPLATE_NEW_API => {

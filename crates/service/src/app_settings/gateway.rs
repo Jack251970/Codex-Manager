@@ -34,8 +34,9 @@ use super::{
     APP_SETTING_GATEWAY_MODEL_FORWARD_RULES_KEY, APP_SETTING_GATEWAY_ORIGINATOR_KEY,
     APP_SETTING_GATEWAY_QUOTA_GUARD_KEY, APP_SETTING_GATEWAY_REQUEST_COMPRESSION_ENABLED_KEY,
     APP_SETTING_GATEWAY_RESIDENCY_REQUIREMENT_KEY, APP_SETTING_GATEWAY_ROUTE_STRATEGY_KEY,
-    APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY, APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY,
-    APP_SETTING_GATEWAY_UPSTREAM_STREAM_TIMEOUT_MS_KEY,
+    APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY,
+    APP_SETTING_GATEWAY_UPSTREAM_PROXY_BYPASS_HOSTS_KEY,
+    APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY, APP_SETTING_GATEWAY_UPSTREAM_STREAM_TIMEOUT_MS_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_TOTAL_TIMEOUT_MS_KEY, APP_SETTING_GATEWAY_USER_AGENT_VERSION_KEY,
 };
 
@@ -541,6 +542,23 @@ pub fn set_gateway_upstream_proxy_url(proxy_url: Option<&str>) -> Result<Option<
     save_persisted_app_setting(
         APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY,
         applied.as_deref(),
+    )?;
+    Ok(applied)
+}
+
+pub fn current_gateway_upstream_proxy_bypass_hosts() -> String {
+    gateway::current_upstream_proxy_bypass_hosts()
+}
+
+pub fn set_gateway_upstream_proxy_bypass_hosts(raw: Option<&str>) -> Result<String, String> {
+    let applied = gateway::set_upstream_proxy_bypass_hosts(raw);
+    save_persisted_app_setting(
+        APP_SETTING_GATEWAY_UPSTREAM_PROXY_BYPASS_HOSTS_KEY,
+        if applied.is_empty() {
+            None
+        } else {
+            Some(applied.as_str())
+        },
     )?;
     Ok(applied)
 }

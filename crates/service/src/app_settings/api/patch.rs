@@ -12,13 +12,14 @@ use super::{
     set_gateway_model_catalog_auto_remote_fetch, set_gateway_model_forward_rules,
     set_gateway_originator, set_gateway_quota_guard, set_gateway_residency_requirement,
     set_gateway_route_strategy, set_gateway_sse_keepalive_interval_ms,
-    set_gateway_upstream_proxy_url, set_gateway_upstream_stream_timeout_ms,
-    set_gateway_upstream_total_timeout_ms, set_gateway_user_agent_version,
-    set_lightweight_mode_on_close_to_tray_setting, set_saved_service_addr, set_service_bind_mode,
-    set_ui_appearance_preset, set_ui_locale, set_ui_low_transparency_enabled, set_ui_theme,
-    set_update_auto_check_enabled, BackgroundTasksInput, QuotaGuardInput,
-    APP_SETTING_AUTHOR_SERVER_RECOMMENDATIONS_KEY, APP_SETTING_AUTHOR_SPONSORS_KEY,
-    APP_SETTING_PLUGIN_MARKET_MODE_KEY, APP_SETTING_PLUGIN_MARKET_SOURCE_URL_KEY,
+    set_gateway_upstream_proxy_bypass_hosts, set_gateway_upstream_proxy_url,
+    set_gateway_upstream_stream_timeout_ms, set_gateway_upstream_total_timeout_ms,
+    set_gateway_user_agent_version, set_lightweight_mode_on_close_to_tray_setting,
+    set_saved_service_addr, set_service_bind_mode, set_ui_appearance_preset, set_ui_locale,
+    set_ui_low_transparency_enabled, set_ui_theme, set_update_auto_check_enabled,
+    BackgroundTasksInput, QuotaGuardInput, APP_SETTING_AUTHOR_SERVER_RECOMMENDATIONS_KEY,
+    APP_SETTING_AUTHOR_SPONSORS_KEY, APP_SETTING_PLUGIN_MARKET_MODE_KEY,
+    APP_SETTING_PLUGIN_MARKET_SOURCE_URL_KEY,
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -48,6 +49,7 @@ pub(super) struct AppSettingsPatch {
     author_sponsors: Option<Vec<AuthorLinkItem>>,
     author_server_recommendations: Option<Vec<AuthorLinkItem>>,
     upstream_proxy_url: Option<String>,
+    upstream_proxy_bypass_hosts: Option<String>,
     upstream_stream_timeout_ms: Option<u64>,
     upstream_total_timeout_ms: Option<u64>,
     sse_keepalive_interval_ms: Option<u64>,
@@ -180,6 +182,9 @@ pub(super) fn apply_app_settings_patch(patch: AppSettingsPatch) -> Result<(), St
     }
     if let Some(proxy_url) = patch.upstream_proxy_url {
         let _ = set_gateway_upstream_proxy_url(Some(&proxy_url))?;
+    }
+    if let Some(bypass_hosts) = patch.upstream_proxy_bypass_hosts {
+        let _ = set_gateway_upstream_proxy_bypass_hosts(Some(&bypass_hosts))?;
     }
     if let Some(timeout_ms) = patch.upstream_stream_timeout_ms {
         let _ = set_gateway_upstream_stream_timeout_ms(timeout_ms)?;

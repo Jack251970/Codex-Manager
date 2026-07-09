@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Clipboard, Database, Info, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -165,11 +165,19 @@ export function AggregateApiModal({
   const [key, setKey] = useState("");
   const [generatedKey, setGeneratedKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const bodyScrollRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const isServiceReady = canAccessManagementRpc && serviceStatus.connected;
   const unavailableMessage = canAccessManagementRpc
     ? t("服务未连接，聚合 API 暂不可编辑；连接恢复后可继续操作。")
     : t("当前运行环境暂不支持聚合 API 管理。");
+
+  useEffect(() => {
+    if (!open) return;
+    window.requestAnimationFrame(() => {
+      bodyScrollRef.current?.scrollTo({ top: 0 });
+    });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -509,9 +517,23 @@ export function AggregateApiModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card w-[calc(100%-2rem)] max-w-[calc(100%-2rem)] overflow-hidden p-0 sm:max-w-[92vw] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[760px]">
-        <div className="flex max-h-[92vh] flex-col">
-          <div className="border-b border-border/50 px-5 pt-5 pb-3">
+      <DialogContent
+        className="glass-card flex flex-col gap-0 overflow-hidden p-0"
+        style={{
+          height: "calc(100dvh - 6rem)",
+          left: "max(1rem, calc((100dvw - 760px) / 2))",
+          marginTop: 0,
+          maxHeight: "none",
+          maxWidth: "min(calc(100dvw - 2rem), 760px)",
+          position: "fixed",
+          top: "3rem",
+          transform: "none",
+          translate: "0 0",
+          width: "min(calc(100dvw - 2rem), 760px)",
+        }}
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="shrink-0 border-b border-border/50 px-5 pt-5 pb-3">
             <DialogHeader>
               <div className="mb-2 flex items-center gap-3">
                 <div className="rounded-full bg-primary/10 p-2">
@@ -527,7 +549,7 @@ export function AggregateApiModal({
             </DialogHeader>
           </div>
 
-          <div className="overflow-y-auto px-5 py-3">
+          <div ref={bodyScrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
             <div className="grid gap-4">
               {!isServiceReady ? (
                 <Alert>
@@ -1225,8 +1247,8 @@ export function AggregateApiModal({
             </div>
           </div>
 
-          <div className="border-t border-border/50 px-5 py-3">
-            <DialogFooter>
+          <div className="shrink-0 border-t border-border/50 px-5 py-3">
+            <DialogFooter className="mx-0 mb-0 gap-2 rounded-none border-0 bg-transparent p-0 sm:gap-2">
               {!generatedKey ? (
                 <DialogClose
                   className={buttonVariants({ variant: "ghost" })}

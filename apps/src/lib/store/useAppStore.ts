@@ -123,6 +123,7 @@ export const useAppStore = create<AppState>((set) => ({
     authorSponsors: DEFAULT_AUTHOR_SPONSORS,
     authorServerRecommendations: DEFAULT_AUTHOR_SERVER_RECOMMENDATIONS,
     upstreamProxyUrl: "",
+    upstreamProxyBypassHosts: "",
     upstreamStreamTimeoutMs: 300000,
     upstreamTotalTimeoutMs: 0,
     sseKeepaliveIntervalMs: 15000,
