@@ -85,7 +85,7 @@ const NavItem = memo(({
     aria-label={itemName}
     title={itemName}
     className={cn(
-      "group/nav relative flex min-h-10 items-center gap-3 overflow-hidden rounded-md border border-transparent px-3 py-2 text-[13px] transition-all duration-200 hover:border-primary/20 hover:bg-primary/5 hover:text-primary",
+      "group/nav relative flex min-h-10 items-center gap-3 overflow-hidden rounded-md border border-transparent px-3 py-2 text-[13px] transition-colors duration-200 hover:border-primary/20 hover:bg-primary/5 hover:text-primary",
       !isSidebarOpen && "justify-center px-0",
       isActive
         ? "border-primary/25 bg-primary/10 text-primary shadow-[inset_3px_0_0_rgb(var(--primary-rgb)/0.8),0_10px_22px_-20px_rgb(var(--primary-rgb)/0.34)]"
@@ -222,8 +222,9 @@ export function Sidebar() {
 
   return (
     <div
+      data-slot="app-sidebar"
       className={cn(
-        "relative z-20 flex shrink-0 flex-col glass-sidebar transition-[width] duration-300 ease-in-out",
+        "relative z-20 flex shrink-0 flex-col glass-sidebar",
         isSidebarOpen ? "w-60" : "w-16"
       )}
     >
