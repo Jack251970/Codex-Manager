@@ -34,7 +34,10 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="console-shell flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div
+        data-slot="app-main-column"
+        className="flex min-w-0 flex-1 flex-col overflow-hidden"
+      >
         <Header />
         <main className="relative min-w-0 flex-1 overflow-y-auto px-4 py-5 no-scrollbar md:px-5 xl:px-6">
           <RouteTransitionOverlay />
