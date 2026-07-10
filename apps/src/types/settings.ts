@@ -42,6 +42,8 @@ export interface QuotaGuardSettings {
 
 export interface AppSettings {
   updateAutoCheck: boolean;
+  autoStartEnabled: boolean;
+  autoStartSupported: boolean;
   closeToTrayOnClose: boolean;
   closeToTraySupported: boolean;
   lowTransparency: boolean;
@@ -67,6 +69,7 @@ export interface AppSettings {
   modelForwardRules: string;
   compactModelForwardRules: string;
   accountMaxInflight: number;
+  threadAwareAccountDistributionEnabled: boolean;
   quotaGuard: QuotaGuardSettings;
   gatewayOriginator: string;
   gatewayOriginatorDefault: string;

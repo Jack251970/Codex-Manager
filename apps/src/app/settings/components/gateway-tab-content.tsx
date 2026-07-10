@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Workflow } from "lucide-react";
 import { AppSettings } from "@/types";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -148,6 +148,26 @@ export function GatewayTabContent({
               "顺序优先：按账号候选顺序优先尝试，默认只会在头部小窗口内按健康度做轻微换头；均衡轮询：按“平台密钥 + 模型”维度严格轮询可用账号，默认不做健康度换头。",
             )}
           </p>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Workflow className="h-4 w-4 text-primary" />
+              <Label>{t("线程感知账号分配")}</Label>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              {t("开启后未绑定的新线程会优先选择当前承载线程更少的可用账号，已有线程仍保持账号粘性。")}
+            </p>
+          </div>
+          <Switch
+            checked={snapshot.threadAwareAccountDistributionEnabled}
+            onCheckedChange={(checked) =>
+              updateSettings.mutate({
+                threadAwareAccountDistributionEnabled: checked,
+              })
+            }
+          />
         </div>
 
         <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-start sm:justify-between">

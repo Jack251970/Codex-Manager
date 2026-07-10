@@ -284,6 +284,7 @@ function AdminSettingsPage() {
     canAccessManagementRpc,
     canSelfUpdate,
     canOpenLocalDir,
+    canAutoStart,
     canCloseToTray,
   } = useRuntimeCapabilities();
   const isPageActive = useDesktopPageActive("/settings/");
@@ -1412,6 +1413,7 @@ function AdminSettingsPage() {
             canDownloadUpdate={canDownloadUpdate}
             updateActionBusyLabel={updateActionBusyLabel}
             snapshot={snapshot}
+            canAutoStart={canAutoStart}
             canCloseToTray={canCloseToTray}
             updateSettings={updateSettings}
           />

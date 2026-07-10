@@ -23,7 +23,7 @@ static UPSTREAM_CLIENT_BUILD_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[cfg(test)]
 static ASYNC_UPSTREAM_CLIENT_BUILD_COUNT: AtomicUsize = AtomicUsize::new(0);
 #[cfg(test)]
-static DIRECT_UPSTREAM_CLIENT_BUILD_COUNT: AtomicUsize = AtomicUsize::new(0);
+static DIRECT_UPSTREAM_CLIENT_USE_COUNT: AtomicUsize = AtomicUsize::new(0);
 static RUNTIME_CONFIG_LOADED: OnceLock<()> = OnceLock::new();
 static REQUEST_GATE_WAIT_TIMEOUT_MS: AtomicU64 =
     AtomicU64::new(DEFAULT_REQUEST_GATE_WAIT_TIMEOUT_MS);
@@ -36,6 +36,8 @@ static UPSTREAM_CONNECT_TIMEOUT_SECS: AtomicU64 =
 static UPSTREAM_TOTAL_TIMEOUT_MS: AtomicU64 = AtomicU64::new(DEFAULT_UPSTREAM_TOTAL_TIMEOUT_MS);
 static UPSTREAM_STREAM_TIMEOUT_MS: AtomicU64 = AtomicU64::new(DEFAULT_UPSTREAM_STREAM_TIMEOUT_MS);
 static ACCOUNT_MAX_INFLIGHT: AtomicUsize = AtomicUsize::new(DEFAULT_ACCOUNT_MAX_INFLIGHT);
+static THREAD_AWARE_ACCOUNT_DISTRIBUTION: AtomicBool =
+    AtomicBool::new(DEFAULT_THREAD_AWARE_ACCOUNT_DISTRIBUTION);
 static STRICT_REQUEST_PARAM_ALLOWLIST: AtomicBool =
     AtomicBool::new(DEFAULT_STRICT_REQUEST_PARAM_ALLOWLIST);
 static ENABLE_REQUEST_COMPRESSION: AtomicBool = AtomicBool::new(DEFAULT_ENABLE_REQUEST_COMPRESSION);
@@ -64,6 +66,7 @@ const DEFAULT_UPSTREAM_CONNECT_TIMEOUT_SECS: u64 = 15;
 const DEFAULT_UPSTREAM_TOTAL_TIMEOUT_MS: u64 = 0;
 const DEFAULT_UPSTREAM_STREAM_TIMEOUT_MS: u64 = 300_000;
 const DEFAULT_ACCOUNT_MAX_INFLIGHT: usize = 0;
+const DEFAULT_THREAD_AWARE_ACCOUNT_DISTRIBUTION: bool = true;
 const DEFAULT_STRICT_REQUEST_PARAM_ALLOWLIST: bool = false;
 const DEFAULT_ENABLE_REQUEST_COMPRESSION: bool = true;
 const DEFAULT_USE_WEBSOCKET_UPSTREAM: bool = false;
@@ -450,9 +453,6 @@ fn build_async_upstream_client() -> reqwest::Client {
 }
 
 fn build_direct_upstream_client() -> Client {
-    #[cfg(test)]
-    DIRECT_UPSTREAM_CLIENT_BUILD_COUNT.fetch_add(1, Ordering::SeqCst);
-
     Client::builder()
         .no_proxy()
         .timeout(None::<Duration>)
@@ -715,6 +715,17 @@ pub(crate) fn set_account_max_inflight_limit(limit: usize) -> usize {
     ACCOUNT_MAX_INFLIGHT.store(limit, Ordering::Relaxed);
     std::env::set_var(ENV_ACCOUNT_MAX_INFLIGHT, limit.to_string());
     limit
+}
+
+pub(crate) fn thread_aware_account_distribution_enabled() -> bool {
+    ensure_runtime_config_loaded();
+    THREAD_AWARE_ACCOUNT_DISTRIBUTION.load(Ordering::Relaxed)
+}
+
+pub(crate) fn set_thread_aware_account_distribution_enabled(enabled: bool) -> bool {
+    ensure_runtime_config_loaded();
+    THREAD_AWARE_ACCOUNT_DISTRIBUTION.store(enabled, Ordering::Relaxed);
+    enabled
 }
 
 /// 函数 `strict_request_param_allowlist_enabled`
@@ -1598,6 +1609,9 @@ fn retry_upstream_client_lock() -> &'static RwLock<Client> {
 }
 
 fn direct_upstream_client() -> Client {
+    #[cfg(test)]
+    DIRECT_UPSTREAM_CLIENT_USE_COUNT.fetch_add(1, Ordering::SeqCst);
+
     crate::lock_utils::read_recover(direct_upstream_client_lock(), "direct_upstream_client").clone()
 }
 
@@ -1781,13 +1795,13 @@ fn async_upstream_client_build_count_for_test() -> usize {
 }
 
 #[cfg(test)]
-fn reset_direct_upstream_client_build_count_for_test() {
-    DIRECT_UPSTREAM_CLIENT_BUILD_COUNT.store(0, Ordering::SeqCst);
+fn reset_direct_upstream_client_use_count_for_test() {
+    DIRECT_UPSTREAM_CLIENT_USE_COUNT.store(0, Ordering::SeqCst);
 }
 
 #[cfg(test)]
-fn direct_upstream_client_build_count_for_test() -> usize {
-    DIRECT_UPSTREAM_CLIENT_BUILD_COUNT.load(Ordering::SeqCst)
+fn direct_upstream_client_use_count_for_test() -> usize {
+    DIRECT_UPSTREAM_CLIENT_USE_COUNT.load(Ordering::SeqCst)
 }
 
 /// 函数 `upstream_proxy_url_cell`

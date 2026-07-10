@@ -81,6 +81,11 @@ pub fn run() {
                 .with_state_flags(tauri_plugin_window_state::StateFlags::all())
                 .build(),
         )
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("CodexManager")
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             log::info!(
                 "secondary instance intercepted; focusing main window (args: {:?}, cwd: {})",

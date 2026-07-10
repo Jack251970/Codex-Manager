@@ -6,12 +6,13 @@ use super::author_links::{
     normalize_author_link_items, serialize_author_link_items, AuthorLinkItem,
 };
 use super::{
-    save_persisted_app_setting, set_close_to_tray_on_close_setting, set_codex_cli_guide_dismissed,
-    set_env_overrides, set_gateway_account_max_inflight, set_gateway_background_tasks,
-    set_gateway_compact_model_forward_rules, set_gateway_free_account_max_model,
-    set_gateway_model_catalog_auto_remote_fetch, set_gateway_model_forward_rules,
-    set_gateway_originator, set_gateway_quota_guard, set_gateway_residency_requirement,
-    set_gateway_route_strategy, set_gateway_sse_keepalive_interval_ms,
+    save_persisted_app_setting, set_auto_start_enabled_setting, set_close_to_tray_on_close_setting,
+    set_codex_cli_guide_dismissed, set_env_overrides, set_gateway_account_max_inflight,
+    set_gateway_background_tasks, set_gateway_compact_model_forward_rules,
+    set_gateway_free_account_max_model, set_gateway_model_catalog_auto_remote_fetch,
+    set_gateway_model_forward_rules, set_gateway_originator, set_gateway_quota_guard,
+    set_gateway_residency_requirement, set_gateway_route_strategy,
+    set_gateway_sse_keepalive_interval_ms, set_gateway_thread_aware_account_distribution_enabled,
     set_gateway_upstream_proxy_bypass_hosts, set_gateway_upstream_proxy_url,
     set_gateway_upstream_stream_timeout_ms, set_gateway_upstream_total_timeout_ms,
     set_gateway_user_agent_version, set_lightweight_mode_on_close_to_tray_setting,
@@ -26,6 +27,7 @@ use super::{
 #[serde(rename_all = "camelCase")]
 pub(super) struct AppSettingsPatch {
     update_auto_check: Option<bool>,
+    auto_start_enabled: Option<bool>,
     close_to_tray_on_close: Option<bool>,
     lightweight_mode_on_close_to_tray: Option<bool>,
     codex_cli_guide_dismissed: Option<bool>,
@@ -41,6 +43,7 @@ pub(super) struct AppSettingsPatch {
     model_forward_rules: Option<String>,
     compact_model_forward_rules: Option<String>,
     account_max_inflight: Option<usize>,
+    thread_aware_account_distribution_enabled: Option<bool>,
     gateway_originator: Option<String>,
     gateway_user_agent_version: Option<String>,
     gateway_residency_requirement: Option<String>,
@@ -95,6 +98,9 @@ pub(super) fn apply_app_settings_patch(patch: AppSettingsPatch) -> Result<(), St
     if let Some(enabled) = patch.update_auto_check {
         set_update_auto_check_enabled(enabled)?;
     }
+    if let Some(enabled) = patch.auto_start_enabled {
+        set_auto_start_enabled_setting(enabled)?;
+    }
     if let Some(enabled) = patch.close_to_tray_on_close {
         set_close_to_tray_on_close_setting(enabled)?;
     }
@@ -139,6 +145,9 @@ pub(super) fn apply_app_settings_patch(patch: AppSettingsPatch) -> Result<(), St
     }
     if let Some(limit) = patch.account_max_inflight {
         let _ = set_gateway_account_max_inflight(limit)?;
+    }
+    if let Some(enabled) = patch.thread_aware_account_distribution_enabled {
+        let _ = set_gateway_thread_aware_account_distribution_enabled(enabled)?;
     }
     if let Some(originator) = patch.gateway_originator {
         let _ = set_gateway_originator(&originator)?;

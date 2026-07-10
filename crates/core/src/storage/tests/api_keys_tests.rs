@@ -91,6 +91,25 @@ fn large_key_sets_are_chunked_for_api_key_and_quota_queries() {
 }
 
 #[test]
+fn update_api_key_last_used_at_by_id_updates_recent_call_time() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+    let mut key = make_test_api_key(1);
+    key.last_used_at = None;
+    storage.insert_api_key(&key).expect("insert api key");
+
+    storage
+        .update_api_key_last_used_at_by_id(&key.id, 12345)
+        .expect("touch last used");
+
+    let loaded = storage
+        .find_api_key_by_id(&key.id)
+        .expect("load api key")
+        .expect("api key exists");
+    assert_eq!(loaded.last_used_at, Some(12345));
+}
+
+#[test]
 fn large_key_sets_are_chunked_for_api_key_summary_queries() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");

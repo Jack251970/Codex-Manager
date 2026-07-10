@@ -1,4 +1,5 @@
 pub const APP_SETTING_UPDATE_AUTO_CHECK_KEY: &str = "app.update.auto_check";
+pub const APP_SETTING_AUTO_START_ENABLED_KEY: &str = "app.auto_start_enabled";
 pub const APP_SETTING_CLOSE_TO_TRAY_ON_CLOSE_KEY: &str = "app.close_to_tray_on_close";
 pub const APP_SETTING_LIGHTWEIGHT_MODE_ON_CLOSE_TO_TRAY_KEY: &str =
     "app.lightweight_mode_on_close_to_tray";
@@ -18,6 +19,8 @@ pub const APP_SETTING_GATEWAY_COMPACT_MODEL_FORWARD_RULES_KEY: &str =
 pub const APP_SETTING_GATEWAY_MODEL_CATALOG_AUTO_REMOTE_FETCH_KEY: &str =
     "gateway.model_catalog_auto_remote_fetch";
 pub const APP_SETTING_GATEWAY_ACCOUNT_MAX_INFLIGHT_KEY: &str = "gateway.account_max_inflight";
+pub const APP_SETTING_GATEWAY_THREAD_AWARE_ACCOUNT_DISTRIBUTION_ENABLED_KEY: &str =
+    "gateway.thread_aware_account_distribution_enabled";
 pub const APP_SETTING_GATEWAY_QUOTA_GUARD_KEY: &str = "gateway.quota_guard";
 pub const APP_SETTING_GATEWAY_REQUEST_COMPRESSION_ENABLED_KEY: &str =
     "gateway.request_compression_enabled";

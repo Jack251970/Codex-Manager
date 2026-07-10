@@ -12,6 +12,7 @@ use super::{
     APP_SETTING_GATEWAY_ORIGINATOR_KEY, APP_SETTING_GATEWAY_QUOTA_GUARD_KEY,
     APP_SETTING_GATEWAY_RESIDENCY_REQUIREMENT_KEY, APP_SETTING_GATEWAY_ROUTE_STRATEGY_KEY,
     APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY,
+    APP_SETTING_GATEWAY_THREAD_AWARE_ACCOUNT_DISTRIBUTION_ENABLED_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_PROXY_BYPASS_HOSTS_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY, APP_SETTING_GATEWAY_UPSTREAM_STREAM_TIMEOUT_MS_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_TOTAL_TIMEOUT_MS_KEY, APP_SETTING_GATEWAY_USER_AGENT_VERSION_KEY,
@@ -174,6 +175,13 @@ pub fn sync_runtime_settings_from_storage() {
                 log::warn!("parse persisted account max inflight failed: {raw}");
             }
         }
+    }
+    if let Some(raw) =
+        settings.get(APP_SETTING_GATEWAY_THREAD_AWARE_ACCOUNT_DISTRIBUTION_ENABLED_KEY)
+    {
+        gateway::set_thread_aware_account_distribution_enabled(super::parse_bool_with_default(
+            raw, true,
+        ));
     }
     if !process_env_has_value("CODEXMANAGER_ORIGINATOR") {
         if let Some(originator) = settings.get(APP_SETTING_GATEWAY_ORIGINATOR_KEY) {

@@ -1,4 +1,9 @@
 use codexmanager_core::storage::{now_ts, RequestLog, RequestTokenStat, Storage};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+const API_KEY_LAST_USED_TOUCH_MIN_INTERVAL_SECS: i64 = 60;
+static API_KEY_LAST_USED_TOUCH_CACHE: OnceLock<Mutex<HashMap<String, i64>>> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct RequestLogUsage {
@@ -620,6 +625,8 @@ pub(crate) fn write_request_log_with_attempts(
     }
 
     if success {
+        touch_api_key_last_used_after_success(storage, key_id, created_at);
+
         let raw_usage_json = serde_json::to_string(&serde_json::json!({
             "model": model,
             "inputTokens": input_tokens,
@@ -658,6 +665,35 @@ pub(crate) fn write_request_log_with_attempts(
             err_text
         );
     }
+}
+
+fn touch_api_key_last_used_after_success(storage: &Storage, key_id: Option<&str>, now: i64) {
+    let Some(key_id) = key_id.map(str::trim).filter(|value| !value.is_empty()) else {
+        return;
+    };
+    if !should_touch_api_key_last_used(key_id, now) {
+        return;
+    }
+    if let Err(err) = storage.update_api_key_last_used_at_by_id(key_id, now) {
+        log::warn!(
+            "event=api_key_last_used_touch_failed key_id={} err={}",
+            key_id,
+            err
+        );
+    }
+}
+
+fn should_touch_api_key_last_used(key_id: &str, now: i64) -> bool {
+    let cache = API_KEY_LAST_USED_TOUCH_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let Ok(mut cache) = cache.lock() else {
+        return true;
+    };
+    let previous = cache.get(key_id).copied().unwrap_or(0);
+    if now.saturating_sub(previous) < API_KEY_LAST_USED_TOUCH_MIN_INTERVAL_SECS {
+        return false;
+    }
+    cache.insert(key_id.to_string(), now);
+    true
 }
 
 #[cfg(test)]

@@ -35,6 +35,7 @@ use super::{
     APP_SETTING_GATEWAY_QUOTA_GUARD_KEY, APP_SETTING_GATEWAY_REQUEST_COMPRESSION_ENABLED_KEY,
     APP_SETTING_GATEWAY_RESIDENCY_REQUIREMENT_KEY, APP_SETTING_GATEWAY_ROUTE_STRATEGY_KEY,
     APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY,
+    APP_SETTING_GATEWAY_THREAD_AWARE_ACCOUNT_DISTRIBUTION_ENABLED_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_PROXY_BYPASS_HOSTS_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_PROXY_URL_KEY, APP_SETTING_GATEWAY_UPSTREAM_STREAM_TIMEOUT_MS_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_TOTAL_TIMEOUT_MS_KEY, APP_SETTING_GATEWAY_USER_AGENT_VERSION_KEY,
@@ -271,6 +272,21 @@ pub fn set_gateway_account_max_inflight(limit: usize) -> Result<usize, String> {
 /// 返回函数执行结果
 pub fn current_gateway_account_max_inflight() -> usize {
     gateway::account_max_inflight_limit()
+}
+
+pub fn set_gateway_thread_aware_account_distribution_enabled(
+    enabled: bool,
+) -> Result<bool, String> {
+    let applied = gateway::set_thread_aware_account_distribution_enabled(enabled);
+    save_persisted_bool_setting(
+        APP_SETTING_GATEWAY_THREAD_AWARE_ACCOUNT_DISTRIBUTION_ENABLED_KEY,
+        applied,
+    )?;
+    Ok(applied)
+}
+
+pub fn current_gateway_thread_aware_account_distribution_enabled() -> bool {
+    gateway::thread_aware_account_distribution_enabled()
 }
 
 pub(crate) fn set_gateway_quota_guard(

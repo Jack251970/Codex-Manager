@@ -398,6 +398,9 @@ use runtime_config::{
     upstream_client_for_aggregate_api_candidate, upstream_stream_timeout, upstream_total_timeout,
     DEFAULT_GATEWAY_DEBUG,
 };
+pub(crate) use runtime_config::{
+    set_thread_aware_account_distribution_enabled, thread_aware_account_distribution_enabled,
+};
 use selection::collect_gateway_candidates;
 pub(crate) use selection::{
     collect_gateway_candidates_for_accounts_with_low_quota_mode,

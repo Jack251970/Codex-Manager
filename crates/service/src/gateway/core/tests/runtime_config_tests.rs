@@ -508,17 +508,17 @@ fn aggregate_api_client_uses_global_proxy_when_no_bypass_host_is_configured() {
     let _proxy_list_guard = EnvGuard::clear(ENV_PROXY_LIST);
 
     reload_from_env();
-    reset_direct_upstream_client_build_count_for_test();
+    reset_direct_upstream_client_use_count_for_test();
 
     let first = upstream_client_for_aggregate_url("https://api.minimax.io");
     let second = upstream_client_for_aggregate_url("https://api.minimax.io/v1/models");
 
-    assert_eq!(direct_upstream_client_build_count_for_test(), 0);
+    assert_eq!(direct_upstream_client_use_count_for_test(), 0);
     drop(first);
     drop(second);
 
     let non_minimax = upstream_client_for_aggregate_url("https://api.openai.com/v1/models");
-    assert_eq!(direct_upstream_client_build_count_for_test(), 0);
+    assert_eq!(direct_upstream_client_use_count_for_test(), 0);
     drop(non_minimax);
 }
 
@@ -530,14 +530,14 @@ fn aggregate_api_client_uses_direct_client_for_configured_bypass_host() {
     let _proxy_list_guard = EnvGuard::clear(ENV_PROXY_LIST);
 
     reload_from_env();
-    reset_direct_upstream_client_build_count_for_test();
+    reset_direct_upstream_client_use_count_for_test();
 
     let direct = upstream_client_for_aggregate_url("https://api.example.test/v1/models");
-    let after_direct = direct_upstream_client_build_count_for_test();
+    let after_direct = direct_upstream_client_use_count_for_test();
     let proxied = upstream_client_for_aggregate_url("https://api.openai.com/v1/models");
 
     assert_eq!(after_direct, 1);
-    assert_eq!(direct_upstream_client_build_count_for_test(), after_direct);
+    assert_eq!(direct_upstream_client_use_count_for_test(), after_direct);
     drop(direct);
     drop(proxied);
 }

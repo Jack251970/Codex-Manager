@@ -63,6 +63,8 @@ export const useAppStore = create<AppState>((set) => ({
   },
   appSettings: {
     updateAutoCheck: true,
+    autoStartEnabled: false,
+    autoStartSupported: false,
     closeToTrayOnClose: false,
     closeToTraySupported: false,
     lowTransparency: false,
@@ -106,6 +108,7 @@ export const useAppStore = create<AppState>((set) => ({
     modelForwardRules: "",
     compactModelForwardRules: "",
     accountMaxInflight: 1,
+    threadAwareAccountDistributionEnabled: true,
     quotaGuard: {
       enabled: true,
       primaryMinRemainingPercent: 5,

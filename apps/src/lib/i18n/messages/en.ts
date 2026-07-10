@@ -107,6 +107,7 @@ export const EN_MESSAGES: MessageCatalog = {
   "5小时剩余": "5-hour remaining",
   "7天剩余": "7-day remaining",
   剩余额度: "Remaining quota",
+  暂无重置时间: "No reset time",
   暂无可识别的活跃账号: "No identifiable active account",
   正在等待服务连接: "Waiting for service connection",
   智能推荐: "Smart recommendations",
@@ -115,6 +116,14 @@ export const EN_MESSAGES: MessageCatalog = {
   "5小时优先账号": "5-hour priority account",
   "7天优先账号": "7-day priority account",
   "当前没有可推荐的可用账号。": "No recommended available accounts right now.",
+  线程感知账号分配: "Thread-aware account distribution",
+  "开启后未绑定的新线程会优先选择当前承载线程更少的可用账号，已有线程仍保持账号粘性。":
+    "When enabled, unbound new threads prefer available accounts with fewer assigned threads while existing threads stay sticky.",
+  "代理 Bypass 域名": "Proxy bypass hosts",
+  留空表示不绕过代理: "Leave empty to bypass nothing",
+  "一行一个或用逗号分隔；命中的上游域名会绕过全局代理直连。支持精确域名和":
+    "One per line or comma-separated. Matching upstream hosts bypass the global proxy. Supports exact hosts and",
+  "通配。": "wildcards.",
   免责声明: "Disclaimer",
   详情: "Details",
   我知道了: "Got it",
@@ -127,6 +136,9 @@ export const EN_MESSAGES: MessageCatalog = {
   控制应用启动和窗口行为: "Control startup and window behavior.",
   自动检查更新: "Check updates automatically",
   启动时自动检测新版本: "Check for new versions on startup.",
+  开机自动启动: "Launch at startup",
+  系统登录后自动启动桌面端并保持网关可用:
+    "Launch the desktop app after system sign-in and keep the gateway available.",
   关闭时最小化到托盘: "Minimize to tray on close",
   点击关闭按钮不会直接退出程序:
     "Closing the window won't exit the app immediately.",

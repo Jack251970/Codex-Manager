@@ -930,6 +930,7 @@ pub(in super::super) fn proxy_validated_request(
         CandidatePrecheckResult::Responded => return Ok(()),
     };
     let setup = prepare_request_setup(
+        &storage,
         path.as_str(),
         protocol_type.as_str(),
         has_prompt_cache_key,

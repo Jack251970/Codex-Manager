@@ -1821,6 +1821,8 @@ export function normalizeAppSettings(payload: unknown): AppSettings {
   const source = asObject(payload);
   return {
     updateAutoCheck: asBoolean(source.updateAutoCheck, true),
+    autoStartEnabled: asBoolean(source.autoStartEnabled, false),
+    autoStartSupported: asBoolean(source.autoStartSupported, false),
     closeToTrayOnClose: asBoolean(source.closeToTrayOnClose, false),
     closeToTraySupported: asBoolean(source.closeToTraySupported, false),
     lowTransparency: asBoolean(source.lowTransparency, false),
@@ -1862,6 +1864,10 @@ export function normalizeAppSettings(payload: unknown): AppSettings {
       source.compactModelForwardRules ?? source.compact_model_forward_rules
     ),
     accountMaxInflight: asInteger(source.accountMaxInflight, 1, 0),
+    threadAwareAccountDistributionEnabled: asBoolean(
+      source.threadAwareAccountDistributionEnabled,
+      true
+    ),
     quotaGuard: normalizeQuotaGuard(source.quotaGuard ?? source.quota_guard),
     gatewayOriginator:
       asString(source.gatewayOriginator) || DEFAULT_CODEX_ORIGINATOR,

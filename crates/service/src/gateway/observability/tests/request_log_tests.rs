@@ -1,4 +1,5 @@
 use super::estimate_cost_usd;
+use codexmanager_core::storage::{ApiKey, Storage};
 
 /// 函数 `assert_close`
 ///
@@ -16,6 +17,73 @@ fn assert_close(actual: f64, expected: f64) {
     assert!(
         (actual - expected).abs() < 1e-12,
         "actual={actual}, expected={expected}"
+    );
+}
+
+fn test_api_key(id: &str) -> ApiKey {
+    ApiKey {
+        id: id.to_string(),
+        name: Some("last used test key".to_string()),
+        model_slug: Some("gpt-5".to_string()),
+        reasoning_effort: None,
+        service_tier: None,
+        rotation_strategy: "account_rotation".to_string(),
+        aggregate_api_id: None,
+        account_plan_filter: None,
+        aggregate_api_url: None,
+        client_type: "codex".to_string(),
+        protocol_type: "openai_compat".to_string(),
+        auth_scheme: "authorization_bearer".to_string(),
+        upstream_base_url: None,
+        static_headers_json: None,
+        key_hash: format!("hash-{id}"),
+        status: "active".to_string(),
+        created_at: 1,
+        last_used_at: None,
+    }
+}
+
+#[test]
+fn successful_request_log_touches_api_key_last_used_at() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+    let key = test_api_key("key-last-used-success");
+    storage.insert_api_key(&key).expect("insert api key");
+
+    super::write_request_log(
+        &storage,
+        super::RequestLogTraceContext {
+            trace_id: Some("trace-last-used-success"),
+            original_path: Some("/v1/responses"),
+            adapted_path: Some("/v1/responses"),
+            request_type: Some("http"),
+            ..Default::default()
+        },
+        Some(&key.id),
+        None,
+        "/v1/responses",
+        "POST",
+        Some("gpt-5"),
+        None,
+        Some("https://example.test/v1/responses"),
+        Some(200),
+        super::RequestLogUsage {
+            input_tokens: Some(1),
+            output_tokens: Some(1),
+            total_tokens: Some(2),
+            ..Default::default()
+        },
+        None,
+        Some(10),
+    );
+
+    let loaded = storage
+        .find_api_key_by_id(&key.id)
+        .expect("load api key")
+        .expect("api key exists");
+    assert!(
+        loaded.last_used_at.unwrap_or(0) > 0,
+        "successful gateway request should update platform key recent call time"
     );
 }
 
