@@ -128,6 +128,7 @@ struct PendingWsRequestLog {
     service_tier_source: Option<String>,
     started_at: Instant,
     first_response_ms: Option<i64>,
+    estimated_input_tokens: i64,
 }
 
 struct WsSessionError {
@@ -1525,6 +1526,9 @@ fn begin_ws_request_log(
         service_tier_source: prepared.service_tier_source.clone(),
         started_at: Instant::now(),
         first_response_ms: None,
+        estimated_input_tokens: crate::gateway::estimate_input_tokens_from_body(
+            prepared.text.as_bytes(),
+        ),
     }
 }
 
@@ -1556,6 +1560,9 @@ fn finalize_ws_request_log(
     };
     if usage.first_response_ms.is_none() {
         usage.first_response_ms = pending.first_response_ms;
+    }
+    if usage.estimated_input_tokens.is_none() {
+        usage.estimated_input_tokens = Some(pending.estimated_input_tokens);
     }
     crate::gateway::write_request_log(
         &storage,
@@ -1910,6 +1917,7 @@ fn parse_ws_usage(value: &Value) -> crate::gateway::RequestLogUsage {
                     .and_then(Value::as_i64)
             }),
         first_response_ms: None,
+        estimated_input_tokens: None,
     }
 }
 

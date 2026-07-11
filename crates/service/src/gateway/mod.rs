@@ -142,7 +142,9 @@ pub(super) use request_helpers::{
 };
 #[cfg(test)]
 use request_helpers::{should_drop_incoming_header, should_drop_incoming_header_for_failover};
-pub(crate) use request_log::{RequestLogTraceContext, RequestLogUsage};
+pub(crate) use request_log::{
+    estimate_input_tokens_from_body, RequestLogTraceContext, RequestLogUsage,
+};
 #[cfg(test)]
 use request_rewrite::apply_request_overrides_with_service_tier_and_prompt_cache_key;
 use request_rewrite::{

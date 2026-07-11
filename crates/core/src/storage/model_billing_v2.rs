@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{now_ts, Storage};
 
+const HARDENING_MIGRATION_VERSION: &str = "113_model_billing_v2_hardening";
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelPriceTierV2 {
@@ -40,7 +42,11 @@ pub struct ChargeSnapshotInputV2 {
     #[serde(default)]
     pub api_key_id: Option<String>,
     #[serde(default)]
+    pub pricing_rule_id: Option<String>,
+    #[serde(default)]
     pub raw_usage_json: Option<String>,
+    #[serde(default)]
+    pub ledger_note: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -74,7 +80,7 @@ fn ceil_div(value: i128, divisor: i128) -> i128 {
     if value <= 0 {
         0
     } else {
-        (value + divisor - 1) / divisor
+        value / divisor + i128::from(value % divisor != 0)
     }
 }
 
@@ -91,7 +97,7 @@ pub fn compute_charge_v2(
         || tier.input_microusd_per_1m < 0
         || tier.cached_input_microusd_per_1m < 0
         || tier.output_microusd_per_1m < 0
-        || rate_multiplier_millis <= 0
+        || rate_multiplier_millis < 0
     {
         return Err(rusqlite::Error::InvalidParameterName(
             "tokens, rates, and multiplier must be non-negative".to_string(),
@@ -162,6 +168,43 @@ const SNAPSHOT_SELECT: &str = "SELECT request_log_id,model_id,model_slug,tier_mi
   FROM request_charge_snapshots";
 
 impl Storage {
+    pub(super) fn apply_model_billing_v2_hardening_migration(&self) -> Result<()> {
+        if self.has_migration(HARDENING_MIGRATION_VERSION)? {
+            return Ok(());
+        }
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute_batch(include_str!(
+            "../../migrations/113_model_billing_v2_hardening.sql"
+        ))?;
+        let invalid_snapshots: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM request_charge_snapshots
+             WHERE cached_input_tokens>input_tokens OR rate_multiplier_millis<0",
+            [],
+            |row| row.get(0),
+        )?;
+        if invalid_snapshots != 0 {
+            return Err(rusqlite::Error::SqliteFailure(
+                (),
+                Some("model billing V2 hardening smoke check failed".to_string()),
+            ));
+        }
+        tx.execute(
+            "INSERT INTO model_catalog_v2_meta(key,value)
+             VALUES('billing_hardening_state','complete')
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [],
+        )?;
+        tx.execute(
+            "INSERT INTO schema_migrations(version,applied_at) VALUES(?1,?2)",
+            params![HARDENING_MIGRATION_VERSION, now_ts()],
+        )?;
+        tx.commit()?;
+        if let Some(migrations) = self.applied_migrations.borrow_mut().as_mut() {
+            migrations.insert(HARDENING_MIGRATION_VERSION.to_string());
+        }
+        Ok(())
+    }
+
     pub fn select_model_price_tier_v2(
         &self,
         model_slug: &str,
@@ -225,6 +268,12 @@ impl Storage {
             )
             .optional()?
         {
+            tx.execute(
+                "UPDATE request_token_stats
+                 SET estimated_cost_usd=CAST(?2 AS REAL)/1000000.0
+                 WHERE request_log_id=?1",
+                params![input.request_log_id, existing.base_cost_microusd],
+            )?;
             tx.commit()?;
             return Ok(existing);
         }
@@ -270,6 +319,7 @@ impl Storage {
             &tier,
             input.rate_multiplier_millis,
         )?;
+        let cached_input_tokens = input.cached_input_tokens.min(input.input_tokens);
         let now = now_ts();
         tx.execute(
             "INSERT INTO request_charge_snapshots(request_log_id,model_id,model_slug,
@@ -284,7 +334,7 @@ impl Storage {
                 tier.min_input_tokens,
                 input.usage_source,
                 input.input_tokens,
-                input.cached_input_tokens,
+                cached_input_tokens,
                 input.output_tokens,
                 tier.input_microusd_per_1m,
                 tier.cached_input_microusd_per_1m,
@@ -294,6 +344,12 @@ impl Storage {
                 computation.charged_cost_microusd,
                 now
             ],
+        )?;
+        tx.execute(
+            "UPDATE request_token_stats
+             SET estimated_cost_usd=CAST(?2 AS REAL)/1000000.0
+             WHERE request_log_id=?1",
+            params![input.request_log_id, computation.base_cost_microusd],
         )?;
         if let Some(wallet_id) = input
             .wallet_id
@@ -334,7 +390,7 @@ impl Storage {
                 "INSERT INTO app_wallet_ledger_entries(id,wallet_id,entry_kind,
                    amount_credit_micros,balance_after_credit_micros,request_log_id,api_key_id,
                    pricing_rule_id,raw_usage_json,note,created_by_user_id,created_at)
-                 VALUES(?1,?2,'request_charge',?3,?4,?5,?6,NULL,?7,'model_catalog_v2',NULL,?8)",
+                 VALUES(?1,?2,'request_charge',?3,?4,?5,?6,?7,?8,?9,NULL,?10)",
                 params![
                     format!("wl_request_{}", input.request_log_id),
                     wallet_id,
@@ -342,7 +398,9 @@ impl Storage {
                     balance_after,
                     input.request_log_id,
                     input.api_key_id,
+                    input.pricing_rule_id,
                     input.raw_usage_json,
+                    input.ledger_note.as_deref().unwrap_or("model_catalog_v2"),
                     now
                 ],
             )?;
@@ -370,6 +428,22 @@ mod tests {
         assert_eq!(result.numerator, 228_000_000);
         assert_eq!(result.base_cost_microusd, 228);
         assert_eq!(result.charged_cost_microusd, 342);
+        let free = compute_charge_v2(100, 40, 10, &tier, 0).unwrap();
+        assert_eq!(free.base_cost_microusd, 228);
+        assert_eq!(free.charged_cost_microusd, 0);
+    }
+
+    #[test]
+    fn extreme_integer_inputs_return_an_error_without_panicking() {
+        let tier = ModelPriceTierV2 {
+            min_input_tokens: 0,
+            input_microusd_per_1m: i64::MAX,
+            cached_input_microusd_per_1m: i64::MAX,
+            output_microusd_per_1m: i64::MAX,
+        };
+        let error = compute_charge_v2(i64::MAX, 0, i64::MAX, &tier, i64::MAX)
+            .expect_err("overflow must be rejected");
+        assert!(error.to_string().contains("overflow"));
     }
 
     #[test]
@@ -416,8 +490,109 @@ mod tests {
             .to_string()
             .contains("model_price_missing"));
         input.model_slug = "gpt-5.4-mini".into();
+        input.input_tokens = 10;
+        input.cached_input_tokens = 20;
         let first = storage.record_charge_snapshot_v2(&input).unwrap();
         let second = storage.record_charge_snapshot_v2(&input).unwrap();
         assert_eq!(first, second);
+        assert_eq!(first.cached_input_tokens, 10);
+    }
+
+    #[test]
+    fn zero_multiplier_records_a_free_ledger_and_is_idempotent() {
+        let storage = Storage::open_in_memory().unwrap();
+        storage.init().unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT INTO app_wallets(id,owner_kind,owner_id,balance_credit_micros,
+                   frozen_credit_micros,status,created_at,updated_at)
+                 VALUES('wallet-free','user','free-user',0,0,'active',1,1)",
+                [],
+            )
+            .unwrap();
+        storage.conn.execute("INSERT INTO request_logs(request_path,method,created_at) VALUES('/v1/responses','POST',1)",[]).unwrap();
+        let request_log_id = storage.conn.last_insert_rowid();
+        let input = ChargeSnapshotInputV2 {
+            request_log_id,
+            model_slug: "gpt-5.4-mini".into(),
+            usage_source: "estimated".into(),
+            input_tokens: 100,
+            cached_input_tokens: 0,
+            output_tokens: 0,
+            rate_multiplier_millis: 0,
+            wallet_id: Some("wallet-free".into()),
+            ..Default::default()
+        };
+        let first = storage.record_charge_snapshot_v2(&input).unwrap();
+        let second = storage.record_charge_snapshot_v2(&input).unwrap();
+        assert_eq!(first, second);
+        assert!(first.base_cost_microusd > 0);
+        assert_eq!(first.charged_cost_microusd, 0);
+        assert_eq!(storage.request_charge_ledger_entry_count().unwrap(), 1);
+        let duplicate = storage.conn.execute(
+            "INSERT INTO app_wallet_ledger_entries(id,wallet_id,entry_kind,
+               amount_credit_micros,balance_after_credit_micros,request_log_id,created_at)
+             VALUES('duplicate-charge','wallet-free','request_charge',0,0,?1,2)",
+            [request_log_id],
+        );
+        assert!(
+            duplicate.is_err(),
+            "partial unique index must reject duplicates"
+        );
+        let balance: i64 = storage
+            .conn
+            .query_row(
+                "SELECT balance_credit_micros FROM app_wallets WHERE id='wallet-free'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(balance, 0);
+    }
+
+    #[test]
+    fn insufficient_wallet_balance_rolls_back_snapshot_and_ledger() {
+        let storage = Storage::open_in_memory().unwrap();
+        storage.init().unwrap();
+        storage
+            .conn
+            .execute(
+                "INSERT INTO app_wallets(id,owner_kind,owner_id,balance_credit_micros,
+                   frozen_credit_micros,status,created_at,updated_at)
+                 VALUES('wallet-low','user','low-user',1,0,'active',1,1)",
+                [],
+            )
+            .unwrap();
+        storage.conn.execute("INSERT INTO request_logs(request_path,method,created_at) VALUES('/v1/responses','POST',1)",[]).unwrap();
+        let request_log_id = storage.conn.last_insert_rowid();
+        let error = storage
+            .record_charge_snapshot_v2(&ChargeSnapshotInputV2 {
+                request_log_id,
+                model_slug: "gpt-5.4-mini".into(),
+                usage_source: "actual".into(),
+                input_tokens: 1_000,
+                cached_input_tokens: 0,
+                output_tokens: 1_000,
+                rate_multiplier_millis: 1_000,
+                wallet_id: Some("wallet-low".into()),
+                ..Default::default()
+            })
+            .expect_err("insufficient wallet must fail");
+        assert!(error.to_string().contains("wallet_insufficient_balance"));
+        assert!(storage
+            .get_charge_snapshot_v2(request_log_id)
+            .unwrap()
+            .is_none());
+        assert_eq!(storage.request_charge_ledger_entry_count().unwrap(), 0);
+        let balance: i64 = storage
+            .conn
+            .query_row(
+                "SELECT balance_credit_micros FROM app_wallets WHERE id='wallet-low'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(balance, 1);
     }
 }

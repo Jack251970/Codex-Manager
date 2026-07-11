@@ -394,7 +394,7 @@ fn read_quota_model_usage_with_storage(
     start_ts: Option<i64>,
     end_ts: Option<i64>,
 ) -> Result<QuotaModelUsageResult, String> {
-    let price_rules = model_pricing::load_enabled_price_rules(storage)?;
+    let price_rules = model_pricing::load_catalog_prices(storage)?;
     let usage = storage
         .summarize_request_token_stats_by_model(start_ts, end_ts)
         .map_err(|err| format!("summarize token usage by model failed: {err}"))?;
@@ -419,16 +419,14 @@ fn read_quota_model_usage_with_storage(
         items: usage
             .into_iter()
             .map(|item| {
-                let cost = model_pricing::estimate_cost_with_rules(
+                let price = model_pricing::resolve_model_price_from_catalog(
                     &price_rules,
-                    Some(item.model.as_str()),
+                    item.model.as_str(),
                     item.input_tokens,
-                    item.cached_input_tokens,
-                    item.output_tokens,
                 );
                 let aggregate_estimated_remaining_tokens =
                     aggregate_balance_usd.and_then(|balance| {
-                        model_pricing::estimate_remaining_tokens_from_usd_with_rules(
+                        model_pricing::estimate_remaining_tokens_from_usd_with_catalog(
                             &price_rules,
                             &item.model,
                             balance,
@@ -436,14 +434,15 @@ fn read_quota_model_usage_with_storage(
                     });
                 QuotaModelUsageItem {
                     model: item.model,
-                    provider: cost.provider,
+                    provider: price.as_ref().map(|price| price.provider.clone()),
                     input_tokens: item.input_tokens,
                     cached_input_tokens: item.cached_input_tokens,
                     output_tokens: item.output_tokens,
                     reasoning_output_tokens: item.reasoning_output_tokens,
                     total_tokens: item.total_tokens,
-                    estimated_cost_usd: cost.cost_usd,
-                    price_status: cost.price_status.to_string(),
+                    estimated_cost_usd: (price.is_some() || item.estimated_cost_usd > 0.0)
+                        .then_some(item.estimated_cost_usd.max(0.0)),
+                    price_status: if price.is_some() { "ok" } else { "missing" }.to_string(),
                     api_key_remaining_tokens: (api_key_remaining_tokens > 0)
                         .then_some(api_key_remaining_tokens),
                     aggregate_estimated_remaining_tokens,
@@ -588,8 +587,8 @@ pub(crate) fn update_account_quota_capacity_override(
 
 pub(crate) fn read_quota_model_pools() -> Result<QuotaModelPoolsResult, String> {
     let storage = open_storage().ok_or_else(|| "open storage failed".to_string())?;
-    let price_rules = model_pricing::load_enabled_price_rules(&storage)?;
-    let api_models = api_available_model_slugs(&storage, Some(&price_rules))?;
+    let price_rules = model_pricing::load_catalog_prices(&storage)?;
+    let api_models = api_available_model_slugs(&storage)?;
     let assignments = assignment_map(
         list_pool_source_model_assignments(&storage)
             .map_err(|err| format!("list quota source assignments failed: {err}"))?,
@@ -638,8 +637,8 @@ pub(crate) fn read_quota_system_pool(
     reference_model: Option<String>,
 ) -> Result<QuotaSystemPoolResult, String> {
     let storage = open_storage().ok_or_else(|| "open storage failed".to_string())?;
-    let price_rules = model_pricing::load_enabled_price_rules(&storage)?;
-    let api_models = api_available_model_slugs(&storage, Some(&price_rules))?;
+    let price_rules = model_pricing::load_catalog_prices(&storage)?;
+    let api_models = api_available_model_slugs(&storage)?;
     let reference_model = reference_model
         .as_deref()
         .map(str::trim)
@@ -664,10 +663,11 @@ pub(crate) fn read_quota_system_pool(
             price_status: "missing".to_string(),
             ..PoolAccumulator::default()
         };
-        if let Some(price) =
-            model_pricing::resolve_model_price_from_rules(&price_rules, reference_model.as_str(), 0)
-                .or_else(|| model_pricing::resolve_model_price(reference_model.as_str(), 0))
-        {
+        if let Some(price) = model_pricing::resolve_model_price_from_catalog(
+            &price_rules,
+            reference_model.as_str(),
+            0,
+        ) {
             pool.provider = Some(price.provider);
             pool.price_status = "ok".to_string();
         }
@@ -718,7 +718,7 @@ pub(crate) fn read_quota_system_pool(
 
 fn build_model_pool_accumulators(
     storage: &codexmanager_core::storage::Storage,
-    price_rules: &[ModelPriceRule],
+    price_rules: &[model_pricing::CatalogModelPrice],
     api_models: &[String],
     assignments: &HashMap<(String, String), Vec<String>>,
     capacity_config: &AccountCapacityConfig,
@@ -736,7 +736,7 @@ fn build_model_pool_accumulators(
 #[cfg(test)]
 fn build_model_pool_accumulators_from_storage(
     storage: &codexmanager_core::storage::Storage,
-    price_rules: &[ModelPriceRule],
+    price_rules: &[model_pricing::CatalogModelPrice],
     api_models: &[String],
     assignments: &HashMap<(String, String), Vec<String>>,
 ) -> Result<BTreeMap<String, PoolAccumulator>, String> {
@@ -752,7 +752,7 @@ fn build_model_pool_accumulators_from_storage(
 
 fn build_model_pool_accumulators_for_models(
     storage: &codexmanager_core::storage::Storage,
-    price_rules: &[ModelPriceRule],
+    price_rules: &[model_pricing::CatalogModelPrice],
     api_models: &[String],
     assignments: &HashMap<(String, String), Vec<String>>,
     target_models: Option<&HashSet<String>>,
@@ -782,7 +782,7 @@ fn build_model_pool_accumulators_for_models(
 
 fn seed_model_pools(
     pools: &mut BTreeMap<String, PoolAccumulator>,
-    price_rules: &[ModelPriceRule],
+    price_rules: &[model_pricing::CatalogModelPrice],
     api_models: &[String],
     target_models: Option<&HashSet<String>>,
 ) {
@@ -790,8 +790,7 @@ fn seed_model_pools(
         if !model_matches_target(model, target_models) {
             continue;
         }
-        let price = model_pricing::resolve_model_price_from_rules(price_rules, model, 0)
-            .or_else(|| model_pricing::resolve_model_price(model, 0));
+        let price = model_pricing::resolve_model_price_from_catalog(price_rules, model, 0);
         let entry = pools
             .entry(model.clone())
             .or_insert_with(|| PoolAccumulator {
@@ -811,7 +810,7 @@ fn seed_model_pools(
 
 fn add_aggregate_api_pools(
     storage: &codexmanager_core::storage::Storage,
-    price_rules: &[ModelPriceRule],
+    price_rules: &[model_pricing::CatalogModelPrice],
     api_models: &[String],
     assignments: &HashMap<(String, String), Vec<String>>,
     target_models: Option<&HashSet<String>>,
@@ -833,12 +832,11 @@ fn add_aggregate_api_pools(
             if model.is_empty() || !model_matches_target(&model, target_models) {
                 continue;
             }
-            let provider = model_pricing::resolve_model_price_from_rules(price_rules, &model, 0)
-                .or_else(|| model_pricing::resolve_model_price(&model, 0))
+            let provider = model_pricing::resolve_model_price_from_catalog(price_rules, &model, 0)
                 .map(|price| price.provider);
             let remaining_tokens = balance.remaining.and_then(|remaining| {
                 if is_usd_unit(balance_unit.as_str()) {
-                    model_pricing::estimate_remaining_tokens_from_usd_with_rules(
+                    model_pricing::estimate_remaining_tokens_from_usd_with_catalog(
                         price_rules,
                         &model,
                         remaining,
@@ -897,7 +895,7 @@ fn add_aggregate_api_pools(
 
 fn add_account_pools(
     storage: &codexmanager_core::storage::Storage,
-    price_rules: &[ModelPriceRule],
+    price_rules: &[model_pricing::CatalogModelPrice],
     api_models: &[String],
     assignments: &HashMap<(String, String), Vec<String>>,
     target_models: Option<&HashSet<String>>,
@@ -961,8 +959,7 @@ fn add_account_pools(
             if model.is_empty() || !model_matches_target(&model, target_models) {
                 continue;
             }
-            let provider = model_pricing::resolve_model_price_from_rules(price_rules, &model, 0)
-                .or_else(|| model_pricing::resolve_model_price(&model, 0))
+            let provider = model_pricing::resolve_model_price_from_catalog(price_rules, &model, 0)
                 .map(|price| price.provider)
                 .or_else(|| Some("openai".to_string()));
             let source = QuotaPoolSourceBreakdown {
@@ -1213,43 +1210,11 @@ fn source_models(
 
 fn api_available_model_slugs(
     storage: &codexmanager_core::storage::Storage,
-    price_rules: Option<&[ModelPriceRule]>,
 ) -> Result<Vec<String>, String> {
-    let mut models = Vec::new();
-    let mut seen = HashSet::new();
-    for slug in storage
-        .list_api_available_model_catalog_slugs("default")
-        .map_err(|err| format!("list model catalog failed: {err}"))?
-        .into_iter()
-    {
-        let normalized = slug.trim();
-        if normalized.is_empty() || !seen.insert(normalized.to_string()) {
-            continue;
-        }
-        models.push(normalized.to_string());
-    }
-
-    if models.is_empty() {
-        let fallback_price_rules;
-        let price_rules = if let Some(price_rules) = price_rules {
-            price_rules
-        } else {
-            fallback_price_rules = model_pricing::load_enabled_price_rules(storage)?;
-            fallback_price_rules.as_slice()
-        };
-        for rule in price_rules {
-            let normalized = rule.model_pattern.trim();
-            if normalized.is_empty()
-                || normalized.contains('*')
-                || !seen.insert(normalized.to_string())
-            {
-                continue;
-            }
-            models.push(normalized.to_string());
-        }
-    }
-
-    Ok(models)
+    storage
+        .list_api_models_v2()
+        .map_err(|err| format!("list model catalog V2 failed: {err}"))
+        .map(|models| models.into_iter().map(|model| model.slug).collect())
 }
 
 fn resolve_account_plan_type_from_sources(
@@ -1379,7 +1344,7 @@ pub(crate) fn read_quota_source_list() -> Result<QuotaSourceListResult, String> 
 }
 
 fn read_quota_source_list_with_storage(storage: &Storage) -> Result<QuotaSourceListResult, String> {
-    let api_models = api_available_model_slugs(storage, None)?;
+    let api_models = api_available_model_slugs(storage)?;
     let mut items = Vec::new();
 
     let api_key_context = load_api_key_quota_context(storage)?;

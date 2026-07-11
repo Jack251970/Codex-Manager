@@ -1,7 +1,7 @@
 use super::*;
 use codexmanager_core::storage::{
-    Account, AggregateApi, ApiKey, AppUser, ModelCatalogModelRecord, QuotaSourceModelAssignment,
-    RequestTokenStat, Storage, UsageSnapshotRecord,
+    Account, AggregateApi, ApiKey, AppUser, QuotaSourceModelAssignment, RequestTokenStat, Storage,
+    UsageSnapshotRecord,
 };
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -67,20 +67,6 @@ fn usage(account_id: &str, used_percent: f64, now: i64) -> UsageSnapshotRecord {
         secondary_resets_at: None,
         credits_json: None,
         captured_at: now,
-    }
-}
-
-fn model_record(slug: &str, sort_index: i64) -> ModelCatalogModelRecord {
-    ModelCatalogModelRecord {
-        scope: "default".to_string(),
-        slug: slug.to_string(),
-        display_name: slug.to_string(),
-        source_kind: "remote".to_string(),
-        supported_in_api: Some(true),
-        extra_json: "{}".to_string(),
-        sort_index,
-        updated_at: 1,
-        ..ModelCatalogModelRecord::default()
     }
 }
 
@@ -154,41 +140,28 @@ fn test_api_key(id: &str, now: i64) -> ApiKey {
 fn api_available_model_slugs_preserves_catalog_sort_order() {
     let storage = Storage::open_in_memory().expect("open storage");
     storage.init().expect("init storage");
-    storage
-        .upsert_model_catalog_models(&[
-            model_record("z-model", 0),
-            model_record("a-model", 1),
-            ModelCatalogModelRecord {
-                visibility: Some("hidden".to_string()),
-                ..model_record("hidden-model", 2)
-            },
-            ModelCatalogModelRecord {
-                supported_in_api: Some(false),
-                ..model_record("disabled-model", 3)
-            },
-        ])
-        .expect("upsert models");
+    let models = api_available_model_slugs(&storage).expect("available models");
 
-    let models = api_available_model_slugs(&storage, Some(&[])).expect("available models");
-
-    assert_eq!(models, vec!["z-model", "a-model"]);
+    assert_eq!(models.len(), 7);
+    assert_eq!(
+        &models[..4],
+        ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5"]
+    );
+    assert!(!models.iter().any(|model| model == "codex-auto-review"));
 }
 
 #[test]
-fn api_available_model_slugs_avoids_price_seed_when_catalog_has_models() {
+fn api_available_model_slugs_does_not_seed_legacy_price_rules() {
     let storage = Storage::open_in_memory().expect("open storage");
     storage.init().expect("init storage");
-    storage
-        .upsert_model_catalog_models(&[model_record("catalog-model", 0)])
-        .expect("upsert models");
+    let models = api_available_model_slugs(&storage).expect("available models");
 
-    let models = api_available_model_slugs(&storage, None).expect("available models");
-
-    assert_eq!(models, vec!["catalog-model"]);
+    assert_eq!(models.len(), 7);
     assert_eq!(
         storage
-            .count_model_price_rules_for_seed(model_pricing::PRICE_SEED_VERSION)
-            .expect("count price seed rows"),
+            .list_enabled_model_price_rules()
+            .expect("list legacy price rows")
+            .len(),
         0
     );
 }
@@ -451,7 +424,7 @@ fn quota_model_usage_reads_aggregate_balance_from_balance_snapshots_only() {
             request_log_id: 1,
             key_id: Some("key-model".to_string()),
             account_id: None,
-            model: Some("gpt-5-mini".to_string()),
+            model: Some("gpt-5.4-mini".to_string()),
             input_tokens: Some(10),
             output_tokens: Some(5),
             total_tokens: Some(15),

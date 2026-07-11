@@ -158,16 +158,28 @@ fn model_route_error(
     let Some(managed_model) = managed_model else {
         return Err((404, format!("model_not_found: {model}")));
     };
-    if let Err(err) = crate::resolve_api_key_model_group_access(storage, key_id, model) {
-        if err.contains("model_not_allowed") {
-            return Err((403, err));
-        }
-        return Err((500, err));
-    }
+    let model_group_access = crate::resolve_api_key_model_group_access(storage, key_id, model)
+        .map_err(|err| {
+            if err.contains("model_not_allowed") {
+                (403, err)
+            } else {
+                (500, err)
+            }
+        })?;
     if crate::distribution_enabled_for_storage(storage)
         && managed_model.price.price_status == "missing"
     {
         return Err((402, format!("model_price_missing: {model}")));
+    }
+    if let Err(err) = crate::auth::app_manager::wallet_precheck_for_api_key_rate(
+        storage,
+        key_id,
+        model_group_access.map(|access| access.rate_multiplier_millis),
+    ) {
+        if err.contains("余额不足") {
+            return Err((402, "额度不足，请联系管理员".to_string()));
+        }
+        return Err((403, err));
     }
     let route_source_kinds = source_kinds_for_route(execution_plan);
     if !managed_model.routes.iter().any(|route| {
@@ -950,6 +962,7 @@ pub(in super::super) fn proxy_validated_request(
         gateway_mode_for_log.as_deref(),
         Some(setup.route_strategy_for_log),
         Some(setup.route_source_for_log),
+        super::super::request_log::estimate_input_tokens_from_body(body.as_ref()),
         setup.candidate_count,
         setup.account_max_inflight,
     );

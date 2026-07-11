@@ -934,7 +934,11 @@ fn ensure_model_price_rules_for_aggregate_api(
         if existing_patterns.contains(&slug.to_ascii_lowercase()) {
             continue;
         }
-        if crate::quota::model_pricing::resolve_model_price(slug.as_str(), 0).is_some() {
+        if storage
+            .select_model_price_tier_v2(slug.as_str(), 0)
+            .map_err(|err| format!("read model catalog V2 price failed: {err}"))?
+            .is_some()
+        {
             continue;
         }
         storage

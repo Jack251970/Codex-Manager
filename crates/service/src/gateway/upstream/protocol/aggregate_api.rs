@@ -1077,6 +1077,8 @@ pub(in super::super) fn proxy_aggregate_request(
         request_deadline,
         started_at,
     } = params;
+    let estimated_input_tokens =
+        super::super::super::request_log::estimate_input_tokens_from_body(body.as_ref());
     if aggregate_api_candidates.is_empty() {
         let message = "aggregate api not found".to_string();
         super::super::super::record_gateway_request_outcome(path, 404, Some("aggregate_api"));
@@ -1251,7 +1253,10 @@ pub(in super::super) fn proxy_aggregate_request(
                     reasoning_for_log,
                     Some(candidate_url.as_str()),
                     Some(504),
-                    RequestLogUsage::default(),
+                    RequestLogUsage {
+                        estimated_input_tokens: Some(estimated_input_tokens),
+                        ..Default::default()
+                    },
                     Some(message.as_str()),
                     Some(started_at.elapsed().as_millis()),
                 );
@@ -1494,6 +1499,7 @@ pub(in super::super) fn proxy_aggregate_request(
                     total_tokens: usage.total_tokens,
                     reasoning_output_tokens: usage.reasoning_output_tokens,
                     first_response_ms: usage.first_response_ms,
+                    estimated_input_tokens: Some(estimated_input_tokens),
                 },
                 final_error.as_deref(),
                 Some(started_at.elapsed().as_millis()),
@@ -1559,7 +1565,10 @@ pub(in super::super) fn proxy_aggregate_request(
         reasoning_for_log,
         last_attempt_url.as_deref(),
         Some(status_code),
-        RequestLogUsage::default(),
+        RequestLogUsage {
+            estimated_input_tokens: Some(estimated_input_tokens),
+            ..Default::default()
+        },
         Some(message.as_str()),
         Some(started_at.elapsed().as_millis()),
     );
