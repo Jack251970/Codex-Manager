@@ -76,7 +76,7 @@ test("account reset-credit control verifies, confirms, consumes, and refreshes u
   let consumeCount = 0;
   let consumeParams: Record<string, unknown> = {};
 
-  await page.route("**/api/runtime", async (route) => {
+  await page.route(/\/api\/runtime(?:\?.*)?$/, async (route) => {
     await route.fulfill({
       contentType: "application/json; charset=utf-8",
       body: JSON.stringify({
@@ -112,6 +112,16 @@ test("account reset-credit control verifies, confirms, consumes, and refreshes u
         codexHome: "C:/Users/Test/.codex",
         platformFamily: "windows",
         platformOs: "windows",
+      });
+      return;
+    }
+    if (method === "accountManager/session/current") {
+      await ok({
+        mode: "none",
+        currentUser: null,
+        role: "system_admin",
+        permissions: ["system:admin"],
+        distributionEnabled: false,
       });
       return;
     }
@@ -202,7 +212,9 @@ test("account reset-credit control verifies, confirms, consumes, and refreshes u
     });
   });
 
-  await page.goto("/accounts/");
+  await page.goto("/");
+  await page.getByRole("link", { name: "OpenAI 账号池" }).click();
+  await expect(page.getByRole("heading", { name: "OpenAI 账号池" })).toBeVisible();
 
   const resetButton = page.getByRole("button", {
     name: "重置额度，可用 2 次",
