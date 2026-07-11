@@ -108,6 +108,8 @@ export function createAccountWebCommands(postWebRpc: WebRpcCaller): Record<strin
     service_usage_read: { rpcMethod: "account/usage/read" },
     service_usage_list: { rpcMethod: "account/usage/list" },
     service_usage_refresh: { rpcMethod: "account/usage/refresh" },
+    service_usage_reset_credits: { rpcMethod: "account/usage/resetCredits" },
+    service_usage_reset_credit_consume: { rpcMethod: "account/usage/resetCredit/consume" },
     service_usage_aggregate: { rpcMethod: "account/usage/aggregate" },
   };
 }
