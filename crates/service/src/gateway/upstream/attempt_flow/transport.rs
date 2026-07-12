@@ -86,6 +86,17 @@ fn force_connection_close(headers: &mut Vec<(String, String)>) {
     }
 }
 
+fn is_session_scoped_header(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "session-id"
+            | "thread-id"
+            | "x-client-request-id"
+            | "x-codex-window-id"
+            | "x-codex-turn-state"
+    )
+}
+
 /// 函数 `extract_prompt_cache_key`
 ///
 /// 作者: gaohongshun
@@ -658,6 +669,37 @@ pub(in super::super) fn send_upstream_request(
         auth_token,
         account,
         strip_session_affinity,
+        false,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(in super::super) fn send_upstream_request_without_session_headers(
+    client: &reqwest::blocking::Client,
+    method: &reqwest::Method,
+    target_url: &str,
+    request_deadline: Option<Instant>,
+    request_ctx: UpstreamRequestContext<'_>,
+    incoming_headers: &super::super::super::IncomingHeaderSnapshot,
+    body: &Bytes,
+    is_stream: bool,
+    auth_token: &str,
+    account: &Account,
+) -> Result<GatewayUpstreamResponse, reqwest::Error> {
+    send_upstream_request_with_compression_override(
+        client,
+        method,
+        target_url,
+        request_deadline,
+        request_ctx,
+        incoming_headers,
+        body,
+        is_stream,
+        auth_token,
+        account,
+        true,
+        true,
         None,
     )
 }
@@ -698,6 +740,7 @@ pub(in super::super) fn send_upstream_request_without_compression(
         auth_token,
         account,
         strip_session_affinity,
+        false,
         Some(RequestCompression::None),
     )
 }
@@ -725,6 +768,7 @@ fn send_upstream_request_with_compression_override(
     auth_token: &str,
     account: &Account,
     strip_session_affinity: bool,
+    drop_session_headers: bool,
     compression_override: Option<RequestCompression>,
 ) -> Result<GatewayUpstreamResponse, reqwest::Error> {
     let attempt_started_at = Instant::now();
@@ -875,6 +919,9 @@ fn send_upstream_request_with_compression_override(
         };
         super::super::header_profile::build_codex_upstream_headers(header_input)
     };
+    if drop_session_headers {
+        upstream_headers.retain(|(name, _)| !is_session_scoped_header(name));
+    }
     if gemini_codex_compat {
         apply_gemini_codex_compat_header_profile(
             &mut upstream_headers,
