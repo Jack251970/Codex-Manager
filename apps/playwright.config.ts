@@ -15,6 +15,7 @@ process.env.no_proxy = noProxy;
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.ts",
   timeout: 30_000,
   fullyParallel: false,
   use: {
