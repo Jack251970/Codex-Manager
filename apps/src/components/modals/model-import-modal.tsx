@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -94,13 +94,19 @@ export function ModelImportModal({
     useState<ManagedModelImportPreviewV2Result>(EMPTY_PREVIEW);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) return;
+  const resetImportState = () => {
     setJsonContent("");
     setConflictStrategy("keep_existing");
     setPreview(EMPTY_PREVIEW);
     setError(null);
-  }, [open]);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetImportState();
+    }
+    onOpenChange(nextOpen);
+  };
 
   const input = (): ManagedModelImportV2Params => ({
     jsonContent,
@@ -127,7 +133,7 @@ export function ModelImportModal({
       const result = await onCommit(input());
       if (result) {
         setPreview(result);
-        onOpenChange(false);
+        handleOpenChange(false);
       }
     } catch (commitError) {
       setError(getAppErrorMessage(commitError));
@@ -135,7 +141,7 @@ export function ModelImportModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="glass-card p-0 sm:max-w-[760px]">
         <div className="max-h-[82vh] overflow-y-auto p-5">
           <DialogHeader>
