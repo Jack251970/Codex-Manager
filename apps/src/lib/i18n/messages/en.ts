@@ -685,8 +685,11 @@ export const EN_MESSAGES: MessageCatalog = {
   "中 (medium)": "Medium (medium)",
   "高 (high)": "High (high)",
   "极高 (xhigh)": "Very high (xhigh)",
+  "最大 (max)": "Maximum (max)",
   "会覆盖请求里的 reasoning effort。":
     "Overrides the reasoning effort inside the request.",
+  "会覆盖请求里的 reasoning effort。Ultra 由 Codex 客户端负责编排，网关覆盖最多设置为 max。":
+    "Overrides the request reasoning effort. Ultra is orchestrated by the Codex client; gateway overrides are limited to max.",
   "Fast 会映射为上游 priority；未设置时跟随请求。":
     "Fast maps to upstream priority; otherwise it follows the request.",
   平台密钥已生成: "API key generated",

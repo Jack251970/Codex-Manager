@@ -193,6 +193,19 @@ fn resolve_value_source<'a>(
     }
 }
 
+fn resolve_reasoning_value_source<'a>(
+    client_value: Option<&'a str>,
+    effective_value: Option<&'a str>,
+    explicit_source: Option<&'a str>,
+) -> Option<&'a str> {
+    if explicit_source.map(str::trim).is_none_or(str::is_empty)
+        && crate::reasoning_effort::is_ultra_to_max_normalization(client_value, effective_value)
+    {
+        return Some("client_request_normalized");
+    }
+    resolve_value_source(client_value, effective_value, explicit_source)
+}
+
 fn resolve_route_details(
     _storage: &Storage,
     trace_context: &RequestLogTraceContext<'_>,
@@ -376,7 +389,7 @@ pub(crate) fn write_request_log_with_attempts(
         .client_reasoning_effort
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    let reasoning_source = resolve_value_source(
+    let reasoning_source = resolve_reasoning_value_source(
         client_reasoning_effort,
         reasoning_effort,
         trace_context.reasoning_source,

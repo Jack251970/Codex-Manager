@@ -423,6 +423,44 @@ fn responses_overrides_model_and_reasoning_effort() {
         .is_some_and(|value| !value.trim().is_empty()));
 }
 
+#[test]
+fn responses_maps_client_ultra_to_upstream_max_without_an_api_key_override() {
+    let body = json!({
+        "model": "gpt-5.6-sol",
+        "reasoning": { "effort": "ultra" },
+        "input": "handle a complex task"
+    });
+    let out = apply_request_overrides(
+        "/v1/responses",
+        serde_json::to_vec(&body).expect("serialize request body"),
+        None,
+        None,
+        None,
+    );
+    let value: serde_json::Value = serde_json::from_slice(&out).expect("parse output body");
+
+    assert_eq!(value["reasoning"]["effort"], "max");
+}
+
+#[test]
+fn chat_completions_maps_client_ultra_to_upstream_max() {
+    let body = json!({
+        "model": "gpt-5.6-terra",
+        "messages": [{ "role": "user", "content": "handle a complex task" }],
+        "reasoning_effort": "ultra"
+    });
+    let out = apply_request_overrides(
+        "/v1/chat/completions",
+        serde_json::to_vec(&body).expect("serialize request body"),
+        None,
+        None,
+        None,
+    );
+    let value: serde_json::Value = serde_json::from_slice(&out).expect("parse output body");
+
+    assert_eq!(value["reasoning_effort"], "max");
+}
+
 /// 函数 `responses_input_string_normalized_to_list`
 ///
 /// 作者: gaohongshun

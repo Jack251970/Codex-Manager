@@ -61,6 +61,7 @@ const REASONING_LABELS: Record<string, string> = {
   medium: "中 (medium)",
   high: "高 (high)",
   xhigh: "极高 (xhigh)",
+  max: "最大 (max)",
 };
 
 const SERVICE_TIER_LABELS: Record<string, string> = {
@@ -704,11 +705,12 @@ export function ApiKeyModal({
                   <SelectItem value="medium">{t("中 (medium)")}</SelectItem>
                   <SelectItem value="high">{t("高 (high)")}</SelectItem>
                   <SelectItem value="xhigh">{t("极高 (xhigh)")}</SelectItem>
+                  <SelectItem value="max">{t("最大 (max)")}</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
               <p className="min-h-[32px] text-[11px] text-muted-foreground">
-                {t("会覆盖请求里的 reasoning effort。")}
+                {t("会覆盖请求里的 reasoning effort。Ultra 由 Codex 客户端负责编排，网关覆盖最多设置为 max。")}
               </p>
             </div>
             <div className="grid gap-2 content-start">

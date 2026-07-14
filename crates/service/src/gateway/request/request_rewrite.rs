@@ -243,6 +243,33 @@ fn apply_model_forward_rule_if_needed(obj: &mut serde_json::Map<String, Value>) 
     true
 }
 
+fn normalize_client_ultra_for_upstream(obj: &mut serde_json::Map<String, Value>) -> bool {
+    let mut changed = false;
+    if let Some(Value::String(effort)) = obj.get_mut("reasoning_effort") {
+        if effort.trim().eq_ignore_ascii_case("ultra") {
+            *effort =
+                crate::reasoning_effort::normalize_client_reasoning_effort_for_upstream(effort)
+                    .expect("ultra must normalize to an upstream effort")
+                    .to_string();
+            changed = true;
+        }
+    }
+    if let Some(Value::String(effort)) = obj
+        .get_mut("reasoning")
+        .and_then(Value::as_object_mut)
+        .and_then(|reasoning| reasoning.get_mut("effort"))
+    {
+        if effort.trim().eq_ignore_ascii_case("ultra") {
+            *effort =
+                crate::reasoning_effort::normalize_client_reasoning_effort_for_upstream(effort)
+                    .expect("ultra must normalize to an upstream effort")
+                    .to_string();
+            changed = true;
+        }
+    }
+    changed
+}
+
 fn compact_model_override_for_path(path: &str) -> Option<String> {
     if responses::is_compact_path(path) {
         return super::current_compact_model_override();
@@ -596,6 +623,12 @@ fn apply_request_overrides_with_prompt_cache_key_mode(
         if let Some(obj) = payload.as_object_mut() {
             let mut changed = false;
             let mut dropped_keys = Vec::new();
+
+            // Ultra 由 Codex 客户端负责多代理编排；单个上游请求必须使用 Max。
+            // 客户端原始值在进入此重写前已单独采集，供请求日志展示 ultra -> max。
+            if normalize_client_ultra_for_upstream(obj) {
+                changed = true;
+            }
 
             let effective_model = compact_model_override
                 .as_deref()

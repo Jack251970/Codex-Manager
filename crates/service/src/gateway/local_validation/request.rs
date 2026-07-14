@@ -1406,6 +1406,21 @@ fn resolve_override_source_for_log(
     }
 }
 
+fn resolve_reasoning_source_for_log(
+    client_value: Option<&str>,
+    effective_value: Option<&str>,
+    api_key_profile_value: Option<&str>,
+) -> Option<String> {
+    if api_key_profile_value
+        .map(str::trim)
+        .is_none_or(str::is_empty)
+        && crate::reasoning_effort::is_ultra_to_max_normalization(client_value, effective_value)
+    {
+        return Some("client_request_normalized".to_string());
+    }
+    resolve_override_source_for_log(client_value, effective_value, api_key_profile_value)
+}
+
 fn resolve_preferred_client_prompt_cache_key(
     protocol_type: &str,
     incoming_headers: &super::super::IncomingHeaderSnapshot,
@@ -1876,7 +1891,7 @@ pub(super) fn build_local_validation_result(
             api_key.model_slug.as_deref(),
         );
         let client_reasoning_for_log = initial_request_meta.reasoning_effort.clone();
-        let reasoning_source_for_log = resolve_override_source_for_log(
+        let reasoning_source_for_log = resolve_reasoning_source_for_log(
             client_reasoning_for_log.as_deref(),
             reasoning_for_log.as_deref(),
             api_key.reasoning_effort.as_deref(),
@@ -2251,7 +2266,7 @@ pub(super) fn build_local_validation_result(
     let reasoning_for_log = request_meta
         .reasoning_effort
         .or(api_key.reasoning_effort.clone());
-    let reasoning_source_for_log = resolve_override_source_for_log(
+    let reasoning_source_for_log = resolve_reasoning_source_for_log(
         client_reasoning_for_log.as_deref(),
         reasoning_for_log.as_deref(),
         api_key.reasoning_effort.as_deref(),

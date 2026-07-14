@@ -726,7 +726,7 @@ fn rewrite_client_frame(
         .and_then(|value| value.get("effort"))
         .and_then(Value::as_str)
         .map(str::to_string);
-    let reasoning_source = resolve_ws_override_source_for_log(
+    let reasoning_source = resolve_ws_reasoning_source_for_log(
         client_reasoning_for_log.as_deref(),
         reasoning_effort.as_deref(),
         context.api_key.reasoning_effort.as_deref(),
@@ -803,6 +803,21 @@ fn resolve_ws_override_source_for_log(
         (Some(_), None) => Some("client_request".to_string()),
         (None, None) => Some("unset".to_string()),
     }
+}
+
+fn resolve_ws_reasoning_source_for_log(
+    client_value: Option<&str>,
+    effective_value: Option<&str>,
+    api_key_profile_value: Option<&str>,
+) -> Option<String> {
+    if api_key_profile_value
+        .map(str::trim)
+        .is_none_or(str::is_empty)
+        && crate::reasoning_effort::is_ultra_to_max_normalization(client_value, effective_value)
+    {
+        return Some("client_request_normalized".to_string());
+    }
+    resolve_ws_override_source_for_log(client_value, effective_value, api_key_profile_value)
 }
 
 fn merge_metadata_value(mapped: &mut HashMap<String, String>, client_metadata: Option<Value>) {

@@ -13,6 +13,7 @@
 - Gateway、本地 `/v1/models`、模型组和模型选择器只读取 V2；删除远端目录 merge/prune、供应商 `/models` 发现、请求时 bootstrap 和编译期价格 fallback。
 - 模型管理页新增本地 JSON preview/commit、price missing、route/instructions 编辑；builtin 只能禁用，custom 可以删除。
 - `models_cache.json` 改为桌面/Web 都只由用户主动导出，且导出不包含模型人格 prompt。
+- Codex 缓存导出补齐 GPT-5.6 的 Max/Ultra、`multi_agent_version`、`tool_mode`、Responses Lite、最大上下文和 comp hash 等运行元数据；显式 Ultra 请求按“客户端 Ultra、上游 Max”分别记录。
 - 钱包扣费改为整数价格 tier、不可变 request charge snapshot 与幂等 ledger 同事务更新。
 - 为 GPT-5.6 Sol、Terra、Luna 写入 5/30、2.5/15、1/6 USD / 1M tokens 的默认 input/output 价格；缓存输入暂按 input 同价保守计费，并只迁移仍为 missing 的未编辑 builtin。
 - 发布版本提升到 `0.4.1`，同步更新 workspace、前端包、Tauri 桌面端与锁文件。

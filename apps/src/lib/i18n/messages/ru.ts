@@ -1005,6 +1005,9 @@ export const RU_MESSAGES: MessageCatalog = {
   "会覆盖请求里的 reasoning effort。":
     "Переопределяет reasoning effort в запросе.",
   "极高 (xhigh)": "Максимальный (xhigh)",
+  "最大 (max)": "Предельный (max)",
+  "会覆盖请求里的 reasoning effort。Ultra 由 Codex 客户端负责编排，网关覆盖最多设置为 max。":
+    "Переопределяет reasoning effort запроса. Режим Ultra оркестрируется клиентом Codex; шлюз может задать не выше max.",
   阶段: "Этап",
   "均衡轮询 (Balanced)": "Баланс (Balanced)",
   "开启后将用该 path 覆盖转发 action（例如 GLM 前缀路径）。":

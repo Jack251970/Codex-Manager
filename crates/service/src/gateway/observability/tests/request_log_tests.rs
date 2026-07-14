@@ -106,3 +106,44 @@ fn actual_usage_clamps_cached_tokens_to_total_input() {
     assert_eq!(usage.cached_input_tokens, 10);
     assert_eq!(usage.output_tokens, 3);
 }
+
+#[test]
+fn request_log_persists_client_ultra_and_effective_max_separately() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+
+    super::write_request_log(
+        &storage,
+        super::RequestLogTraceContext {
+            trace_id: Some("trace-ultra-max"),
+            original_path: Some("/v1/responses"),
+            adapted_path: Some("/v1/responses"),
+            request_type: Some("http"),
+            client_model: Some("gpt-5.6-sol"),
+            client_reasoning_effort: Some("ultra"),
+            ..Default::default()
+        },
+        None,
+        None,
+        "/v1/responses",
+        "POST",
+        Some("gpt-5.6-sol"),
+        Some("max"),
+        None,
+        Some(200),
+        super::RequestLogUsage::default(),
+        None,
+        Some(1),
+    );
+
+    let logs = storage
+        .list_request_logs(None, 10)
+        .expect("read request logs");
+    assert_eq!(logs.len(), 1);
+    assert_eq!(logs[0].client_reasoning_effort.as_deref(), Some("ultra"));
+    assert_eq!(logs[0].reasoning_effort.as_deref(), Some("max"));
+    assert_eq!(
+        logs[0].reasoning_source.as_deref(),
+        Some("client_request_normalized")
+    );
+}

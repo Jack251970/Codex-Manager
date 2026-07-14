@@ -457,6 +457,36 @@ fn websocket_response_create_uses_minimal_fallback_for_missing_or_blank_instruct
 }
 
 #[test]
+fn websocket_logs_client_ultra_and_sends_upstream_max() {
+    let _guard = crate::test_env_guard();
+    let context = WsRequestContext {
+        api_key: sample_api_key(),
+        incoming_headers: sample_incoming_headers_with_metadata(),
+        prompt_cache_key: None,
+        effective_upstream_base: "https://chatgpt.com/backend-api/codex".to_string(),
+        prefer_raw_errors: false,
+    };
+    let frame = json!({
+        "type": "response.create",
+        "model": "gpt-5.6-sol",
+        "reasoning": { "effort": "ultra" },
+        "input": "handle a complex task"
+    });
+
+    let prepared = rewrite_client_frame(frame.to_string().as_str(), &context)
+        .unwrap_or_else(|_| panic!("rewrite websocket frame failed"));
+    let value: Value = serde_json::from_str(&prepared.text).expect("parse rewritten frame");
+
+    assert_eq!(prepared.client_reasoning_effort.as_deref(), Some("ultra"));
+    assert_eq!(prepared.reasoning_effort.as_deref(), Some("max"));
+    assert_eq!(
+        prepared.reasoning_source.as_deref(),
+        Some("client_request_normalized")
+    );
+    assert_eq!(value["reasoning"]["effort"], "max");
+}
+
+#[test]
 fn websocket_retry_can_strip_previous_response_id() {
     let text = json!({
         "type": "response.create",

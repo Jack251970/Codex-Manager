@@ -13,6 +13,7 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 - Gateway routing, local `/v1/models`, model groups, and model selectors now read V2 only; remote merge/prune, supplier `/models` discovery, request-time bootstrap, and compiled price fallbacks were removed.
 - Added local JSON preview/commit plus price, route, and instructions editing. Builtins can only be disabled; custom models can be deleted.
 - `models_cache.json` is now exported only by an explicit desktop or Web action and never carries a model personality prompt.
+- Codex cache exports now preserve GPT-5.6 Max/Ultra plus `multi_agent_version`, `tool_mode`, Responses Lite, maximum context, comp hash, and related runtime metadata. Explicit Ultra requests are logged as client Ultra and upstream Max.
 - Wallet charging now records integer price tiers, immutable charge snapshots, and idempotent ledger updates in one transaction.
 - Added default GPT-5.6 Sol, Terra, and Luna input/output prices of 5/30, 2.5/15, and 1/6 USD per 1M tokens. Cached input is conservatively charged at the input rate, and migration only fills unedited builtins that still have missing prices.
 - Bumped the release version to `0.4.1` and synchronized workspace, frontend package, Tauri desktop metadata, and lockfiles.

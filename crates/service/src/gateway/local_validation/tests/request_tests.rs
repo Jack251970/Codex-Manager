@@ -785,6 +785,34 @@ fn aggregate_passthrough_applies_model_reasoning_and_service_tier_overrides_with
 }
 
 #[test]
+fn aggregate_passthrough_keeps_ultra_as_client_log_value_and_max_as_effective_value() {
+    let api_key = sample_api_key(
+        crate::apikey_profile::PROTOCOL_OPENAI_COMPAT,
+        None,
+        None,
+        None,
+    );
+    let body = br#"{"model":"gpt-5.6-sol","input":"hi","reasoning":{"effort":"ultra"}}"#.to_vec();
+    let client_metadata = super::super::super::request_helpers::parse_request_metadata(&body);
+    let (rewritten_body, _, reasoning_for_log, ..) =
+        apply_passthrough_request_overrides("/v1/responses", body, &api_key, None, None);
+    let payload: Value = serde_json::from_slice(&rewritten_body).expect("json body");
+    let reasoning_source = resolve_reasoning_source_for_log(
+        client_metadata.reasoning_effort.as_deref(),
+        reasoning_for_log.as_deref(),
+        api_key.reasoning_effort.as_deref(),
+    );
+
+    assert_eq!(client_metadata.reasoning_effort.as_deref(), Some("ultra"));
+    assert_eq!(reasoning_for_log.as_deref(), Some("max"));
+    assert_eq!(payload["reasoning"]["effort"], "max");
+    assert_eq!(
+        reasoning_source.as_deref(),
+        Some("client_request_normalized")
+    );
+}
+
+#[test]
 fn aggregate_passthrough_openai_responses_defaults_omitted_stream_to_sse() {
     let api_key = sample_api_key(
         crate::apikey_profile::PROTOCOL_OPENAI_COMPAT,

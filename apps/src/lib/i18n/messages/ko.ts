@@ -1046,6 +1046,9 @@ export const KO_MESSAGES: MessageCatalog = {
     "앱 동작, 게이트웨이 정책 및 백그라운드 작업 관리",
   "会覆盖请求里的 reasoning effort。": "요청의 reasoning effort를 덮어씁니다.",
   "极高 (xhigh)": "매우 높음 (xhigh)",
+  "最大 (max)": "최대 (max)",
+  "会覆盖请求里的 reasoning effort。Ultra 由 Codex 客户端负责编排，网关覆盖最多设置为 max。":
+    "요청의 reasoning effort를 덮어씁니다. Ultra는 Codex 클라이언트가 오케스트레이션하며 게이트웨이 재정의는 max까지만 설정할 수 있습니다.",
   阶段: "단계",
   "均衡轮询 (Balanced)": "균형 라운드로빈 (Balanced)",
   "开启后将用该 path 覆盖转发 action（例如 GLM 前缀路径）。":
