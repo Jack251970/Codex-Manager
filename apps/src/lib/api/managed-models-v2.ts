@@ -90,6 +90,21 @@ function nullableString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+function integerCapability(
+  model: ManagedModelV2,
+  fallback: number | null,
+  ...keys: string[]
+): number | null {
+  const value = capability(model, ...keys);
+  return typeof value === "number" && Number.isSafeInteger(value) ? value : fallback;
+}
+
+function truncationPolicy(model: ManagedModelV2): ModelInfo["truncationPolicy"] {
+  const mode = nullableString(capability(model, "truncationMode", "truncation_mode"));
+  const limit = integerCapability(model, null, "truncationLimit", "truncation_limit");
+  return mode && limit !== null ? { mode, limit } : null;
+}
+
 export function managedModelV2ToModelInfo(model: ManagedModelV2): ModelInfo {
   const reasoningEfforts = stringList(
     capability(model, "reasoningEfforts", "reasoning_efforts"),
@@ -106,11 +121,15 @@ export function managedModelV2ToModelInfo(model: ManagedModelV2): ModelInfo {
       effort,
       description: "",
     })),
-    shellType: nullableString(capability(model, "shellType", "shell_type")),
+    shellType:
+      nullableString(capability(model, "shellType", "shell_type")) ||
+      "shell_command",
     visibility: model.visibility,
     supportedInApi: model.supportedInApi,
     priority: model.sortOrder,
-    additionalSpeedTiers: [],
+    additionalSpeedTiers: stringList(
+      capability(model, "additionalSpeedTiers", "additional_speed_tiers"),
+    ),
     serviceTiers: serviceTiers.map((id) => ({ id, name: id, description: "" })),
     defaultServiceTier: nullableString(
       capability(model, "defaultServiceTier", "default_service_tier"),
@@ -143,7 +162,7 @@ export function managedModelV2ToModelInfo(model: ManagedModelV2): ModelInfo {
     webSearchToolType: nullableString(
       capability(model, "webSearchToolType", "web_search_tool_type"),
     ),
-    truncationPolicy: null,
+    truncationPolicy: truncationPolicy(model),
     supportsParallelToolCalls: booleanCapability(
       model,
       false,
@@ -157,13 +176,30 @@ export function managedModelV2ToModelInfo(model: ManagedModelV2): ModelInfo {
       "supports_image_detail_original",
     ),
     contextWindow: model.contextWindow,
-    autoCompactTokenLimit: null,
-    effectiveContextWindowPercent: null,
-    experimentalSupportedTools: [],
+    autoCompactTokenLimit: integerCapability(
+      model,
+      null,
+      "autoCompactTokenLimit",
+      "auto_compact_token_limit",
+    ),
+    effectiveContextWindowPercent: integerCapability(
+      model,
+      95,
+      "effectiveContextWindowPercent",
+      "effective_context_window_percent",
+    ),
+    experimentalSupportedTools: stringList(
+      capability(
+        model,
+        "experimentalSupportedTools",
+        "experimental_supported_tools",
+      ),
+    ),
     inputModalities: stringList(
       capability(model, "inputModalities", "input_modalities"),
     ),
-    minimalClientVersion: null,
+    minimalClientVersion:
+      capability(model, "minimalClientVersion", "minimal_client_version") ?? null,
     supportsSearchTool: booleanCapability(
       model,
       false,
@@ -171,6 +207,19 @@ export function managedModelV2ToModelInfo(model: ManagedModelV2): ModelInfo {
       "supports_search_tool",
     ),
     availableInPlans: [],
+    maxContextWindow: model.maxContextWindow,
+    compHash: nullableString(capability(model, "compHash", "comp_hash")),
+    useResponsesLite: booleanCapability(
+      model,
+      false,
+      "useResponsesLite",
+      "use_responses_lite",
+    ),
+    toolMode: nullableString(capability(model, "toolMode", "tool_mode")),
+    multiAgentVersion: nullableString(
+      capability(model, "multiAgentVersion", "multi_agent_version"),
+    ),
+    includeSkillsUsageInstructions: false,
   };
 }
 
@@ -185,6 +234,16 @@ export function serializeManagedModelV2ForCodexCache(
   );
   const inputModalities = stringList(
     capability(model, "inputModalities", "input_modalities"),
+  );
+  const additionalSpeedTiers = stringList(
+    capability(model, "additionalSpeedTiers", "additional_speed_tiers"),
+  );
+  const experimentalSupportedTools = stringList(
+    capability(
+      model,
+      "experimentalSupportedTools",
+      "experimental_supported_tools",
+    ),
   );
   const truncationMode = capability(
     model,
@@ -206,14 +265,20 @@ export function serializeManagedModelV2ForCodexCache(
       effort,
       description: "",
     })),
-    shell_type: "shell_command",
+    shell_type:
+      nullableString(capability(model, "shellType", "shell_type")) ||
+      "shell_command",
     visibility: model.visibility,
     supported_in_api: model.supportedInApi,
     priority: model.sortOrder,
-    additional_speed_tiers: [],
+    additional_speed_tiers: additionalSpeedTiers,
     service_tiers: serviceTiers.map((id) => ({ id, name: id, description: "" })),
+    default_service_tier: nullableString(
+      capability(model, "defaultServiceTier", "default_service_tier"),
+    ),
     base_instructions: "",
-    supports_reasoning_summaries: booleanCapability(
+    include_skills_usage_instructions: false,
+    supports_reasoning_summary_parameter: booleanCapability(
       model,
       false,
       "supportsReasoningSummaries",
@@ -227,6 +292,11 @@ export function serializeManagedModelV2ForCodexCache(
       false,
       "supportsVerbosity",
       "supports_verbosity",
+    ),
+    default_verbosity:
+      capability(model, "defaultVerbosity", "default_verbosity") ?? null,
+    apply_patch_tool_type: nullableString(
+      capability(model, "applyPatchToolType", "apply_patch_tool_type"),
     ),
     web_search_tool_type:
       capability(model, "webSearchToolType", "web_search_tool_type") ?? "text",
@@ -250,8 +320,21 @@ export function serializeManagedModelV2ForCodexCache(
       "supports_image_detail_original",
     ),
     context_window: model.contextWindow,
-    effective_context_window_percent: 95,
-    experimental_supported_tools: [],
+    max_context_window: model.maxContextWindow,
+    auto_compact_token_limit: integerCapability(
+      model,
+      null,
+      "autoCompactTokenLimit",
+      "auto_compact_token_limit",
+    ),
+    comp_hash: nullableString(capability(model, "compHash", "comp_hash")),
+    effective_context_window_percent: integerCapability(
+      model,
+      95,
+      "effectiveContextWindowPercent",
+      "effective_context_window_percent",
+    ),
+    experimental_supported_tools: experimentalSupportedTools,
     input_modalities: inputModalities.length > 0 ? inputModalities : ["text", "image"],
     supports_search_tool: booleanCapability(
       model,
@@ -259,6 +342,29 @@ export function serializeManagedModelV2ForCodexCache(
       "supportsSearchTool",
       "supports_search_tool",
     ),
+    use_responses_lite: booleanCapability(
+      model,
+      false,
+      "useResponsesLite",
+      "use_responses_lite",
+    ),
+    auto_review_model_override: nullableString(
+      capability(model, "autoReviewModelOverride", "auto_review_model_override"),
+    ),
+    tool_mode: nullableString(capability(model, "toolMode", "tool_mode")),
+    multi_agent_version: nullableString(
+      capability(model, "multiAgentVersion", "multi_agent_version"),
+    ),
+    prefer_websockets: booleanCapability(
+      model,
+      false,
+      "preferWebsockets",
+      "prefer_websockets",
+    ),
+    minimal_client_version:
+      capability(model, "minimalClientVersion", "minimal_client_version") ?? null,
+    reasoning_summary_format:
+      capability(model, "reasoningSummaryFormat", "reasoning_summary_format") ?? null,
   };
 }
 

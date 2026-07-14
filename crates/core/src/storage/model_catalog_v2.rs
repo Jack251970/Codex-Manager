@@ -9,6 +9,7 @@ use super::{now_ts, ModelGroupAccess, ModelGroupModel, ModelPriceTierV2, Storage
 
 const MIGRATION_VERSION: &str = "112_model_catalog_v2";
 const GPT56_PRICING_MIGRATION_VERSION: &str = "114_model_catalog_gpt56_prices";
+const CODEX_METADATA_MIGRATION_VERSION: &str = "115_model_catalog_codex_metadata";
 const DEFAULT_MODEL_GROUP_ID: &str = "mg_default";
 
 #[derive(Debug, Clone, Deserialize)]
@@ -1045,6 +1046,56 @@ impl Storage {
         Ok(())
     }
 
+    pub(super) fn apply_model_catalog_codex_metadata_migration(&self) -> Result<()> {
+        if self.has_migration(CODEX_METADATA_MIGRATION_VERSION)? {
+            return Ok(());
+        }
+        let fixture = fixture();
+        let tx = self.conn.unchecked_transaction()?;
+        let now = now_ts();
+        for seed in &fixture.models {
+            tx.execute(
+                "UPDATE models
+                 SET capabilities_json=?1,builtin_revision=?2,updated_at=?3
+                 WHERE origin='builtin' AND user_edited=0
+                   AND slug=?4 COLLATE NOCASE
+                   AND COALESCE(builtin_revision,0) < ?2",
+                params![
+                    serde_json::to_string(&seed.capabilities)
+                        .expect("serialize builtin Codex capabilities"),
+                    fixture.revision,
+                    now,
+                    seed.slug
+                ],
+            )?;
+        }
+        tx.execute_batch(include_str!(
+            "../../migrations/115_model_catalog_codex_metadata.sql"
+        ))?;
+        let stale_rows: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM models
+             WHERE origin='builtin' AND user_edited=0
+               AND COALESCE(builtin_revision,0) < ?1",
+            [fixture.revision],
+            |row| row.get(0),
+        )?;
+        if stale_rows != 0 {
+            return Err(rusqlite::Error::SqliteFailure(
+                (),
+                Some("Codex model metadata migration smoke check failed".to_string()),
+            ));
+        }
+        tx.execute(
+            "INSERT INTO schema_migrations(version,applied_at) VALUES(?1,?2)",
+            params![CODEX_METADATA_MIGRATION_VERSION, now],
+        )?;
+        tx.commit()?;
+        if let Some(migrations) = self.applied_migrations.borrow_mut().as_mut() {
+            migrations.insert(CODEX_METADATA_MIGRATION_VERSION.to_string());
+        }
+        Ok(())
+    }
+
     pub fn smoke_check_model_catalog_v2(&self) -> Result<()> {
         migration_smoke(&self.conn)
     }
@@ -1349,9 +1400,48 @@ mod tests {
         let raw = include_str!("../../seeds/model_catalog_v2_2026_07_10.json");
         let value: Value = serde_json::from_str(raw).expect("parse fixture");
         assert_eq!(value["models"].as_array().map(Vec::len), Some(8));
+        assert_eq!(value["revision"].as_i64(), Some(3));
         assert!(!raw.contains("base_instructions"));
         assert!(!raw.contains("instructions_template"));
         assert!(!raw.contains("instructions_text"));
+        for model in value["models"].as_array().expect("fixture models") {
+            let capabilities = model["capabilities"].as_object().expect("capabilities");
+            assert_eq!(
+                capabilities
+                    .get("include_skills_usage_instructions")
+                    .and_then(Value::as_bool),
+                Some(false)
+            );
+            for key in [
+                "additional_speed_tiers",
+                "default_verbosity",
+                "apply_patch_tool_type",
+                "truncation_mode",
+                "truncation_limit",
+                "max_context_window",
+            ] {
+                if key == "max_context_window" {
+                    assert!(model.get(key).is_some(), "{} missing {key}", model["slug"]);
+                } else {
+                    assert!(
+                        capabilities.contains_key(key),
+                        "{} missing capability {key}",
+                        model["slug"]
+                    );
+                }
+            }
+        }
+        for slug in ["gpt-5.6-sol", "gpt-5.6-terra"] {
+            let model = value["models"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|model| model["slug"] == slug)
+                .unwrap();
+            assert_eq!(model["capabilities"]["multi_agent_version"], "v2");
+            assert_eq!(model["capabilities"]["tool_mode"], "code_mode_only");
+            assert_eq!(model["capabilities"]["use_responses_lite"], true);
+        }
     }
 
     #[test]
@@ -1382,6 +1472,15 @@ mod tests {
         let gpt54 = all.iter().find(|model| model.slug == "gpt-5.4").unwrap();
         assert_eq!(gpt54.price_tiers.len(), 2);
         assert_eq!(gpt54.price_tiers[1].min_input_tokens, 272_000);
+        let sol = all
+            .iter()
+            .find(|model| model.slug == "gpt-5.6-sol")
+            .unwrap();
+        assert_eq!(sol.builtin_revision, Some(3));
+        assert_eq!(sol.capabilities["multi_agent_version"], "v2");
+        assert_eq!(sol.capabilities["tool_mode"], "code_mode_only");
+        assert_eq!(sol.capabilities["use_responses_lite"], true);
+        assert_eq!(sol.capabilities["comp_hash"], "3000");
         assert!(all
             .iter()
             .all(|model| model.instructions_mode == "passthrough"
@@ -1450,7 +1549,7 @@ mod tests {
         assert_eq!(sol.price.cached_input_microusd_per_1m, Some(5_000_000));
         assert_eq!(sol.price.output_microusd_per_1m, Some(30_000_000));
         assert_eq!(sol.price_tiers.len(), 1);
-        assert_eq!(sol.builtin_revision, Some(2));
+        assert_eq!(sol.builtin_revision, Some(3));
 
         let terra = storage
             .get_managed_model_v2("gpt-5.6-terra")
@@ -1464,6 +1563,67 @@ mod tests {
             .query_row(
                 "SELECT COUNT(*) FROM schema_migrations WHERE version=?1",
                 [GPT56_PRICING_MIGRATION_VERSION],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(applied, 1);
+    }
+
+    #[test]
+    fn codex_metadata_migration_updates_only_unedited_builtin_rows() {
+        let storage = storage();
+        storage
+            .conn
+            .execute(
+                "DELETE FROM schema_migrations WHERE version=?1",
+                [CODEX_METADATA_MIGRATION_VERSION],
+            )
+            .unwrap();
+        storage.applied_migrations.borrow_mut().take();
+        storage
+            .conn
+            .execute(
+                "UPDATE models SET capabilities_json='{}',builtin_revision=2,user_edited=0
+                 WHERE slug='gpt-5.6-sol'",
+                [],
+            )
+            .unwrap();
+        storage
+            .conn
+            .execute(
+                "UPDATE models SET capabilities_json=?1,builtin_revision=2,user_edited=1
+                 WHERE slug='gpt-5.6-terra'",
+                [r#"{"custom":true}"#],
+            )
+            .unwrap();
+
+        storage
+            .apply_model_catalog_codex_metadata_migration()
+            .unwrap();
+        storage
+            .apply_model_catalog_codex_metadata_migration()
+            .unwrap();
+
+        let sol = storage
+            .get_managed_model_v2("gpt-5.6-sol")
+            .unwrap()
+            .unwrap();
+        assert_eq!(sol.builtin_revision, Some(3));
+        assert_eq!(sol.capabilities["multi_agent_version"], "v2");
+        assert_eq!(sol.capabilities["use_responses_lite"], true);
+
+        let terra = storage
+            .get_managed_model_v2("gpt-5.6-terra")
+            .unwrap()
+            .unwrap();
+        assert_eq!(terra.builtin_revision, Some(2));
+        assert_eq!(terra.capabilities["custom"], true);
+
+        let applied: i64 = storage
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM schema_migrations WHERE version=?1",
+                [CODEX_METADATA_MIGRATION_VERSION],
                 |row| row.get(0),
             )
             .unwrap();

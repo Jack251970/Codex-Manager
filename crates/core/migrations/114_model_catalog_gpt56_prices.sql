@@ -70,7 +70,7 @@ WHERE price_status = 'missing'
   );
 
 UPDATE models
-SET builtin_revision = 2,
+SET builtin_revision = MAX(COALESCE(builtin_revision, 0), 2),
     updated_at = CAST(strftime('%s', 'now') AS INTEGER)
 WHERE origin = 'builtin'
   AND user_edited = 0
