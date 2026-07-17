@@ -449,62 +449,148 @@ Expected: `aarch64-apple-darwin` 已安装。
 Run:
 
 ```bash
-bash scripts/rebuild-macos.sh --bundles "dmg" --target aarch64-apple-darwin --clean-dist
-```
-
-Expected: 命令成功，生成 arm64 `.app` 和 `.dmg`。
-
-- [ ] **Step 3: 找到构建产物并确认架构**
-
-Run:
-
-```bash
-APP_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type d -name 'CodexManager.app' | head -1)"
-test -n "$APP_PATH"
-file "$APP_PATH/Contents/MacOS/CodexManager"
-lipo -info "$APP_PATH/Contents/MacOS/CodexManager"
-```
-
-Expected: `file` 和 `lipo` 都只报告 `arm64`，不出现 `x86_64`。
-
-- [ ] **Step 4: 检查版本和 Carbon 元数据**
-
-Run:
-
-```bash
-APP_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type d -name 'CodexManager.app' | head -1)"
-/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c 'Print :LSRequiresCarbon' "$APP_PATH/Contents/Info.plist"
+env APPLE_SIGNING_IDENTITY=- bash scripts/rebuild-macos.sh --bundles "dmg" --target aarch64-apple-darwin --clean-dist
 ```
 
 Expected:
 
-```text
-0.4.1
-false
+- 命令成功，Tauri 在制作 DMG 前使用 identity `-` 对主程序和整个应用包完成 ad hoc 签名。
+- 生成 v0.4.1 arm64 DMG。
+- dmg-only 构建结束后，Tauri 会删除作为制盘中间产物的外部 `bundle/macos/CodexManager.app`，这是预期行为。
+- 从此步骤开始，到 app-only 补构建完成前，不得修改源码、Tauri 配置、锁文件或依赖。
+
+- [ ] **Step 3: 不清理 target，补构建外部应用包**
+
+Run:
+
+```bash
+(
+  cd apps/src-tauri
+  env APPLE_SIGNING_IDENTITY=- cargo tauri build --bundles app --target aarch64-apple-darwin
+)
 ```
 
-- [ ] **Step 5: 临时签名并验证应用包**
+Expected: 命令保留上一步已经生成的 DMG，并生成由 Tauri 完整 ad hoc 签名的外部 `CodexManager.app`。两次构建之间不得修改源码、配置、锁文件或依赖。
+
+- [ ] **Step 4: 同时找到 APP 和 DMG**
 
 Run:
 
 ```bash
 APP_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type d -name 'CodexManager.app' | head -1)"
-codesign --force --deep --sign - "$APP_PATH"
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+DMG_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type f -name '*.dmg' | head -1)"
+test -n "$APP_PATH" && test -d "$APP_PATH"
+test -n "$DMG_PATH" && test -f "$DMG_PATH"
+realpath "$APP_PATH"
+realpath "$DMG_PATH"
 ```
 
-Expected: 签名验证成功。
+Expected: 同时输出外部 `CodexManager.app` 和 v0.4.1 arm64 DMG 的绝对路径。
 
-- [ ] **Step 6: 确认 DMG 存在**
+- [ ] **Step 5: 检查外部应用的架构和 Info.plist**
 
 Run:
 
 ```bash
-find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type f -name '*.dmg' -print
+APP_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type d -name 'CodexManager.app' | head -1)"
+file "$APP_PATH/Contents/MacOS/CodexManager"
+lipo -info "$APP_PATH/Contents/MacOS/CodexManager"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :LSRequiresCarbon' "$APP_PATH/Contents/Info.plist"
+plutil -lint "$APP_PATH/Contents/Info.plist"
 ```
 
-Expected: 至少输出一个 v0.4.1 arm64 DMG 路径。
+Expected:
+
+- `file` 和 `lipo` 都只报告 `arm64`，不出现 `x86_64`。
+- 两个版本字段均为 `0.4.1`。
+- `LSRequiresCarbon` 为 `false`。
+- `plutil` 报告 `OK`。
+
+- [ ] **Step 6: 只读核实外部应用已由 Tauri 完整签名**
+
+Run:
+
+```bash
+APP_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type d -name 'CodexManager.app' | head -1)"
+codesign -dv --verbose=4 "$APP_PATH" 2>&1
+codesign --verify --deep --strict --verbose=4 "$APP_PATH"
+```
+
+Expected:
+
+- `Identifier=com.codexmanager.desktop`。
+- `Signature=adhoc`。
+- `Sealed Resources version=2`。
+- strict deep 验证退出码为 `0`，输出 `valid on disk` 和 `satisfies its Designated Requirement`。
+- 不运行构建后的 `codesign --force`；签名必须来自 Tauri 打包流程。
+
+- [ ] **Step 7: 只读挂载 DMG 并检查内部应用**
+
+Run:
+
+```bash
+APP_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type d -name 'CodexManager.app' | head -1)"
+DMG_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type f -name '*.dmg' | head -1)"
+MOUNT_DIR="$(mktemp -d /tmp/codexmanager-dmg.XXXXXX)"
+MOUNTED=false
+
+cleanup() {
+  if [[ "$MOUNTED" == "true" ]]; then
+    hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1 || true
+  fi
+  rmdir "$MOUNT_DIR" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+hdiutil attach -readonly -nobrowse -mountpoint "$MOUNT_DIR" "$DMG_PATH"
+MOUNTED=true
+DMG_APP="$(find "$MOUNT_DIR" -maxdepth 2 -type d -name 'CodexManager.app' | head -1)"
+test -n "$DMG_APP" && test -d "$DMG_APP"
+
+file "$DMG_APP/Contents/MacOS/CodexManager"
+lipo -info "$DMG_APP/Contents/MacOS/CodexManager"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$DMG_APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DMG_APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c 'Print :LSRequiresCarbon' "$DMG_APP/Contents/Info.plist"
+plutil -lint "$DMG_APP/Contents/Info.plist"
+codesign -dv --verbose=4 "$DMG_APP" 2>&1
+codesign --verify --deep --strict --verbose=4 "$DMG_APP"
+
+cmp "$APP_PATH/Contents/MacOS/CodexManager" "$DMG_APP/Contents/MacOS/CodexManager"
+cmp "$APP_PATH/Contents/Info.plist" "$DMG_APP/Contents/Info.plist"
+
+hdiutil detach "$MOUNT_DIR"
+MOUNTED=false
+rmdir "$MOUNT_DIR"
+trap - EXIT
+! hdiutil info | rg -F "$MOUNT_DIR"
+```
+
+Expected:
+
+- DMG 内主程序只包含 `arm64`。
+- 两个版本字段均为 `0.4.1`，`LSRequiresCarbon=false`，`plutil` 报告 `OK`。
+- 内部应用同样显示 `Identifier=com.codexmanager.desktop`、`Signature=adhoc`、`Sealed Resources version=2`，strict deep 验证退出码为 `0`。
+- 内外主程序和 `Info.plist` 逐字节一致。
+- DMG 已卸载，`hdiutil info` 中没有本次挂载点残留。
+
+- [ ] **Step 8: 验证 DMG 文件完整性并说明分发限制**
+
+Run:
+
+```bash
+DMG_PATH="$(find apps/src-tauri/target/aarch64-apple-darwin/release/bundle -type f -name '*.dmg' | head -1)"
+file "$DMG_PATH"
+stat -f '%z %Sm' -t '%Y-%m-%d %H:%M:%S %z' "$DMG_PATH"
+shasum -a 256 "$DMG_PATH"
+hdiutil verify "$DMG_PATH"
+```
+
+Expected: `hdiutil verify` 退出码为 `0`，说明磁盘映像结构和校验和有效。它不证明发布者身份或下载来源可信。
+
+本任务使用的 ad hoc 签名只用于本机安装和启动检查，Gatekeeper 不会把它当作可公开分发的可信包。公开分发必须改用 Developer ID Application 签名，完成 Apple notarization，并对最终应用或 DMG 执行 staple。
 
 ### Task 8: 备份、安装并检查应用窗口
 

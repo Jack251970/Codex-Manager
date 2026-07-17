@@ -150,14 +150,27 @@ cargo test --manifest-path apps/src-tauri/Cargo.toml -- --test-threads=1
 2. 使用仓库脚本构建：
 
    ```bash
-   ./scripts/rebuild-macos.sh --bundles "dmg" --target aarch64-apple-darwin --clean-dist
+   env APPLE_SIGNING_IDENTITY=- bash scripts/rebuild-macos.sh --bundles "dmg" --target aarch64-apple-darwin --clean-dist
    ```
 
-3. 使用 `file` 或 `lipo -info` 确认应用内主程序是 arm64，不接受 x86_64 产物。
-4. 使用 `plutil` 检查应用包的最终 `Info.plist`，确认 `LSRequiresCarbon` 为 `false`。
-5. 对应用做临时签名并使用 `codesign --verify --deep --strict` 验证。
-6. 退出正在运行的 CodexManager，为 `/Applications/CodexManager.app` 建立带时间的备份，再安装新应用。
-7. 启动后确认版本、架构、窗口显示和本地 RPC；若启动失败，立即恢复备份。
+   Tauri 必须在制作 DMG 前使用 identity `-` 对主程序和整个应用包完成 ad hoc 签名。dmg-only 构建结束后会删除外部 `CodexManager.app`。
+
+3. 在不修改源码、Tauri 配置、锁文件或依赖的情况下，不清理 target，补构建外部应用包并保留已经生成的 DMG：
+
+   ```bash
+   (
+     cd apps/src-tauri
+     env APPLE_SIGNING_IDENTITY=- cargo tauri build --bundles app --target aarch64-apple-darwin
+   )
+   ```
+
+4. 同时找到外部 APP 和 DMG。使用 `file` 或 `lipo -info` 确认内外主程序都只有 arm64，不接受 x86_64 产物。
+5. 使用 `plutil` 和 `PlistBuddy` 检查内外应用的最终 `Info.plist`，确认版本为 `0.4.1`、`LSRequiresCarbon=false`，并比较内外主程序与 `Info.plist` 完全一致。
+6. 只读核实内外应用均由 Tauri 完整签名：`Identifier=com.codexmanager.desktop`、`Signature=adhoc`、`Sealed Resources version=2`，且 `codesign --verify --deep --strict` 退出码为 `0`。不得在构建后运行 `codesign --force` 手工补签。
+7. 只读挂载 DMG 完成内部检查，最后卸载并确认没有挂载残留。运行 `hdiutil verify` 检查磁盘映像结构和校验和，但不得把该结果描述为发布者身份或下载来源可信。
+8. ad hoc 签名只用于本机安装和启动检查，Gatekeeper 不接受它作为公开分发凭据。公开分发需要 Developer ID Application 签名、Apple notarization 和 staple。
+9. 退出正在运行的 CodexManager，为 `/Applications/CodexManager.app` 建立带时间的备份，再从外部 APP 路径安装新应用。
+10. 启动后确认版本、架构、窗口显示和本地 RPC；若启动失败，立即恢复备份。
 
 ## PR 更新
 
