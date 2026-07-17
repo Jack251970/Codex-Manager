@@ -1706,7 +1706,7 @@ fn detect_gateway_config(content: &str) -> Result<Option<DetectedGatewayConfig>,
         .and_then(Item::as_str)
         .map(str::trim)
         .filter(|base_url| !base_url.is_empty());
-    let effective_base_url = root_base_url.or(provider_base_url);
+    let effective_base_url = provider_base_url.or(root_base_url);
 
     if provider_id == PROVIDER_ID {
         return Ok(Some(DetectedGatewayConfig {

@@ -297,6 +297,8 @@ fn auth_json_shapes_match_codex_modes() {
 }
 
 fn detect_login_mode_for_config(name: &str, config: &str) -> CodexProfileMode {
+    let _env_lock = crate::test_env_guard();
+    let _service_addr = EnvGuard::set("CODEXMANAGER_SERVICE_ADDR", "127.0.0.1:48760");
     let dir = temp_profile(name);
     fs::create_dir_all(&dir).expect("mkdir profile");
     fs::write(
@@ -392,6 +394,42 @@ base_url = "http://localhost:48760/v1"
 
 [model_providers.default]
 base_url = "http://localhost:48760/v1"
+experimental_bearer_token = "provider-key"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::Gateway));
+}
+
+#[test]
+fn experimental_gateway_prefers_current_provider_external_base_url_over_stale_local_root() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-provider-external-root-local",
+        r#"
+model_provider = "default"
+base_url = "http://localhost:48760/v1"
+experimental_bearer_token = "top-level-key"
+
+[model_providers.default]
+base_url = "https://example.test/v1"
+experimental_bearer_token = "provider-key"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::DirectAccount));
+}
+
+#[test]
+fn experimental_gateway_prefers_current_provider_local_base_url_over_stale_external_root() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-provider-local-root-external",
+        r#"
+model_provider = "default"
+base_url = "https://example.test/v1"
+experimental_bearer_token = "top-level-key"
+
+[model_providers.default]
+base_url = "http://127.0.0.1:48760/v1"
 experimental_bearer_token = "provider-key"
 "#,
     );
