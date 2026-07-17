@@ -460,25 +460,27 @@ where
         }
     }
 
-    if let Some(resp) = retry_chatgpt_responses_bad_request_without_session_headers(
-        client,
-        method,
-        upstream_base,
-        url,
-        request_deadline,
-        request_ctx,
-        incoming_headers,
-        body,
-        is_stream,
-        current_auth_token.as_str(),
-        account,
-        debug,
-        status,
-    ) {
-        upstream = resp;
-        status = upstream.status();
-        upstream_content_type = upstream.headers().get(reqwest::header::CONTENT_TYPE);
-        upstream_cf_ray = first_header_value(upstream.headers(), "cf-ray");
+    if !strip_session_affinity {
+        if let Some(resp) = retry_chatgpt_responses_bad_request_without_session_headers(
+            client,
+            method,
+            upstream_base,
+            url,
+            request_deadline,
+            request_ctx,
+            incoming_headers,
+            body,
+            is_stream,
+            current_auth_token.as_str(),
+            account,
+            debug,
+            status,
+        ) {
+            upstream = resp;
+            status = upstream.status();
+            upstream_content_type = upstream.headers().get(reqwest::header::CONTENT_TYPE);
+            upstream_cf_ray = first_header_value(upstream.headers(), "cf-ray");
+        }
     }
 
     if let Some(alt_url) = url_alt {

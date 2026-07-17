@@ -335,6 +335,110 @@ fn chatgpt_responses_failed_stateless_retry_keeps_original_400() {
     }
 }
 
+#[test]
+fn chatgpt_responses_stripped_candidate_does_not_retry_without_session_headers_again() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+    let now = now_ts();
+    let account = build_account("acc-responses-already-stateless", now);
+    let mut token = build_token(account.id.as_str(), now);
+    let auth_token = token.access_token.clone();
+    storage.insert_account(&account).expect("insert account");
+    storage.insert_token(&token).expect("insert token");
+
+    let server = Server::http("127.0.0.1:0").expect("start server");
+    let addr = format!("http://{}", server.server_addr());
+    let canonical_url = format!("{addr}/backend-api/codex/responses");
+    let hit_count = Arc::new(AtomicUsize::new(0));
+    let hit_count_thread = Arc::clone(&hit_count);
+    let join = thread::spawn(move || {
+        let mut request = server
+            .recv_timeout(Duration::from_secs(2))
+            .expect("receive initial request")
+            .expect("initial request present");
+        let mut body = Vec::new();
+        std::io::Read::read_to_end(request.as_reader(), &mut body)
+            .expect("read initial request body");
+        hit_count_thread.fetch_add(1, Ordering::SeqCst);
+        request
+            .respond(
+                Response::from_string(r#"{"detail":"canonical bad request"}"#)
+                    .with_status_code(StatusCode(400)),
+            )
+            .expect("respond initial request");
+
+        if let Some(mut request) = server
+            .recv_timeout(Duration::from_millis(500))
+            .expect("check for unexpected retry")
+        {
+            let mut body = Vec::new();
+            std::io::Read::read_to_end(request.as_reader(), &mut body)
+                .expect("read unexpected retry body");
+            hit_count_thread.fetch_add(1, Ordering::SeqCst);
+            request
+                .respond(Response::from_string(r#"{"ok":true}"#).with_status_code(StatusCode(200)))
+                .expect("respond unexpected retry");
+        }
+    });
+
+    let client = reqwest::blocking::Client::new();
+    let incoming_headers = codex_session_headers();
+    let request_ctx = UpstreamRequestContext {
+        request_path: "/v1/responses",
+        protocol_type: crate::apikey_profile::PROTOCOL_OPENAI_COMPAT,
+    };
+    let body = Bytes::from_static(
+        br#"{"model":"gpt-5.5","input":"hello","prompt_cache_key":"thread-current"}"#,
+    );
+    let upstream = super::super::transport::send_upstream_request(
+        &client,
+        &reqwest::Method::POST,
+        canonical_url.as_str(),
+        None,
+        request_ctx,
+        &incoming_headers,
+        &body,
+        false,
+        auth_token.as_str(),
+        &account,
+        true,
+    )
+    .expect("send stripped candidate request");
+
+    let decision = process_upstream_post_retry_flow(
+        &client,
+        &storage,
+        &reqwest::Method::POST,
+        "https://chatgpt.com/backend-api/codex",
+        "/v1/responses",
+        canonical_url.as_str(),
+        None,
+        None,
+        request_ctx,
+        &incoming_headers,
+        &body,
+        false,
+        auth_token.as_str(),
+        &account,
+        &mut token,
+        None,
+        true,
+        false,
+        false,
+        false,
+        false,
+        upstream,
+        |_, _, _| {},
+    );
+
+    join.join().expect("join server");
+    assert_eq!(hit_count.load(Ordering::SeqCst), 1);
+    match decision {
+        PostRetryFlowDecision::RespondUpstream(resp) => assert_eq!(resp.status(), 400),
+        _ => panic!("unexpected decision"),
+    }
+}
+
 /// 函数 `retries_server_error_once_before_final_decision`
 ///
 /// 作者: gaohongshun

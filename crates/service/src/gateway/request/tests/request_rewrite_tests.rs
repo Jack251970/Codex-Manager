@@ -767,6 +767,42 @@ fn responses_default_path_skips_auto_image_generation_when_image_gen_function_ex
 }
 
 #[test]
+fn responses_default_path_skips_auto_image_generation_for_image_gen_function_names() {
+    let _guard = crate::test_env_guard();
+    let _inject_guard = RuntimeEnvGuard::set(CODEX_IMAGE_GENERATION_AUTO_INJECT_TOOL_ENV, "1");
+
+    for function_name in ["image_gen", "image_gen__imagegen"] {
+        let body = json!({
+            "model": "gpt-5.5",
+            "input": "hello",
+            "tools": [{
+                "type": "function",
+                "name": function_name,
+                "description": "Generate an image",
+                "parameters": { "type": "object", "properties": {} }
+            }]
+        });
+
+        let out = apply_request_overrides(
+            "/v1/responses",
+            serde_json::to_vec(&body).expect("serialize request body"),
+            None,
+            None,
+            Some("https://chatgpt.com/backend-api/codex"),
+        );
+        let value: serde_json::Value = serde_json::from_slice(&out).expect("parse output body");
+        let tools = value
+            .get("tools")
+            .and_then(serde_json::Value::as_array)
+            .expect("tools array");
+
+        assert_eq!(tools.len(), 1, "unexpected hosted tool for {function_name}");
+        assert_eq!(tools[0]["type"], "function");
+        assert_eq!(tools[0]["name"], function_name);
+    }
+}
+
+#[test]
 fn responses_default_path_skips_auto_image_generation_when_image_gen_namespace_exists() {
     let _guard = crate::test_env_guard();
     let _inject_guard = RuntimeEnvGuard::set(CODEX_IMAGE_GENERATION_AUTO_INJECT_TOOL_ENV, "1");

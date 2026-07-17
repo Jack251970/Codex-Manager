@@ -296,6 +296,125 @@ fn auth_json_shapes_match_codex_modes() {
     assert!(auth_json_is_gateway(&gateway));
 }
 
+fn detect_login_mode_for_config(name: &str, config: &str) -> CodexProfileMode {
+    let dir = temp_profile(name);
+    fs::create_dir_all(&dir).expect("mkdir profile");
+    fs::write(
+        dir.join(AUTH_FILE),
+        r#"{"OPENAI_API_KEY":null,"tokens":{"access_token":"access-token"}}"#,
+    )
+    .expect("write auth");
+    fs::write(dir.join(CONFIG_FILE), config).expect("write config");
+
+    let mode = detect_mode(&dir.join(AUTH_FILE), &dir.join(CONFIG_FILE), None);
+    cleanup_profile(&dir);
+    mode
+}
+
+#[test]
+fn experimental_gateway_base_without_token_keeps_login_mode_direct() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-without-token",
+        r#"
+model_provider = "default"
+base_url = "http://localhost:48760/v1"
+
+[model_providers.default]
+base_url = "http://localhost:48760/v1"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::DirectAccount));
+}
+
+#[test]
+fn experimental_gateway_blank_token_keeps_login_mode_direct() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-blank-token",
+        r#"
+model_provider = "default"
+base_url = "http://localhost:48760/v1"
+experimental_bearer_token = "   "
+
+[model_providers.default]
+base_url = "http://localhost:48760/v1"
+experimental_bearer_token = "\t"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::DirectAccount));
+}
+
+#[test]
+fn experimental_gateway_ignores_token_from_other_provider() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-other-provider-token",
+        r#"
+model_provider = "default"
+base_url = "http://localhost:48760/v1"
+
+[model_providers.default]
+base_url = "http://localhost:48760/v1"
+
+[model_providers.other]
+base_url = "https://example.test/v1"
+experimental_bearer_token = "other-provider-key"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::DirectAccount));
+}
+
+#[test]
+fn experimental_gateway_accepts_top_level_token() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-top-level-token",
+        r#"
+model_provider = "default"
+base_url = "http://localhost:48760/v1"
+experimental_bearer_token = "top-level-key"
+
+[model_providers.default]
+base_url = "http://localhost:48760/v1"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::Gateway));
+}
+
+#[test]
+fn experimental_gateway_accepts_current_provider_token() {
+    let mode = detect_login_mode_for_config(
+        "experimental-gateway-current-provider-token",
+        r#"
+model_provider = "default"
+base_url = "http://localhost:48760/v1"
+
+[model_providers.default]
+base_url = "http://localhost:48760/v1"
+experimental_bearer_token = "provider-key"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::Gateway));
+}
+
+#[test]
+fn managed_gateway_provider_does_not_require_experimental_token() {
+    let mode = detect_login_mode_for_config(
+        "managed-gateway-without-experimental-token",
+        r#"
+model_provider = "cm"
+
+[model_providers.cm]
+base_url = "http://localhost:48760/v1"
+wire_api = "responses"
+"#,
+    );
+
+    assert!(matches!(mode, CodexProfileMode::Gateway));
+}
+
 #[test]
 fn experimental_gateway_config_overrides_login_tokens_and_stale_direct_marker() {
     let dir = temp_profile("experimental-gateway-detection");

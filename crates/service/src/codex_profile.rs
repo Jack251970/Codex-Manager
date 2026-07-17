@@ -1696,11 +1696,12 @@ fn detect_gateway_config(content: &str) -> Result<Option<DetectedGatewayConfig>,
         .and_then(Item::as_str)
         .map(str::trim)
         .filter(|base_url| !base_url.is_empty());
-    let provider_base_url = doc
+    let provider_config = doc
         .get("model_providers")
         .and_then(Item::as_table)
         .and_then(|providers| providers.get(provider_id))
-        .and_then(Item::as_table)
+        .and_then(Item::as_table);
+    let provider_base_url = provider_config
         .and_then(|provider| provider.get("base_url"))
         .and_then(Item::as_str)
         .map(str::trim)
@@ -1712,6 +1713,20 @@ fn detect_gateway_config(content: &str) -> Result<Option<DetectedGatewayConfig>,
             provider_id: provider_id.to_string(),
             base_url: normalize_gateway_base_url(effective_base_url),
         }));
+    }
+
+    let provider_bearer_token = provider_config
+        .and_then(|provider| provider.get("experimental_bearer_token"))
+        .and_then(Item::as_str)
+        .map(str::trim)
+        .filter(|token| !token.is_empty());
+    let root_bearer_token = doc
+        .get("experimental_bearer_token")
+        .and_then(Item::as_str)
+        .map(str::trim)
+        .filter(|token| !token.is_empty());
+    if provider_bearer_token.or(root_bearer_token).is_none() {
+        return Ok(None);
     }
 
     let Some(base_url) = effective_base_url else {
