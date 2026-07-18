@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 修复 `codexmanager-web` 的 `/v1/responses` WebSocket 握手被降级为普通 GET 并返回 405 的问题；Web 网关现在会在保留鉴权与 Codex 请求头的同时双向转发 WebSocket 帧，自动接管和首次引导配置也会显式启用 Responses WebSocket。
+
 ## [0.4.1] - 2026-07-14
 
 ### Changed

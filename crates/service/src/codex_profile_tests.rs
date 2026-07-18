@@ -149,6 +149,7 @@ name = "Other"
     assert!(output.contains("[model_providers.cm]"));
     assert!(output.contains("base_url = \"http://127.0.0.1:48770/v1\""));
     assert!(output.contains("wire_api = \"responses\""));
+    assert!(output.contains("supports_websockets = true"));
     assert!(output.contains("[model_providers.other]"));
 }
 

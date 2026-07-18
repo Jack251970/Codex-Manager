@@ -5,6 +5,10 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed `codexmanager-web` downgrading `/v1/responses` WebSocket handshakes to ordinary GET requests that returned 405. The Web gateway now tunnels WebSocket frames while preserving authentication and Codex headers, and managed/onboarding provider configs explicitly enable Responses WebSocket.
+
 ## [0.4.1] - 2026-07-14
 
 ### Changed

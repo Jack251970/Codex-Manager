@@ -1796,6 +1796,7 @@ fn patch_config_for_gateway(content: Option<String>, base_url: &str) -> Result<S
     provider.insert("name", toml_value("CodexManager"));
     provider.insert("base_url", toml_value(base_url));
     provider.insert("wire_api", toml_value("responses"));
+    provider.insert("supports_websockets", toml_value(true));
     Ok(doc.to_string())
 }
 
