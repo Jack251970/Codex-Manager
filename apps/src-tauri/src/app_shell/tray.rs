@@ -122,24 +122,21 @@ fn build_tray_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Er
 }
 
 fn should_refresh_tray_menu_on_click_event(event: &TrayIconEvent) -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        let _ = event;
+        return false;
+    }
+
+    #[cfg(not(target_os = "windows"))]
     matches!(
         event,
         TrayIconEvent::Click {
             button: MouseButton::Right,
             button_state,
             ..
-        } if *button_state == tray_menu_refresh_trigger_state()
+        } if *button_state == MouseButtonState::Up
     )
-}
-
-#[cfg(target_os = "windows")]
-const fn tray_menu_refresh_trigger_state() -> MouseButtonState {
-    MouseButtonState::Down
-}
-
-#[cfg(not(target_os = "windows"))]
-const fn tray_menu_refresh_trigger_state() -> MouseButtonState {
-    MouseButtonState::Up
 }
 
 fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
@@ -165,39 +162,60 @@ fn format_tray_reset_time(value: Option<i64>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{should_refresh_tray_menu_on_click_event, tray_menu_refresh_trigger_state};
+    use super::should_refresh_tray_menu_on_click_event;
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
     use tauri::Rect;
 
     #[test]
     fn refreshes_menu_only_for_expected_right_click_state() {
-        let should_refresh = TrayIconEvent::Click {
-            id: Default::default(),
-            position: Default::default(),
-            rect: Rect::default(),
-            button: MouseButton::Right,
-            button_state: tray_menu_refresh_trigger_state(),
-        };
-        assert!(should_refresh_tray_menu_on_click_event(&should_refresh));
+        #[cfg(not(target_os = "windows"))]
+        {
+            let should_refresh = TrayIconEvent::Click {
+                id: Default::default(),
+                position: Default::default(),
+                rect: Rect::default(),
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Up,
+            };
+            assert!(should_refresh_tray_menu_on_click_event(&should_refresh));
 
-        let wrong_state = TrayIconEvent::Click {
-            id: Default::default(),
-            position: Default::default(),
-            rect: Rect::default(),
-            button: MouseButton::Right,
-            button_state: match tray_menu_refresh_trigger_state() {
-                MouseButtonState::Down => MouseButtonState::Up,
-                MouseButtonState::Up => MouseButtonState::Down,
-            },
-        };
-        assert!(!should_refresh_tray_menu_on_click_event(&wrong_state));
+            let wrong_state = TrayIconEvent::Click {
+                id: Default::default(),
+                position: Default::default(),
+                rect: Rect::default(),
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Down,
+            };
+            assert!(!should_refresh_tray_menu_on_click_event(&wrong_state));
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let right_up = TrayIconEvent::Click {
+                id: Default::default(),
+                position: Default::default(),
+                rect: Rect::default(),
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Up,
+            };
+            assert!(!should_refresh_tray_menu_on_click_event(&right_up));
+
+            let right_down = TrayIconEvent::Click {
+                id: Default::default(),
+                position: Default::default(),
+                rect: Rect::default(),
+                button: MouseButton::Right,
+                button_state: MouseButtonState::Down,
+            };
+            assert!(!should_refresh_tray_menu_on_click_event(&right_down));
+        }
 
         let wrong_button = TrayIconEvent::Click {
             id: Default::default(),
             position: Default::default(),
             rect: Rect::default(),
             button: MouseButton::Left,
-            button_state: tray_menu_refresh_trigger_state(),
+            button_state: MouseButtonState::Up,
         };
         assert!(!should_refresh_tray_menu_on_click_event(&wrong_button));
     }
