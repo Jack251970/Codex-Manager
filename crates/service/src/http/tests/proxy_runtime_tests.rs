@@ -1,6 +1,7 @@
 use super::{
     build_backend_base_url, build_local_backend_client, front_proxy_max_blocking_threads,
-    front_proxy_worker_threads, normalize_incoming_request_body, proxy_handler, ProxyState,
+    front_proxy_worker_threads, normalize_incoming_request_body, proxy_handler, zstd_body_limit,
+    IncomingBodyDecodeError, ProxyState, ZSTD_MAX_BODY_BYTES,
 };
 use axum::body::{to_bytes, Body};
 use axum::extract::State;
@@ -72,6 +73,23 @@ impl Drop for EnvGuard {
             std::env::remove_var(self.key);
         }
     }
+}
+
+fn normalize_body_for_test(
+    headers: &mut HeaderMap,
+    body: Bytes,
+    max_body_bytes: usize,
+) -> Result<Bytes, IncomingBodyDecodeError> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("zstd test runtime")
+        .block_on(normalize_incoming_request_body(
+            headers,
+            body,
+            max_body_bytes,
+            None,
+        ))
 }
 
 /// 函数 `backend_base_url_uses_http_scheme`
@@ -155,7 +173,7 @@ fn zstd_request_body_is_decoded_and_transport_headers_are_removed() {
         HeaderValue::from_str(compressed.len().to_string().as_str()).expect("content length"),
     );
 
-    let decoded = normalize_incoming_request_body(
+    let decoded = normalize_body_for_test(
         &mut headers,
         Bytes::from(compressed),
         /*max_body_bytes*/ 0,
@@ -174,7 +192,7 @@ fn zstd_magic_is_decoded_when_intermediate_proxy_drops_encoding_header() {
         zstd::stream::encode_all(std::io::Cursor::new(plain), 3).expect("compress request body");
     let mut headers = HeaderMap::new();
 
-    let decoded = normalize_incoming_request_body(
+    let decoded = normalize_body_for_test(
         &mut headers,
         Bytes::from(compressed),
         /*max_body_bytes*/ 0,
@@ -189,7 +207,7 @@ fn invalid_zstd_request_body_returns_400() {
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_ENCODING, HeaderValue::from_static("zstd"));
 
-    let err = normalize_incoming_request_body(
+    let err = normalize_body_for_test(
         &mut headers,
         Bytes::from_static(b"not-zstd"),
         /*max_body_bytes*/ 0,
@@ -207,7 +225,7 @@ fn decompressed_zstd_request_body_respects_front_proxy_limit() {
     let mut headers = HeaderMap::new();
     headers.insert(header::CONTENT_ENCODING, HeaderValue::from_static("zstd"));
 
-    let err = normalize_incoming_request_body(
+    let err = normalize_body_for_test(
         &mut headers,
         Bytes::from(compressed),
         /*max_body_bytes*/ 32,
@@ -216,6 +234,41 @@ fn decompressed_zstd_request_body_respects_front_proxy_limit() {
 
     assert_eq!(err.status, StatusCode::PAYLOAD_TOO_LARGE);
     assert!(err.message.contains("after zstd decompression"));
+}
+
+#[test]
+fn zstd_body_limit_is_always_bounded() {
+    assert_eq!(zstd_body_limit(0), ZSTD_MAX_BODY_BYTES);
+    assert_eq!(zstd_body_limit(32), 32);
+    assert_eq!(zstd_body_limit(usize::MAX), ZSTD_MAX_BODY_BYTES);
+}
+
+#[test]
+fn zero_front_proxy_limit_rejects_oversized_declared_zstd_body() {
+    let _guard = crate::test_env_guard();
+    let _ = crate::gateway::front_proxy_max_body_bytes();
+    let _body_limit_guard = EnvGuard::set("CODEXMANAGER_FRONT_PROXY_MAX_BODY_BYTES", "0");
+    crate::gateway::reload_runtime_config_from_env();
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("runtime");
+    let state = ProxyState {
+        backend_base_url: "http://127.0.0.1:1".to_string(),
+        client: build_local_backend_client().expect("client"),
+    };
+    let oversized = ZSTD_MAX_BODY_BYTES.saturating_add(1);
+    let request = HttpRequest::builder()
+        .method("POST")
+        .uri("/v1/responses")
+        .header(header::CONTENT_ENCODING, "zstd")
+        .header(header::CONTENT_LENGTH, oversized.to_string())
+        .body(Body::empty())
+        .expect("request");
+
+    let response = runtime.block_on(proxy_handler(State(state), request));
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
 }
 
 /// 函数 `request_without_content_length_over_limit_returns_413`

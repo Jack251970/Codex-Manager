@@ -14,8 +14,13 @@ use crate::http::proxy_response::{merge_upstream_headers, text_error_response};
 
 const DEFAULT_FRONT_PROXY_MAX_BLOCKING_THREADS: usize = 32;
 const DEFAULT_FRONT_PROXY_WORKER_THREADS: usize = 2;
+const ZSTD_MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
+const ZSTD_MAX_CONCURRENT_DECODES: usize = 4;
 const ENV_FRONT_PROXY_MAX_BLOCKING_THREADS: &str = "CODEXMANAGER_FRONT_PROXY_MAX_BLOCKING_THREADS";
 const ENV_FRONT_PROXY_WORKER_THREADS: &str = "CODEXMANAGER_FRONT_PROXY_WORKER_THREADS";
+
+static ZSTD_DECODE_SEMAPHORE: tokio::sync::Semaphore =
+    tokio::sync::Semaphore::const_new(ZSTD_MAX_CONCURRENT_DECODES);
 
 #[derive(Clone)]
 struct ProxyState {
@@ -121,10 +126,28 @@ fn has_zstd_magic(body: &[u8]) -> bool {
     body.starts_with(&[0x28, 0xB5, 0x2F, 0xFD])
 }
 
-fn decode_zstd_body(
-    body: &[u8],
-    max_body_bytes: usize,
-) -> Result<Vec<u8>, IncomingBodyDecodeError> {
+fn zstd_body_limit(max_body_bytes: usize) -> usize {
+    if max_body_bytes == 0 {
+        ZSTD_MAX_BODY_BYTES
+    } else {
+        max_body_bytes.min(ZSTD_MAX_BODY_BYTES)
+    }
+}
+
+fn try_acquire_zstd_decode_permit(
+) -> Result<tokio::sync::SemaphorePermit<'static>, IncomingBodyDecodeError> {
+    ZSTD_DECODE_SEMAPHORE
+        .try_acquire()
+        .map_err(|_| IncomingBodyDecodeError {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            message: crate::gateway::bilingual_error(
+                "zstd 解压任务繁忙",
+                "zstd request decoder is busy; retry later",
+            ),
+        })
+}
+
+fn decode_zstd_body(body: &[u8], decode_limit: usize) -> Result<Vec<u8>, IncomingBodyDecodeError> {
     let decoder =
         zstd::stream::read::Decoder::new(body).map_err(|err| IncomingBodyDecodeError {
             status: StatusCode::BAD_REQUEST,
@@ -134,13 +157,8 @@ fn decode_zstd_body(
             ),
         })?;
     let mut decoded = Vec::new();
-    let read_result = if max_body_bytes == 0 {
-        let mut decoder = decoder;
-        decoder.read_to_end(&mut decoded)
-    } else {
-        let mut limited = decoder.take(max_body_bytes.saturating_add(1) as u64);
-        limited.read_to_end(&mut decoded)
-    };
+    let mut limited = decoder.take(decode_limit.saturating_add(1) as u64);
+    let read_result = limited.read_to_end(&mut decoded);
     read_result.map_err(|err| IncomingBodyDecodeError {
         status: StatusCode::BAD_REQUEST,
         message: crate::gateway::bilingual_error(
@@ -148,28 +166,45 @@ fn decode_zstd_body(
             format!("invalid zstd request body: {err}"),
         ),
     })?;
-    if max_body_bytes > 0 && decoded.len() > max_body_bytes {
+    if decoded.len() > decode_limit {
         return Err(IncomingBodyDecodeError {
             status: StatusCode::PAYLOAD_TOO_LARGE,
             message: crate::gateway::bilingual_error(
                 "请求体过大",
-                format!("request body too large after zstd decompression: >{max_body_bytes}"),
+                format!("request body too large after zstd decompression: >{decode_limit}"),
             ),
         });
     }
     Ok(decoded)
 }
 
-fn normalize_incoming_request_body(
+async fn normalize_incoming_request_body(
     headers: &mut HeaderMap,
     body: Bytes,
     max_body_bytes: usize,
+    decode_permit: Option<tokio::sync::SemaphorePermit<'static>>,
 ) -> Result<Bytes, IncomingBodyDecodeError> {
     if body.is_empty() || (!has_zstd_content_encoding(headers) && !has_zstd_magic(body.as_ref())) {
         return Ok(body);
     }
 
-    let decoded = decode_zstd_body(body.as_ref(), max_body_bytes)?;
+    let permit = match decode_permit {
+        Some(permit) => permit,
+        None => try_acquire_zstd_decode_permit()?,
+    };
+    let decode_limit = zstd_body_limit(max_body_bytes);
+    let decoded = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        decode_zstd_body(body.as_ref(), decode_limit)
+    })
+    .await
+    .map_err(|err| IncomingBodyDecodeError {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        message: crate::gateway::bilingual_error(
+            "zstd 解压任务失败",
+            format!("zstd request decoder task failed: {err}"),
+        ),
+    })??;
     headers.remove(header::CONTENT_ENCODING);
     headers.remove(header::CONTENT_LENGTH);
     Ok(Bytes::from(decoded))
@@ -195,6 +230,26 @@ async fn proxy_handler(
     let prefer_raw_errors = crate::gateway::prefers_raw_errors_for_http_headers(&parts.headers);
     let target_url = build_target_url(&state.backend_base_url, &parts.uri);
     let max_body_bytes = crate::gateway::front_proxy_max_body_bytes();
+    let declared_zstd = has_zstd_content_encoding(&parts.headers);
+    let zstd_decode_permit = if declared_zstd {
+        match try_acquire_zstd_decode_permit() {
+            Ok(permit) => Some(permit),
+            Err(err) => {
+                log_proxy_error(err.status, target_url.as_str(), err.message.as_str());
+                return text_error_response(
+                    err.status,
+                    crate::gateway::error_message_for_client(prefer_raw_errors, err.message),
+                );
+            }
+        }
+    } else {
+        None
+    };
+    let request_body_limit = if declared_zstd {
+        zstd_body_limit(max_body_bytes)
+    } else {
+        max_body_bytes
+    };
 
     if let Some(content_length) = parts
         .headers
@@ -202,7 +257,7 @@ async fn proxy_handler(
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.trim().parse::<u64>().ok())
     {
-        if max_body_bytes > 0 && content_length > max_body_bytes as u64 {
+        if request_body_limit > 0 && content_length > request_body_limit as u64 {
             let message = crate::gateway::bilingual_error(
                 "请求体过大",
                 format!("request body too large: content-length={content_length}"),
@@ -220,20 +275,20 @@ async fn proxy_handler(
     }
 
     let mut outbound_headers = filter_request_headers(&parts.headers);
-    let read_limit = if max_body_bytes == 0 {
+    let read_limit = if request_body_limit == 0 {
         usize::MAX
     } else {
-        max_body_bytes
+        request_body_limit
     };
     let body_bytes = match to_bytes(body, read_limit).await {
         Ok(bytes) => bytes,
         Err(_) => {
-            let message = if max_body_bytes == 0 {
+            let message = if request_body_limit == 0 {
                 crate::gateway::bilingual_error("请求体过大", "request body too large")
             } else {
                 crate::gateway::bilingual_error(
                     "请求体过大",
-                    format!("request body too large: content-length>{max_body_bytes}"),
+                    format!("request body too large: content-length>{request_body_limit}"),
                 )
             };
             log_proxy_error(
@@ -248,17 +303,23 @@ async fn proxy_handler(
         }
     };
     let encoded_body_bytes = body_bytes.len();
-    let body_bytes =
-        match normalize_incoming_request_body(&mut outbound_headers, body_bytes, max_body_bytes) {
-            Ok(body) => body,
-            Err(err) => {
-                log_proxy_error(err.status, target_url.as_str(), err.message.as_str());
-                return text_error_response(
-                    err.status,
-                    crate::gateway::error_message_for_client(prefer_raw_errors, err.message),
-                );
-            }
-        };
+    let body_bytes = match normalize_incoming_request_body(
+        &mut outbound_headers,
+        body_bytes,
+        max_body_bytes,
+        zstd_decode_permit,
+    )
+    .await
+    {
+        Ok(body) => body,
+        Err(err) => {
+            log_proxy_error(err.status, target_url.as_str(), err.message.as_str());
+            return text_error_response(
+                err.status,
+                crate::gateway::error_message_for_client(prefer_raw_errors, err.message),
+            );
+        }
+    };
     if body_bytes.len() != encoded_body_bytes {
         log::info!(
             "event=front_proxy_request_decompressed path={} algorithm=zstd pre_bytes={} post_bytes={}",
