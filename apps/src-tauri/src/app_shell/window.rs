@@ -12,7 +12,7 @@ use super::state::{APP_EXIT_REQUESTED, KEEP_ALIVE_FOR_LIGHTWEIGHT_CLOSE};
 pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
 pub(crate) const TRAY_PREVIEW_WINDOW_LABEL: &str = "tray-preview";
 const TRAY_PREVIEW_WIDTH: f64 = 360.0;
-const TRAY_PREVIEW_HEIGHT: f64 = 425.0;
+const TRAY_PREVIEW_HEIGHT: f64 = 430.0;
 const TRAY_PREVIEW_MARGIN: f64 = 8.0;
 static SHOW_MAIN_WINDOW_PENDING: AtomicBool = AtomicBool::new(false);
 static MAIN_WINDOW_CREATED_ONCE: AtomicBool = AtomicBool::new(false);
