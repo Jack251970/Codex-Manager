@@ -342,7 +342,9 @@
   }
 
   html.tray-preview-mode body::before,
-  body.tray-preview-mode::before {
+  html.tray-preview-mode body::after,
+  body.tray-preview-mode::before,
+  body.tray-preview-mode::after {
     content: none !important;
     display: none !important;
     background: transparent !important;

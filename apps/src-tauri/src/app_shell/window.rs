@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::webview::{Color, PageLoadEvent};
+#[cfg(not(target_os = "windows"))]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 use tauri::Manager;
 use tauri::{
@@ -273,7 +274,7 @@ fn ensure_tray_preview_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWi
         return Some(window);
     }
 
-    match WebviewWindowBuilder::new(
+    let builder = WebviewWindowBuilder::new(
         app,
         TRAY_PREVIEW_WINDOW_LABEL,
         WebviewUrl::App("tray-preview/".into()),
@@ -288,21 +289,23 @@ fn ensure_tray_preview_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWi
     .decorations(false)
     .transparent(true)
     .background_color(Color(0, 0, 0, 0))
-    .effects(
-        EffectsBuilder::new()
-            .effect(Effect::Popover)
-            .state(EffectState::Active)
-            .radius(18.0)
-            .build(),
-    )
     .shadow(false)
     .always_on_top(true)
     .visible_on_all_workspaces(true)
     .skip_taskbar(true)
     .visible(false)
-    .focused(false)
-    .build()
-    {
+    .focused(false);
+
+    #[cfg(not(target_os = "windows"))]
+    let builder = builder.effects(
+        EffectsBuilder::new()
+            .effect(Effect::Popover)
+            .state(EffectState::Active)
+            .radius(18.0)
+            .build(),
+    );
+
+    match builder.build() {
         Ok(window) => {
             apply_tray_preview_window_size(&window);
             Some(window)
