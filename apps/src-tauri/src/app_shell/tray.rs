@@ -85,23 +85,19 @@ pub(crate) fn setup_tray(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 fn build_tray_menu(app: &tauri::AppHandle) -> Result<Menu<tauri::Wry>, tauri::Error> {
     let show_main = MenuItem::with_id(app, TRAY_MENU_SHOW_MAIN, "显示主窗口", true, None::<&str>)?;
     let summary = codexmanager_service::read_tray_usage_reset_summary();
+    let (primary_label, secondary_label) =
+        tray_usage_reset_labels(summary.primary_resets_at, summary.secondary_resets_at);
     let primary = MenuItem::with_id(
         app,
         TRAY_MENU_PRIMARY_RESET,
-        format!(
-            "5小时重置：{}",
-            format_tray_reset_time(summary.primary_resets_at)
-        ),
+        primary_label,
         false,
         None::<&str>,
     )?;
     let secondary = MenuItem::with_id(
         app,
         TRAY_MENU_SECONDARY_RESET,
-        format!(
-            "7天重置：{}",
-            format_tray_reset_time(summary.secondary_resets_at)
-        ),
+        secondary_label,
         false,
         None::<&str>,
     )?;
@@ -147,6 +143,22 @@ fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     tray.set_menu(Some(menu))
 }
 
+pub(crate) fn refresh_tray_menu_after_usage_update(app: &tauri::AppHandle) {
+    if let Err(err) = refresh_tray_menu(app) {
+        log::warn!("refresh tray menu after usage update failed: {}", err);
+    }
+}
+
+fn tray_usage_reset_labels(
+    primary_resets_at: Option<i64>,
+    secondary_resets_at: Option<i64>,
+) -> (String, String) {
+    (
+        format!("5小时重置：{}", format_tray_reset_time(primary_resets_at)),
+        format!("7天重置：{}", format_tray_reset_time(secondary_resets_at)),
+    )
+}
+
 fn format_tray_reset_time(value: Option<i64>) -> String {
     let Some(value) = value.filter(|item| *item > 0) else {
         return "暂无".to_string();
@@ -162,7 +174,7 @@ fn format_tray_reset_time(value: Option<i64>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::should_refresh_tray_menu_on_click_event;
+    use super::{should_refresh_tray_menu_on_click_event, tray_usage_reset_labels};
     use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
     use tauri::Rect;
 
@@ -218,5 +230,19 @@ mod tests {
             button_state: MouseButtonState::Up,
         };
         assert!(!should_refresh_tray_menu_on_click_event(&wrong_button));
+    }
+
+    #[test]
+    fn tray_usage_reset_labels_reflect_usage_data_changes() {
+        let stale_labels = tray_usage_reset_labels(None, None);
+        assert_eq!(stale_labels.0, "5小时重置：暂无");
+        assert_eq!(stale_labels.1, "7天重置：暂无");
+
+        let updated_labels = tray_usage_reset_labels(Some(1_700_000_000), Some(1_700_604_800));
+        assert_ne!(updated_labels, stale_labels);
+        assert!(updated_labels.0.starts_with("5小时重置："));
+        assert!(updated_labels.1.starts_with("7天重置："));
+        assert!(!updated_labels.0.ends_with("暂无"));
+        assert!(!updated_labels.1.ends_with("暂无"));
     }
 }
