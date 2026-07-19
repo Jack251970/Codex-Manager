@@ -15,6 +15,7 @@
 
 ### Changed
 
+- 精简 AIXiamo 赞助说明，突出国内无海外银行卡用户的 ChatGPT、Claude、Codex 充值与售后保障信息。
 - 收紧 Codex 网关识别规则并优先使用当前供应商网关地址，避免将普通 OpenAI 兼容端点误判为 Codex；同时保留 compact、Gemini 及多候选回退行为（#346）。
 - 完善原生 Web Search、Image Generation、`/v1/models` 和 Responses WebSocket 的协议兼容，并支持有界解压 zstd 编码内容（#363）。
 - 发布版本提升到 `0.4.3`，同步更新 workspace、前端包、Tauri 桌面端与锁文件。

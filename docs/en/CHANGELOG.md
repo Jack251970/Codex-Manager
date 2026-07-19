@@ -15,6 +15,7 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ### Changed
 
+- Shortened the AIXiamo sponsor copy to highlight ChatGPT, Claude, and Codex top-up assistance for users in China without an international bank card, together with after-sales support.
 - Tightened Codex gateway detection and now prefer the current provider gateway URL, avoiding false Codex classification for ordinary OpenAI-compatible endpoints while preserving compact, Gemini, and multi-candidate fallback behavior (#346).
 - Improved protocol compatibility for native Web Search, Image Generation, `/v1/models`, and Responses WebSocket traffic, including bounded decoding of zstd-encoded content (#363).
 - Bumped the release version to `0.4.3` and synchronized workspace, frontend package, Tauri desktop metadata, and lockfiles.
