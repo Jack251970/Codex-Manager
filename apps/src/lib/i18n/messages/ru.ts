@@ -1300,6 +1300,7 @@ export const RU_MESSAGES: MessageCatalog = {
     "Имя provider должно совпадать с model_provider выше",
   "CodexManager 本地网关地址": "Адрес локального gateway CodexManager",
   "使用 Responses 协议": "Использовать протокол Responses",
+  "启用 Responses WebSocket": "Включить Responses WebSocket",
   "重新打开 Codex 引导": "Открыть руководство Codex снова",
   "重新打开 Codex CLI 引导": "Открыть руководство Codex CLI снова",
   后续将不再显示这份引导: "Это руководство больше не будет показываться",

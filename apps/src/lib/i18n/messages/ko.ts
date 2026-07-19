@@ -1330,6 +1330,7 @@ export const KO_MESSAGES: MessageCatalog = {
   显示名称: "표시 이름",
   "CodexManager 本地网关地址": "CodexManager 로컬 게이트웨이 주소",
   "使用 Responses 协议": "Responses 프로토콜 사용",
+  "启用 Responses WebSocket": "Responses WebSocket 사용",
   "重新打开 Codex 引导": "Codex 안내 다시 열기",
   "重新打开 Codex CLI 引导": "Codex CLI 안내 다시 열기",
   后续将不再显示这份引导: "이 안내는 앞으로 다시 표시되지 않습니다",

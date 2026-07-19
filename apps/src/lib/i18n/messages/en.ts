@@ -1360,6 +1360,7 @@ export const EN_MESSAGES: MessageCatalog = {
     "The provider name must match model_provider above",
   "CodexManager 本地网关地址": "CodexManager local gateway address",
   "使用 Responses 协议": "Use the Responses protocol",
+  "启用 Responses WebSocket": "Enable Responses WebSocket",
   "重新打开 Codex 引导": "Reopen the Codex guide",
   "重新打开 Codex CLI 引导": "Reopen the Codex CLI guide",
   后续将不再显示这份引导: "This guide will no longer be shown",
