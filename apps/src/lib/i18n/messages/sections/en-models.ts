@@ -27,6 +27,8 @@ export const EN_MODELS_MESSAGES: MessageCatalog = {
     "Shows origin, enabled state, price status, instructions mode, and route status.",
   "显示来源、启用状态、价格状态、指令模式和路由状态。":
     "Shows source, enabled state, price status, instruction mode, and route status.",
+  "请先勾选一个或多个模型，再使用批量分配路由。":
+    "Select one or more models, then use bulk route assignment.",
   搜索模型: "Search models",
   全部模型: "All models",
   批量删除模型: "Delete models",

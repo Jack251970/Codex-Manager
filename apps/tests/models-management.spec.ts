@@ -429,10 +429,23 @@ test("模型目录支持中文展示并为多个模型批量分配路由", async
   await expect(page.getByRole("columnheader", { name: "来源" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "指令" })).toBeVisible();
   await expect(page.getByRole("columnheader", { name: "路由" })).toBeVisible();
+  await expect(
+    page.getByText("请先勾选一个或多个模型，再使用批量分配路由。"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "批量分配路由 (0)" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "批量分配路由 (0)" }),
+  ).toBeDisabled();
 
   await page.getByLabel("选择模型 gpt-5.6-sol").click();
   await page.getByLabel("选择模型 gpt-5.6-terra").click();
-  await page.getByRole("button", { name: "批量分配路由 (2)" }).click();
+  const batchRoutesButton = page.getByRole("button", {
+    name: "批量分配路由 (2)",
+  });
+  await expect(batchRoutesButton).toBeEnabled();
+  await batchRoutesButton.click();
 
   const dialog = page.getByRole("dialog", { name: "批量分配模型路由" });
   await expect(dialog).toBeVisible();

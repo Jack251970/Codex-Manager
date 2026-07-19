@@ -21,6 +21,7 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ### Fixed
 
+- The bulk route assignment entry is now always visible to administrators on the model management page; it stays disabled with clear guidance until models are selected, so the feature is no longer easy to miss.
 - Fixed candidate failover after some Responses 400 errors by dropping inapplicable session/thread headers on retry and preserving encrypted content containers correctly.
 - Fixed hosted image tool conflicts with Codex image-generation namespaces and narrowed legacy Responses path suppression to its intended scope.
 - Fixed the Windows tray context menu closing immediately, click-time refresh regressions, and stale menu labels after usage updates (#362).

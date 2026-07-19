@@ -338,6 +338,11 @@ export default function ModelsPage() {
                 <CardTitle>{t("模型目录明细")}</CardTitle>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {t("显示来源、启用状态、价格状态、指令模式和路由状态。")}
+                  {isAdminMode ? (
+                    <span className="mt-0.5 block text-primary/80">
+                      {t("请先勾选一个或多个模型，再使用批量分配路由。")}
+                    </span>
+                  ) : null}
                 </p>
               </div>
               <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
@@ -362,26 +367,28 @@ export default function ModelsPage() {
                     <SelectItem value="hidden">{t("已隐藏")}</SelectItem>
                   </SelectGroup></SelectContent>
                 </Select>
-                {isAdminMode && selectedSlugs.length > 0 ? (
+                {isAdminMode ? (
                   <>
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={isAssigningRoutes}
+                      disabled={isAssigningRoutes || selectedSlugs.length === 0}
                       onClick={() => setBatchRoutesOpen(true)}
                     >
                       <GitBranch className="mr-1.5 h-4 w-4" />
                       {t("批量分配路由")} ({selectedSlugs.length})
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={isDeleting}
-                      onClick={() => setDeleteSlugs(selectedSlugs)}
-                    >
-                      <Trash2 className="mr-1.5 h-4 w-4" />
-                      {t("批量删除模型")} ({selectedSlugs.length})
-                    </Button>
+                    {selectedSlugs.length > 0 ? (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isDeleting}
+                        onClick={() => setDeleteSlugs(selectedSlugs)}
+                      >
+                        <Trash2 className="mr-1.5 h-4 w-4" />
+                        {t("批量删除模型")} ({selectedSlugs.length})
+                      </Button>
+                    ) : null}
                   </>
                 ) : null}
               </div>
