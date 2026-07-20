@@ -52,8 +52,6 @@ permissions:
 env:
   TAURI_CLI_VERSION: 2.10.1
   CARGO_TARGET_DIR: ${{ github.workspace }}/target-shared
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: sccache
 
 concurrency:
   group: ${{ format('{0}-tag-{1}', github.workflow, startsWith(github.event.inputs.tag, 'v') && github.event.inputs.tag || format('v{0}', github.event.inputs.tag)) }}
@@ -110,9 +108,6 @@ jobs:
         uses: ./.github/actions/setup-release-env
         with:
           enable-pnpm-cache: "false"
-
-      - name: Setup Rust compiler cache
-        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Prepare frontend dist
         uses: ./.github/actions/prepare-frontend-dist
@@ -183,9 +178,6 @@ jobs:
         with:
           rust-target: ${{ matrix.rust_target }}
           enable-pnpm-cache: "false"
-
-      - name: Setup Rust compiler cache
-        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Prepare frontend dist
         uses: ./.github/actions/prepare-frontend-dist
@@ -266,9 +258,6 @@ jobs:
         with:
           rust-target: ${{ matrix.rust_target }}
           enable-pnpm-cache: "false"
-
-      - name: Setup Rust compiler cache
-        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Install Linux dependencies
         run: |
