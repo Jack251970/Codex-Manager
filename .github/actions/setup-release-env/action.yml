@@ -30,6 +30,10 @@ inputs:
     description: Install Rust and configure Cargo-related caches.
     required: false
     default: "true"
+  enable-cargo-cache:
+    description: Restore Cargo registry/git and target caches.
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
@@ -109,3 +113,12 @@ runs:
       with:
         toolchain: ${{ inputs.rust-toolchain }}
         targets: ${{ inputs.rust-target }}
+
+    - name: Cache Rust dependencies
+      if: ${{ inputs.enable-rust == 'true' && inputs.enable-cargo-cache == 'true' && env.CARGO_TARGET_DIR != '' }}
+      uses: Swatinem/rust-cache@v2
+      with:
+        shared-key: release-${{ runner.os }}-${{ runner.arch }}-${{ inputs.rust-target || 'host' }}
+        workspaces: |
+          . -> target-shared
+        cache-bin: "false"
