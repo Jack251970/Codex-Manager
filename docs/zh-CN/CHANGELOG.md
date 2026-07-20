@@ -5,6 +5,22 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 按 OpenAI 官方 API 价格修正 GPT-5.6 Sol、Terra、Luna 计费：缓存输入恢复 90% 折扣，并在 272K 输入阈值切换到 2 倍输入、1.5 倍输出的长上下文费率；旧版自动估算价格会迁移为官方价格，自定义价格保持不变。
+
+## [0.4.4] - 2026-07-20
+
+### Changed
+
+- 发布版本提升到 `0.4.4`，同步更新 workspace、前端包、Tauri 桌面端与锁文件。
+- `release-all` 工作流支持推送 `v*` 标签自动触发发布，便于直接通过版本标签发版。
+
+### Fixed
+
+- 修复账号池“刷新用量”在账号缺少 token 或无可刷新目标时仍直接提示成功的问题；服务端现在返回结构化执行结果，前端会区分未执行、部分刷新和成功，并刷新账号列表与用量缓存。
+- 修复后台任务线程保存更短间隔或关闭开关后要等待旧休眠周期结束才生效的问题；用量轮询、网关保活和令牌刷新轮询会在等待中重新读取动态配置。
+
 ## [0.4.3] - 2026-07-19
 
 ### Added
@@ -390,7 +406,8 @@
 ### Changed
 - 账号管理页操作区整合为单一“账号操作”下拉菜单，替代右侧多按钮堆叠，界面更简洁。
 
-[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.0...v0.4.1
