@@ -164,7 +164,7 @@ export function BatchModelRoutesModal({
       >
         <div
           data-testid="batch-route-dialog-body"
-          className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-5"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-5 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent"
           style={{ scrollbarGutter: "stable" }}
         >
           <DialogHeader>
