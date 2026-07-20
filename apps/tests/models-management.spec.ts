@@ -52,7 +52,19 @@ const SETTINGS_SNAPSHOT = {
   appearancePreset: "classic",
 };
 
+const LONG_AGGREGATE_ID =
+  "aggregate-provider-with-an-exceptionally-long-identifier-for-layout-testing";
+const LONG_AGGREGATE_NAME =
+  "Aggregate Provider With An Exceptionally Long Display Name For Layout Testing";
+
 type JsonObject = Record<string, unknown>;
+
+type Rect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 type MockState = {
   models: JsonObject[];
@@ -286,6 +298,13 @@ async function installMockRuntime(page: Page): Promise<MockState> {
             baseUrl: "https://aggregate.invalid/v1",
             status: "enabled",
           },
+          {
+            id: LONG_AGGREGATE_ID,
+            supplierName: LONG_AGGREGATE_NAME,
+            providerType: "openai_compat",
+            baseUrl: "https://long-aggregate.invalid/v1",
+            status: "enabled",
+          },
         ],
       });
       return;
@@ -369,6 +388,15 @@ async function installMockRuntime(page: Page): Promise<MockState> {
   return state;
 }
 
+function rectanglesOverlap(first: Rect, second: Rect): boolean {
+  return (
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
+  );
+}
+
 test("编辑器不依赖后续动画帧即可载入目标模型", async ({ page }) => {
   await installMockRuntime(page);
   await page.goto("/models/");
@@ -406,6 +434,206 @@ test("编辑器不依赖后续动画帧即可载入目标模型", async ({ page 
   );
   await expect(page.getByLabel("默认推理强度")).toHaveValue("medium");
   await expect(page.getByRole("combobox", { name: "可见性" })).toBeVisible();
+});
+
+test("长路由来源不会覆盖相邻的模型和批量路由字段", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 800 });
+  await installMockRuntime(page);
+  await page.goto("/models/");
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "模型管理" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "新增自定义模型" }).click();
+  const modelDialog = page.getByRole("dialog");
+  await modelDialog.getByRole("tab", { name: "路由" }).click();
+  await modelDialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await modelDialog.locator("#route-source-1").click();
+  await page.getByRole("option", { name: `聚合 API：${LONG_AGGREGATE_NAME}` }).click();
+
+  const routeSource = modelDialog.locator("#route-source-1");
+  const upstreamModel = modelDialog.locator("#route-model-1");
+  const routeCard = routeSource.locator('xpath=ancestor::div[@data-slot="card"][1]');
+  await expect(routeSource).toContainText(`聚合 API：${LONG_AGGREGATE_NAME}`);
+  const [routeSourceBox, upstreamModelBox, routeCardBox] = await Promise.all([
+    routeSource.boundingBox(),
+    upstreamModel.boundingBox(),
+    routeCard.boundingBox(),
+  ]);
+  expect(routeSourceBox).not.toBeNull();
+  expect(upstreamModelBox).not.toBeNull();
+  expect(routeCardBox).not.toBeNull();
+  expect(routeSourceBox!.x + routeSourceBox!.width).toBeLessThanOrEqual(
+    upstreamModelBox!.x + 1,
+  );
+  expect(routeSourceBox!.x + routeSourceBox!.width).toBeLessThanOrEqual(
+    routeCardBox!.x + routeCardBox!.width + 1,
+  );
+
+  await modelDialog.getByRole("button", { name: "取消" }).click();
+  await page.getByLabel("选择模型 gpt-5.6-sol").click();
+  await page.getByRole("button", { name: "批量分配路由 (1)" }).click();
+
+  const batchDialog = page.getByRole("dialog", { name: "批量分配模型路由" });
+  await batchDialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await batchDialog.locator("#batch-route-source-1").click();
+  await page.getByRole("option", { name: `聚合 API：${LONG_AGGREGATE_NAME}` }).click();
+
+  const batchSource = batchDialog.locator("#batch-route-source-1");
+  const batchPriority = batchDialog.locator("#batch-route-priority-1");
+  const batchCard = batchSource.locator('xpath=ancestor::div[@data-slot="card"][1]');
+  await expect(batchSource).toContainText(`聚合 API：${LONG_AGGREGATE_NAME}`);
+  const [compactDialogBox, batchSourceBox, batchPriorityBox, batchCardBox] =
+    await Promise.all([
+      batchDialog.boundingBox(),
+      batchSource.boundingBox(),
+      batchPriority.boundingBox(),
+      batchCard.boundingBox(),
+    ]);
+  expect(compactDialogBox).not.toBeNull();
+  expect(compactDialogBox!.width).toBeGreaterThanOrEqual(866);
+  expect(batchSourceBox).not.toBeNull();
+  expect(batchPriorityBox).not.toBeNull();
+  expect(batchCardBox).not.toBeNull();
+  expect(rectanglesOverlap(batchSourceBox!, batchPriorityBox!)).toBe(false);
+  expect(batchSourceBox!.x + batchSourceBox!.width).toBeLessThanOrEqual(
+    batchCardBox!.x + batchCardBox!.width + 1,
+  );
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const [wideDialogBox, wideSourceBox, widePriorityBox] = await Promise.all([
+    batchDialog.boundingBox(),
+    batchSource.boundingBox(),
+    batchPriority.boundingBox(),
+  ]);
+  expect(wideDialogBox).not.toBeNull();
+  expect(wideSourceBox).not.toBeNull();
+  expect(widePriorityBox).not.toBeNull();
+  expect(wideDialogBox!.width).toBeGreaterThanOrEqual(1228);
+  expect(Math.abs(wideSourceBox!.y - widePriorityBox!.y)).toBeLessThanOrEqual(10);
+  expect(wideSourceBox!.x + wideSourceBox!.width).toBeLessThanOrEqual(
+    widePriorityBox!.x + 1,
+  );
+});
+
+test("批量路由弹窗在小窗口内保留底部操作并允许正文滚动", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 560 });
+  await installMockRuntime(page);
+  await page.goto("/models/");
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "模型管理" }),
+  ).toBeVisible();
+
+  for (const slug of Object.keys(PRICED_MODELS)) {
+    await page
+      .getByRole("checkbox", { name: `选择模型 ${slug}`, exact: true })
+      .click();
+  }
+  await page.getByRole("button", { name: "批量分配路由 (7)" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "批量分配模型路由" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await dialog.getByRole("button", { name: "添加账号池路由" }).click();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+
+  const body = dialog.getByTestId("batch-route-dialog-body");
+  const applyButton = dialog.getByRole("button", { name: "应用到 7 个模型" });
+  const [dialogBox, applyButtonBox, bodyMetrics] = await Promise.all([
+    dialog.boundingBox(),
+    applyButton.boundingBox(),
+    body.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    })),
+  ]);
+  const viewport = page.viewportSize();
+  expect(dialogBox).not.toBeNull();
+  expect(applyButtonBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(dialogBox!.height).toBeLessThanOrEqual(viewport!.height - 32 + 1);
+  expect(applyButtonBox!.y + applyButtonBox!.height).toBeLessThanOrEqual(
+    viewport!.height - 8,
+  );
+  expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
+
+  const scrollTop = await body.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  });
+  expect(scrollTop).toBeGreaterThan(0);
+});
+
+test("模型目录支持中文展示并为多个模型批量分配路由", async ({ page }) => {
+  const state = await installMockRuntime(page);
+
+  await page.goto("/models/");
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "模型管理" }),
+  ).toBeVisible();
+
+  await expect(page.getByText("内置模型", { exact: true })).toBeVisible();
+  await expect(page.getByText("自定义模型", { exact: true })).toBeVisible();
+  await expect(page.getByText("价格缺失", { exact: true })).toBeVisible();
+  await expect(page.getByText("路由缺失", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("最新的前沿智能体编程模型。", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Latest frontier agentic coding model.", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("columnheader", { name: "来源" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "指令" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "路由" })).toBeVisible();
+  await expect(
+    page.getByText("请先勾选一个或多个模型，再使用批量分配路由。"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "批量分配路由 (0)" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "批量分配路由 (0)" }),
+  ).toBeDisabled();
+
+  await page.getByLabel("选择模型 gpt-5.6-sol").click();
+  await page.getByLabel("选择模型 gpt-5.6-terra").click();
+  const batchRoutesButton = page.getByRole("button", {
+    name: "批量分配路由 (2)",
+  });
+  await expect(batchRoutesButton).toBeEnabled();
+  await batchRoutesButton.click();
+
+  const dialog = page.getByRole("dialog", { name: "批量分配模型路由" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("gpt-5.6-sol", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("gpt-5.6-terra", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await dialog.locator("#batch-route-source-1").click();
+  await page.getByRole("option", { name: "聚合 API：Aggregate Test" }).click();
+  await dialog.getByRole("button", { name: "应用到 2 个模型" }).click();
+
+  await expect(dialog).toHaveCount(0);
+  expect(state.upserts).toHaveLength(2);
+  for (const upsert of state.upserts) {
+    const model = upsert.model as JsonObject;
+    const slug = String(model.slug);
+    expect(model.routes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceKind: "account_pool",
+          sourceId: "default",
+          upstreamModel: slug,
+          enabled: true,
+        }),
+        expect.objectContaining({
+          sourceKind: "aggregate_api",
+          sourceId: "agg-1",
+          upstreamModel: slug,
+          enabled: true,
+        }),
+      ]),
+    );
+  }
 });
 
 test("模型目录 V2 完成本地管理、原子保存、导入和主动导出", async ({ page }) => {
@@ -460,7 +688,7 @@ test("模型目录 V2 完成本地管理、原子保存、导入和主动导出"
   await expect(page.getByRole("combobox", { name: "来源类型" })).toHaveCount(2);
   await expect(page.getByRole("switch", { name: "启用路由" })).toHaveCount(2);
   await page.locator("#route-source-1").click();
-  await page.getByRole("option", { name: "Aggregate Test" }).click();
+  await page.getByRole("option", { name: "聚合 API：Aggregate Test" }).click();
   await page.locator("#route-model-1").fill("upstream-custom-v1");
 
   await page.getByRole("tab", { name: "指令策略" }).click();
@@ -544,7 +772,7 @@ test("模型目录 V2 完成本地管理、原子保存、导入和主动导出"
   await expect(importDialog.getByText("base_instructions", { exact: true })).toBeVisible();
 
   await importDialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: "replace_custom" }).click();
+  await page.getByRole("option", { name: "替换自定义模型" }).click();
   await importDialog.getByRole("button", { name: "预览导入" }).click();
   await importDialog.getByRole("button", { name: "提交导入" }).click();
   await expect(page.locator("tr", { hasText: "imported-local" })).toBeVisible();

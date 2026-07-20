@@ -5,8 +5,11 @@ use tauri::webview::{Color, PageLoadEvent};
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 use tauri::Manager;
 use tauri::{
-    LogicalSize, PhysicalPosition, PhysicalRect, Rect, Size, Url, WebviewUrl, WebviewWindowBuilder,
+    LogicalSize, PhysicalPosition, PhysicalRect, Rect, Size, WebviewUrl, WebviewWindowBuilder,
 };
+
+#[cfg(debug_assertions)]
+use tauri::Url;
 
 use super::state::{APP_EXIT_REQUESTED, KEEP_ALIVE_FOR_LIGHTWEIGHT_CLOSE};
 

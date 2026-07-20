@@ -20,6 +20,15 @@ export const EN_MESSAGES: MessageCatalog = {
   "下载预设": "Download preset",
   "上传预设": "Upload preset",
   "默认（所有大小）": "Default (all sizes)",
+  "100 kB（很小）": "100 kB (tiny)",
+  "1 MB（快速）": "1 MB (quick)",
+  "10 MB（标准）": "10 MB (standard)",
+  "25 MB（完整）": "25 MB (full)",
+  "50 MB（完整）": "50 MB (full)",
+  "选择预设": "Select preset",
+  "HTTP 代理": "HTTP proxy",
+  "HTTPS 代理": "HTTPS proxy",
+  "SOCKS5 代理": "SOCKS5 proxy",
   "Download determines how fast your network connection can get data from the test network. This is important when downloading large files such as updates for applications or streaming video services. Download speed is tested by downloading files of various sizes. The number reported represents the 90th percentile of download measurements and not the absolute maximum. Scroll down to view details.": "Download determines how fast your network connection can get data from the test network. This is important when downloading large files such as updates for applications or streaming video services. Download speed is tested by downloading files of various sizes. The number reported represents the 90th percentile of download measurements and not the absolute maximum.",
   "展开高级设置": "Expand advanced settings",
   "未配置上传测试接口。请在系统设置或环境变量中设置 CODEXMANAGER_PROXY_TEST_UPLOAD_URL。": "Upload test endpoint is not configured. Please set CODEXMANAGER_PROXY_TEST_UPLOAD_URL in system settings or environment variables.",
@@ -1071,6 +1080,9 @@ export const EN_MESSAGES: MessageCatalog = {
   "批量删除完成：成功{success}个，失败{failed}个":
     "Bulk delete finished: {success} succeeded, {failed} failed",
   账号用量已刷新: "Account usage refreshed",
+  "账号用量已刷新：{processed}/{total}":
+    "Account usage refreshed: {processed}/{total}",
+  "账号用量刷新未执行：{message}": "Account usage refresh was not run: {message}",
   "账号长期未登录，refresh 已过期，已改为不可用状态":
     "Account inactive for a long time; refresh expired and marked unavailable.",
   "正在等待服务连接。": "Waiting for service connection.",

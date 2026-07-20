@@ -24,6 +24,15 @@ export const KO_MESSAGES: MessageCatalog = {
   "下载预设": "다운로드 프리셋",
   "上传预设": "업로드 프리셋",
   "默认（所有大小）": "기본값 (모든 크기)",
+  "100 kB（很小）": "100 kB (매우 작음)",
+  "1 MB（快速）": "1 MB (빠름)",
+  "10 MB（标准）": "10 MB (표준)",
+  "25 MB（完整）": "25 MB (전체)",
+  "50 MB（完整）": "50 MB (전체)",
+  "选择预设": "프리셋 선택",
+  "HTTP 代理": "HTTP 프록시",
+  "HTTPS 代理": "HTTPS 프록시",
+  "SOCKS5 代理": "SOCKS5 프록시",
   "Download determines how fast your network connection can get data from the test network. This is important when downloading large files such as updates for applications or streaming video services. Download speed is tested by downloading files of various sizes. The number reported represents the 90th percentile of download measurements and not the absolute maximum. Scroll down to view details.": "다운로드 속도는 네트워크 연결이 테스트 네트워크에서 데이터를 얼마나 빨리 가져올 수 있는지를 결정합니다. 이는 애플리케이션 업데이트나 스트리밍 비디오 서비스와 같은 대용량 파일을 다운로드할 때 중요합니다. 다운로드 속도는 다양한 크기의 파일을 다운로드하여 테스트합니다. 보고된 수치는 절대적인 최대값이 아니라 다운로드 측정값의 90번째 백분위수를 나타냅니다.",
   "展开高级设置": "고급 설정 펼치기",
   "未配置上传测试接口。请在系统设置或环境变量中设置 CODEXMANAGER_PROXY_TEST_UPLOAD_URL。":
@@ -958,6 +967,10 @@ export const KO_MESSAGES: MessageCatalog = {
   "批量删除完成：成功{success}个，失败{failed}个":
     "일괄 삭제 완료: 성공 {success}개, 실패 {failed}개",
   账号用量已刷新: "계정 사용량이 새로고침되었습니다",
+  "账号用量已刷新：{processed}/{total}":
+    "계정 사용량이 새로고침되었습니다: {processed}/{total}",
+  "账号用量刷新未执行：{message}":
+    "계정 사용량 새로고침이 실행되지 않았습니다: {message}",
   "账号长期未登录，refresh 已过期，已改为不可用状态":
     "계정이 오랫동안 로그인하지 않아 refresh가 만료되어 사용 불가로 변경되었습니다.",
   "正在等待服务连接。": "서비스 연결 대기 중.",
