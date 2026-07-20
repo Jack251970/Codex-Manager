@@ -4,9 +4,7 @@ use tauri::webview::{Color, PageLoadEvent};
 #[cfg(not(target_os = "windows"))]
 use tauri::window::{Effect, EffectState, EffectsBuilder};
 use tauri::Manager;
-use tauri::{
-    LogicalSize, PhysicalPosition, PhysicalRect, Rect, Size, WebviewUrl, WebviewWindowBuilder,
-};
+use tauri::{PhysicalPosition, PhysicalRect, Rect, WebviewUrl, WebviewWindowBuilder};
 
 #[cfg(debug_assertions)]
 use tauri::Url;
