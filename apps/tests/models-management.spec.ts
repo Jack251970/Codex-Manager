@@ -59,6 +59,13 @@ const LONG_AGGREGATE_NAME =
 
 type JsonObject = Record<string, unknown>;
 
+type Rect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 type MockState = {
   models: JsonObject[];
   upserts: JsonObject[];
@@ -381,6 +388,15 @@ async function installMockRuntime(page: Page): Promise<MockState> {
   return state;
 }
 
+function rectanglesOverlap(first: Rect, second: Rect): boolean {
+  return (
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
+  );
+}
+
 test("编辑器不依赖后续动画帧即可载入目标模型", async ({ page }) => {
   await installMockRuntime(page);
   await page.goto("/models/");
@@ -477,9 +493,7 @@ test("长路由来源不会覆盖相邻的模型和批量路由字段", async ({
   expect(batchSourceBox).not.toBeNull();
   expect(batchPriorityBox).not.toBeNull();
   expect(batchCardBox).not.toBeNull();
-  expect(batchSourceBox!.y + batchSourceBox!.height).toBeLessThanOrEqual(
-    batchPriorityBox!.y,
-  );
+  expect(rectanglesOverlap(batchSourceBox!, batchPriorityBox!)).toBe(false);
   expect(batchSourceBox!.x + batchSourceBox!.width).toBeLessThanOrEqual(
     batchCardBox!.x + batchCardBox!.width + 1,
   );
@@ -498,6 +512,54 @@ test("长路由来源不会覆盖相邻的模型和批量路由字段", async ({
   expect(wideSourceBox!.x + wideSourceBox!.width).toBeLessThanOrEqual(
     widePriorityBox!.x + 1,
   );
+});
+
+test("批量路由弹窗在小窗口内保留底部操作并允许正文滚动", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 560 });
+  await installMockRuntime(page);
+  await page.goto("/models/");
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "模型管理" }),
+  ).toBeVisible();
+
+  for (const slug of Object.keys(PRICED_MODELS)) {
+    await page
+      .getByRole("checkbox", { name: `选择模型 ${slug}`, exact: true })
+      .click();
+  }
+  await page.getByRole("button", { name: "批量分配路由 (7)" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "批量分配模型路由" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await dialog.getByRole("button", { name: "添加账号池路由" }).click();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+
+  const body = dialog.getByTestId("batch-route-dialog-body");
+  const applyButton = dialog.getByRole("button", { name: "应用到 7 个模型" });
+  const [dialogBox, applyButtonBox, bodyMetrics] = await Promise.all([
+    dialog.boundingBox(),
+    applyButton.boundingBox(),
+    body.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    })),
+  ]);
+  const viewport = page.viewportSize();
+  expect(dialogBox).not.toBeNull();
+  expect(applyButtonBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(dialogBox!.height).toBeLessThanOrEqual(viewport!.height - 32 + 1);
+  expect(applyButtonBox!.y + applyButtonBox!.height).toBeLessThanOrEqual(
+    viewport!.height - 8,
+  );
+  expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
+
+  const scrollTop = await body.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  });
+  expect(scrollTop).toBeGreaterThan(0);
 });
 
 test("模型目录支持中文展示并为多个模型批量分配路由", async ({ page }) => {

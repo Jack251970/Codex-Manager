@@ -156,13 +156,17 @@ export function BatchModelRoutesModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="glass-card p-0"
+        className="glass-card flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0"
         style={{
           width: "min(1230px, calc(100vw - 2rem))",
           maxWidth: "min(1230px, calc(100vw - 2rem))",
         }}
       >
-        <div className="max-h-[78vh] space-y-5 overflow-y-auto p-5">
+        <div
+          data-testid="batch-route-dialog-body"
+          className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-5"
+          style={{ scrollbarGutter: "stable" }}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GitBranch className="h-5 w-5 text-primary" />
@@ -248,134 +252,130 @@ export function BatchModelRoutesModal({
             ) : (
               routes.map((route, index) => (
                 <Card key={route.key} size="sm">
-                  <CardContent className="grid gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,1fr)] xl:items-end">
-                    <div className="grid gap-3 md:grid-cols-[minmax(160px,0.8fr)_minmax(180px,1.2fr)]">
-                      <div className="min-w-0 space-y-2">
-                        <Label className="leading-5" htmlFor={`batch-route-kind-${index}`}>
-                          {t("来源类型")}
-                        </Label>
+                  <CardContent className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-[132px] flex-[0.8_1_150px] space-y-2">
+                      <Label className="leading-5" htmlFor={`batch-route-kind-${index}`}>
+                        {t("来源类型")}
+                      </Label>
+                      <Select
+                        value={route.sourceKind}
+                        onValueChange={(value) => {
+                          const sourceKind = (value ||
+                            "account_pool") as ModelRouteSourceKindV2;
+                          updateRoute(index, "sourceKind", sourceKind);
+                          updateRoute(
+                            index,
+                            "sourceId",
+                            sourceKind === "account_pool"
+                              ? "default"
+                              : aggregateApis[0]?.id || "",
+                          );
+                        }}
+                      >
+                        <SelectTrigger
+                          id={`batch-route-kind-${index}`}
+                          className="w-full min-w-0"
+                          aria-label={t("来源类型")}
+                        >
+                          <SelectValue>
+                            {(value) =>
+                              value === "aggregate_api" ? t("聚合 API") : t("账号池")
+                            }
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="account_pool">{t("账号池")}</SelectItem>
+                            <SelectItem value="aggregate_api">{t("聚合 API")}</SelectItem>
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="min-w-[180px] flex-[1.45_1_240px] space-y-2">
+                      <Label className="leading-5" htmlFor={`batch-route-source-${index}`}>
+                        {t("来源")}
+                      </Label>
+                      {route.sourceKind === "aggregate_api" && aggregateApis.length > 0 ? (
                         <Select
-                          value={route.sourceKind}
-                          onValueChange={(value) => {
-                            const sourceKind = (value ||
-                              "account_pool") as ModelRouteSourceKindV2;
-                            updateRoute(index, "sourceKind", sourceKind);
-                            updateRoute(
-                              index,
-                              "sourceId",
-                              sourceKind === "account_pool"
-                                ? "default"
-                                : aggregateApis[0]?.id || "",
-                            );
-                          }}
+                          value={route.sourceId}
+                          onValueChange={(value) =>
+                            updateRoute(index, "sourceId", value || "")
+                          }
                         >
                           <SelectTrigger
-                            id={`batch-route-kind-${index}`}
+                            id={`batch-route-source-${index}`}
                             className="w-full min-w-0"
-                            aria-label={t("来源类型")}
+                            aria-label={t("来源")}
                           >
-                            <SelectValue>
-                              {(value) =>
-                                value === "aggregate_api" ? t("聚合 API") : t("账号池")
-                              }
-                            </SelectValue>
+                            <SelectValue placeholder={t("选择聚合 API")} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
-                              <SelectItem value="account_pool">{t("账号池")}</SelectItem>
-                              <SelectItem value="aggregate_api">{t("聚合 API")}</SelectItem>
+                              {aggregateApis.map((api) => (
+                                <SelectItem key={api.id} value={api.id}>
+                                  {api.supplierName || api.id}
+                                </SelectItem>
+                              ))}
                             </SelectGroup>
                           </SelectContent>
                         </Select>
-                      </div>
-
-                      <div className="min-w-0 space-y-2">
-                        <Label className="leading-5" htmlFor={`batch-route-source-${index}`}>
-                          {t("来源")}
-                        </Label>
-                        {route.sourceKind === "aggregate_api" && aggregateApis.length > 0 ? (
-                          <Select
-                            value={route.sourceId}
-                            onValueChange={(value) =>
-                              updateRoute(index, "sourceId", value || "")
-                            }
-                          >
-                            <SelectTrigger
-                              id={`batch-route-source-${index}`}
-                              className="w-full min-w-0"
-                              aria-label={t("来源")}
-                            >
-                              <SelectValue placeholder={t("选择聚合 API")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                {aggregateApis.map((api) => (
-                                  <SelectItem key={api.id} value={api.id}>
-                                    {api.supplierName || api.id}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            id={`batch-route-source-${index}`}
-                            value={route.sourceId}
-                            disabled={route.sourceKind === "account_pool"}
-                            placeholder={t("聚合 API ID")}
-                            onChange={(event) =>
-                              updateRoute(index, "sourceId", event.target.value)
-                            }
-                          />
-                        )}
-                      </div>
+                      ) : (
+                        <Input
+                          id={`batch-route-source-${index}`}
+                          value={route.sourceId}
+                          disabled={route.sourceKind === "account_pool"}
+                          placeholder={t("聚合 API ID")}
+                          onChange={(event) =>
+                            updateRoute(index, "sourceId", event.target.value)
+                          }
+                        />
+                      )}
                     </div>
 
-                    <div className="grid items-end gap-3 sm:grid-cols-[minmax(100px,1fr)_minmax(100px,1fr)_auto]">
-                      <div className="min-w-0 space-y-2">
-                        <Label className="leading-5" htmlFor={`batch-route-priority-${index}`}>
-                          {t("优先级")}
-                        </Label>
-                        <Input
-                          id={`batch-route-priority-${index}`}
-                          type="number"
-                          value={route.priority}
-                          onChange={(event) =>
-                            updateRoute(index, "priority", event.target.value)
-                          }
-                        />
-                      </div>
-
-                      <div className="min-w-0 space-y-2">
-                        <Label className="leading-5" htmlFor={`batch-route-weight-${index}`}>
-                          {t("权重")}
-                        </Label>
-                        <Input
-                          id={`batch-route-weight-${index}`}
-                          type="number"
-                          min="1"
-                          value={route.weight}
-                          onChange={(event) =>
-                            updateRoute(index, "weight", event.target.value)
-                          }
-                        />
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="justify-self-end"
-                        aria-label={t("删除第 {index} 条批量路由", { index: index + 1 })}
-                        onClick={() =>
-                          setRoutes((current) =>
-                            current.filter((_, routeIndex) => routeIndex !== index),
-                          )
+                    <div className="min-w-[92px] flex-[0.55_1_108px] space-y-2">
+                      <Label className="leading-5" htmlFor={`batch-route-priority-${index}`}>
+                        {t("优先级")}
+                      </Label>
+                      <Input
+                        id={`batch-route-priority-${index}`}
+                        type="number"
+                        value={route.priority}
+                        onChange={(event) =>
+                          updateRoute(index, "priority", event.target.value)
                         }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      />
                     </div>
+
+                    <div className="min-w-[92px] flex-[0.55_1_108px] space-y-2">
+                      <Label className="leading-5" htmlFor={`batch-route-weight-${index}`}>
+                        {t("权重")}
+                      </Label>
+                      <Input
+                        id={`batch-route-weight-${index}`}
+                        type="number"
+                        min="1"
+                        value={route.weight}
+                        onChange={(event) =>
+                          updateRoute(index, "weight", event.target.value)
+                        }
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="ml-auto flex-none"
+                      aria-label={t("删除第 {index} 条批量路由", { index: index + 1 })}
+                      onClick={() =>
+                        setRoutes((current) =>
+                          current.filter((_, routeIndex) => routeIndex !== index),
+                        )
+                      }
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </CardContent>
                 </Card>
               ))
@@ -385,8 +385,8 @@ export function BatchModelRoutesModal({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
 
-        <div className="border-t border-border/50 px-5 py-3">
-          <DialogFooter>
+        <div className="shrink-0 border-t border-border/50 px-5 py-3">
+          <DialogFooter className="mx-0 mb-0 rounded-none border-0 bg-transparent p-0">
             <DialogClose
               className={buttonVariants({ variant: "ghost" })}
               type="button"
