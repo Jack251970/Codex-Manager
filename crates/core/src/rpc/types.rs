@@ -1693,6 +1693,10 @@ pub struct DashboardSourceUsageSummary {
     pub range_usage: DashboardTokenUsageResult,
 }
 
+fn default_dashboard_series_bucket_seconds() -> i64 {
+    86_400
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DashboardAdminUsageSummaryResult {
@@ -1703,7 +1707,7 @@ pub struct DashboardAdminUsageSummaryResult {
     pub today_usage: DashboardTokenUsageResult,
     #[serde(default)]
     pub daily_usage: Vec<DashboardDailyUsagePoint>,
-    #[serde(default)]
+    #[serde(default = "default_dashboard_series_bucket_seconds")]
     pub series_bucket_seconds: i64,
     #[serde(default)]
     pub series_usage: Vec<DashboardUsageSeriesPoint>,

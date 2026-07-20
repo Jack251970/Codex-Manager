@@ -4,8 +4,8 @@ use super::{
     DashboardTokenUsageResult, DashboardUsageSeriesPoint, DashboardUserUsageSummary,
     ProxyProfileEntry, ProxyProfileListResult, ProxyProfileUrlTestEntry, ProxyTestDefaults,
     ProxyTestFileSizePreset, ProxyTestPresetsResult, ProxyTestProviderFilePreset,
-    ProxyTestSpeedProviderPreset, ProxyTestUploadEndpointStatus,
-    RequestLogFilterSummaryResult, RequestLogListParams, RequestLogListResult, RequestLogSummary,
+    ProxyTestSpeedProviderPreset, ProxyTestUploadEndpointStatus, RequestLogFilterSummaryResult,
+    RequestLogListParams, RequestLogListResult, RequestLogSummary,
 };
 
 /// 函数 `account_summary_serialization_matches_compact_contract`
@@ -488,6 +488,23 @@ fn dashboard_admin_usage_summary_serialization_uses_camel_case() {
     assert!(obj["openaiAccounts"][0].get("sourceKind").is_some());
     assert!(obj["seriesUsage"][0].get("bucketStartTs").is_some());
     assert_eq!(obj["modelUsage"][0]["model"], "gpt-5");
+}
+
+#[test]
+fn dashboard_admin_usage_summary_missing_series_bucket_defaults_to_daily() {
+    let mut value = serde_json::to_value(DashboardAdminUsageSummaryResult {
+        series_bucket_seconds: 3_600,
+        ..DashboardAdminUsageSummaryResult::default()
+    })
+    .expect("serialize dashboard admin usage");
+    value
+        .as_object_mut()
+        .expect("dashboard admin usage object")
+        .remove("seriesBucketSeconds");
+
+    let result: DashboardAdminUsageSummaryResult =
+        serde_json::from_value(value).expect("deserialize legacy dashboard admin usage");
+    assert_eq!(result.series_bucket_seconds, 86_400);
 }
 
 #[test]
