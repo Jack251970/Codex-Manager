@@ -1,7 +1,10 @@
 name: release-all
-run-name: ${{ github.event.inputs.mode || 'build-and-publish' }} ${{ github.event.inputs.tag }} @ ${{ github.event.inputs.ref || 'main' }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.mode || 'build-and-publish') || 'build-and-publish' }} ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }} @ ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.ref || 'main') || github.sha }}
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       mode:
@@ -52,21 +55,27 @@ permissions:
 env:
   TAURI_CLI_VERSION: 2.10.1
   CARGO_TARGET_DIR: ${{ github.workspace }}/target-shared
+  RELEASE_MODE: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.mode || 'build-and-publish') || 'build-and-publish' }}
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+  RELEASE_REF: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.ref || 'main') || github.sha }}
+  RELEASE_PRERELEASE: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.prerelease || 'auto') || 'auto' }}
+  RELEASE_ARTIFACTS_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.artifacts_run_id || '' }}
+  RELEASE_PUBLISH_CONTAINERS: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.publish_containers || 'true') || 'true' }}
 
 concurrency:
-  group: ${{ format('{0}-tag-{1}', github.workflow, startsWith(github.event.inputs.tag, 'v') && github.event.inputs.tag || format('v{0}', github.event.inputs.tag)) }}
+  group: ${{ format('{0}-tag-{1}', github.workflow, github.event_name == 'workflow_dispatch' && (startsWith(github.event.inputs.tag, 'v') && github.event.inputs.tag || format('v{0}', github.event.inputs.tag)) || github.ref_name) }}
   cancel-in-progress: false
 
 jobs:
   build_frontend_dist:
-    if: ${{ github.event.inputs.mode != 'publish-artifacts' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (github.event.inputs.mode || 'build-and-publish') != 'publish-artifacts' }}
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref || 'main' }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Setup release environment
         uses: ./.github/actions/setup-release-env
@@ -95,14 +104,14 @@ jobs:
 
   build_windows:
     needs: build_frontend_dist
-    if: ${{ github.event.inputs.mode != 'publish-artifacts' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (github.event.inputs.mode || 'build-and-publish') != 'publish-artifacts' }}
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref || 'main' }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Setup release environment
         uses: ./.github/actions/setup-release-env
@@ -156,7 +165,7 @@ jobs:
 
   build_macos_beta:
     needs: build_frontend_dist
-    if: ${{ github.event.inputs.mode != 'publish-artifacts' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (github.event.inputs.mode || 'build-and-publish') != 'publish-artifacts' }}
     runs-on: macos-14
     strategy:
       fail-fast: false
@@ -171,7 +180,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref || 'main' }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Setup release environment
         uses: ./.github/actions/setup-release-env
@@ -232,7 +241,7 @@ jobs:
 
   build_linux:
     needs: build_frontend_dist
-    if: ${{ github.event.inputs.mode != 'publish-artifacts' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || (github.event.inputs.mode || 'build-and-publish') != 'publish-artifacts' }}
     strategy:
       fail-fast: false
       matrix:
@@ -251,7 +260,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref || 'main' }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Setup release environment
         uses: ./.github/actions/setup-release-env
@@ -341,12 +350,12 @@ jobs:
 
   release:
     needs: [build_windows, build_macos_beta, build_linux]
-    if: ${{ always() && github.event.inputs.mode != 'build-artifacts' && (github.event.inputs.mode == 'publish-artifacts' || (needs.build_windows.result == 'success' && needs.build_macos_beta.result == 'success' && needs.build_linux.result == 'success')) }}
+    if: ${{ always() && (github.event_name != 'workflow_dispatch' || (github.event.inputs.mode || 'build-and-publish') != 'build-artifacts') && ((github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish-artifacts') || (needs.build_windows.result == 'success' && needs.build_macos_beta.result == 'success' && needs.build_linux.result == 'success')) }}
     runs-on: ubuntu-22.04
 
     steps:
       - name: Validate publish-artifacts inputs
-        if: ${{ github.event.inputs.mode == 'publish-artifacts' && github.event.inputs.artifacts_run_id == '' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish-artifacts' && github.event.inputs.artifacts_run_id == '' }}
         shell: bash
         run: |
           echo "artifacts_run_id is required when mode=publish-artifacts"
@@ -355,10 +364,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.inputs.ref || 'main' }}
+          ref: ${{ env.RELEASE_REF }}
 
       - name: Download current run artifacts
-        if: ${{ github.event.inputs.mode != 'publish-artifacts' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || (github.event.inputs.mode || 'build-and-publish') != 'publish-artifacts' }}
         uses: actions/download-artifact@v8
         with:
           pattern: codexmanager-*
@@ -366,17 +375,17 @@ jobs:
           path: release-assets
 
       - name: Download existing run artifacts
-        if: ${{ github.event.inputs.mode == 'publish-artifacts' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'publish-artifacts' }}
         uses: actions/download-artifact@v8
         with:
-          run-id: ${{ github.event.inputs.artifacts_run_id }}
+          run-id: ${{ env.RELEASE_ARTIFACTS_RUN_ID }}
           github-token: ${{ github.token }}
           pattern: codexmanager-*
           merge-multiple: true
           path: release-assets
 
       - name: Login to GitHub Container Registry
-        if: ${{ github.event.inputs.publish_containers != 'false' }}
+        if: ${{ env.RELEASE_PUBLISH_CONTAINERS != 'false' }}
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -384,9 +393,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish docker images to GHCR
-        if: ${{ github.event.inputs.publish_containers != 'false' }}
+        if: ${{ env.RELEASE_PUBLISH_CONTAINERS != 'false' }}
         shell: bash
-        run: bash scripts/release/publish-ghcr-images.sh release-assets "${{ github.repository_owner }}" "${{ github.event.inputs.tag }}"
+        run: bash scripts/release/publish-ghcr-images.sh release-assets "${{ github.repository_owner }}" "${{ env.RELEASE_TAG }}"
 
       - name: List release assets
         run: find release-assets -type f | sort
@@ -394,7 +403,7 @@ jobs:
       - name: Publish GitHub Release
         uses: ./.github/actions/publish-github-release
         with:
-          tag: ${{ github.event.inputs.tag }}
-          ref: ${{ github.event.inputs.ref || 'main' }}
-          prerelease-input: ${{ github.event.inputs.prerelease || 'auto' }}
+          tag: ${{ env.RELEASE_TAG }}
+          ref: ${{ env.RELEASE_REF }}
+          prerelease-input: ${{ env.RELEASE_PRERELEASE }}
           assets-dir: release-assets

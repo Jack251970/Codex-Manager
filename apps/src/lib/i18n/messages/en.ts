@@ -1080,6 +1080,9 @@ export const EN_MESSAGES: MessageCatalog = {
   "批量删除完成：成功{success}个，失败{failed}个":
     "Bulk delete finished: {success} succeeded, {failed} failed",
   账号用量已刷新: "Account usage refreshed",
+  "账号用量已刷新：{processed}/{total}":
+    "Account usage refreshed: {processed}/{total}",
+  "账号用量刷新未执行：{message}": "Account usage refresh was not run: {message}",
   "账号长期未登录，refresh 已过期，已改为不可用状态":
     "Account inactive for a long time; refresh expired and marked unavailable.",
   "正在等待服务连接。": "Waiting for service connection.",

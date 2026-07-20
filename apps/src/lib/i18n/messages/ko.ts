@@ -967,6 +967,10 @@ export const KO_MESSAGES: MessageCatalog = {
   "批量删除完成：成功{success}个，失败{failed}个":
     "일괄 삭제 완료: 성공 {success}개, 실패 {failed}개",
   账号用量已刷新: "계정 사용량이 새로고침되었습니다",
+  "账号用量已刷新：{processed}/{total}":
+    "계정 사용량이 새로고침되었습니다: {processed}/{total}",
+  "账号用量刷新未执行：{message}":
+    "계정 사용량 새로고침이 실행되지 않았습니다: {message}",
   "账号长期未登录，refresh 已过期，已改为不可用状态":
     "계정이 오랫동안 로그인하지 않아 refresh가 만료되어 사용 불가로 변경되었습니다.",
   "正在等待服务连接。": "서비스 연결 대기 중.",

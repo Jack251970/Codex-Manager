@@ -2,6 +2,7 @@ use codexmanager_core::auth::{extract_token_exp, DEFAULT_CLIENT_ID, DEFAULT_ISSU
 use codexmanager_core::storage::{now_ts, Account, AccountTokenRefreshIssuer, Storage, Token};
 use codexmanager_core::usage::parse_usage_snapshot;
 use crossbeam_channel::{bounded, unbounded, Receiver, Sender, TrySendError};
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
@@ -148,6 +149,17 @@ pub struct UsageRefreshCompletedEvent {
     pub completed_at: i64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UsageRefreshRunResult {
+    pub ok: bool,
+    pub source: &'static str,
+    pub account_id: Option<String>,
+    pub processed: usize,
+    pub total: usize,
+    pub message: Option<String>,
+}
+
 type UsageRefreshCompletedHandler = Arc<dyn Fn(UsageRefreshCompletedEvent) + Send + Sync>;
 
 static USAGE_REFRESH_COMPLETED_HANDLER: OnceLock<Mutex<Option<UsageRefreshCompletedHandler>>> =
@@ -157,7 +169,7 @@ static USAGE_REFRESH_COMPLETED_SUBSCRIBERS: OnceLock<
 > = OnceLock::new();
 
 use self::batch::refresh_usage_and_aggregate_balances_for_polling_cycle;
-pub(crate) use self::batch::refresh_usage_for_all_accounts;
+pub(crate) use self::batch::refresh_usage_for_all_accounts_result;
 #[cfg(test)]
 use self::batch::{next_usage_poll_cursor, usage_poll_batch_indices};
 use self::errors::{
@@ -470,15 +482,30 @@ fn load_token_refresh_issuers_for_tokens(
 ///
 /// # 返回
 /// 返回函数执行结果
-pub(crate) fn refresh_usage_for_account(account_id: &str) -> Result<(), String> {
+pub(crate) fn refresh_usage_for_account_result(
+    account_id: &str,
+) -> Result<UsageRefreshRunResult, String> {
     // 刷新单个账号用量
+    let account_id = account_id.trim();
+    if account_id.is_empty() {
+        return Err("account_id is required".to_string());
+    }
     let storage = open_storage().ok_or_else(|| "storage unavailable".to_string())?;
     let token = match storage
         .find_token_by_account_id(account_id)
         .map_err(|e| e.to_string())?
     {
         Some(token) => token,
-        None => return Ok(()),
+        None => {
+            return Ok(UsageRefreshRunResult {
+                ok: false,
+                source: "single",
+                account_id: Some(account_id.to_string()),
+                processed: 0,
+                total: 0,
+                message: Some("account token not found".to_string()),
+            });
+        }
     };
 
     let workspace_id = resolve_workspace_id_for_account(&storage, account_id);
@@ -494,7 +521,24 @@ pub(crate) fn refresh_usage_for_account(account_id: &str) -> Result<(), String> 
     }
     record_usage_refresh_metrics(true, started_at);
     notify_usage_refresh_completed("single", 1, 1);
-    Ok(())
+    Ok(UsageRefreshRunResult {
+        ok: true,
+        source: "single",
+        account_id: Some(account_id.to_string()),
+        processed: 1,
+        total: 1,
+        message: None,
+    })
+}
+
+pub(crate) fn refresh_usage_for_account(account_id: &str) -> Result<(), String> {
+    let result = refresh_usage_for_account_result(account_id)?;
+    if result.ok || result.total == 0 {
+        return Ok(());
+    }
+    Err(result
+        .message
+        .unwrap_or_else(|| "usage refresh did not run".to_string()))
 }
 
 /// 函数 `record_usage_refresh_metrics`
