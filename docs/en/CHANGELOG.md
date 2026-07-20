@@ -5,6 +5,18 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-07-20
+
+### Changed
+
+- Bumped the release version to `0.4.4` and synchronized workspace, frontend package, Tauri desktop metadata, and lockfiles.
+- Added `v*` tag-push publishing support to the `release-all` workflow so a release can be started directly by pushing the version tag.
+
+### Fixed
+
+- Fixed account-pool “refresh usage” reporting success when the selected account had no token or no refreshable target. The service now returns a structured run result, and the frontend distinguishes skipped, partial, and successful refreshes while refreshing account and usage caches.
+- Fixed background task changes taking effect only after the previous sleep cycle finished. Usage polling, gateway keepalive, and token refresh polling now re-read dynamic configuration while waiting when an interval is shortened or a task is disabled.
+
 ## [0.4.3] - 2026-07-19
 
 ### Added
@@ -390,7 +402,8 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 ### Changed
 - The operation area of ​​the account management page is integrated into a single "Account Operation" drop-down menu, replacing the stack of multiple buttons on the right, making the interface more concise.
 
-[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.4...HEAD
+[0.4.4]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.0...v0.4.1

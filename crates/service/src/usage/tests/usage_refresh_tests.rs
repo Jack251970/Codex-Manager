@@ -1,15 +1,54 @@
 use super::{
     clear_pending_usage_refresh_tasks_for_tests, enqueue_usage_refresh_with_worker,
     load_token_refresh_issuers_for_tokens, next_usage_poll_cursor, notify_usage_refresh_completed,
-    reset_usage_poll_cursor_for_tests, resolve_token_refresh_issuer, run_token_refresh_task,
-    set_usage_refresh_completed_handler, should_retry_usage_refresh_with_token,
-    subscribe_usage_refresh_completed, token_refresh_access_exp_cutoff, token_refresh_due_cutoff,
-    token_refresh_schedule, usage_poll_batch_indices,
+    refresh_usage_for_account_result, reset_usage_poll_cursor_for_tests,
+    resolve_token_refresh_issuer, run_token_refresh_task, set_usage_refresh_completed_handler,
+    should_retry_usage_refresh_with_token, subscribe_usage_refresh_completed,
+    token_refresh_access_exp_cutoff, token_refresh_due_cutoff, token_refresh_schedule,
+    usage_poll_batch_indices,
 };
 use codexmanager_core::storage::{now_ts, Account, Storage, Token};
 use std::collections::HashSet;
+use std::ffi::OsString;
 use std::sync::mpsc;
 use std::time::Duration;
+use std::time::SystemTime;
+
+struct EnvGuard {
+    key: &'static str,
+    original: Option<OsString>,
+}
+
+impl EnvGuard {
+    fn set(key: &'static str, value: &str) -> Self {
+        let original = std::env::var_os(key);
+        std::env::set_var(key, value);
+        Self { key, original }
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match &self.original {
+            Some(value) => std::env::set_var(self.key, value),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
+
+fn unique_temp_db_path(name: &str) -> String {
+    let nanos = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    std::env::temp_dir()
+        .join(format!(
+            "codexmanager-{name}-{}-{nanos}.sqlite",
+            std::process::id()
+        ))
+        .to_string_lossy()
+        .to_string()
+}
 
 #[test]
 fn usage_refresh_completed_handler_receives_notification() {
@@ -42,6 +81,45 @@ fn usage_refresh_completed_subscriber_receives_notification() {
     assert_eq!(event.processed, 1);
     assert_eq!(event.total, 1);
     assert!(event.completed_at > 0);
+}
+
+#[test]
+fn refresh_usage_for_account_result_reports_missing_token() {
+    let _guard = crate::test_env_guard();
+    let db_path = unique_temp_db_path("usage-refresh-missing-token");
+    let _db_guard = EnvGuard::set("CODEXMANAGER_DB_PATH", &db_path);
+    let _ = std::fs::remove_file(&db_path);
+    crate::storage_helpers::initialize_storage().expect("init storage");
+
+    let now = now_ts();
+    {
+        let storage = crate::storage_helpers::open_storage().expect("open storage");
+        storage
+            .insert_account(&Account {
+                id: "acc-no-token".to_string(),
+                label: "No Token".to_string(),
+                issuer: "https://auth.openai.com".to_string(),
+                chatgpt_account_id: None,
+                workspace_id: None,
+                group_name: None,
+                sort: 0,
+                status: "active".to_string(),
+                created_at: now,
+                updated_at: now,
+            })
+            .expect("insert account");
+    }
+
+    let result = refresh_usage_for_account_result("acc-no-token").expect("refresh result");
+
+    assert!(!result.ok);
+    assert_eq!(result.source, "single");
+    assert_eq!(result.account_id.as_deref(), Some("acc-no-token"));
+    assert_eq!(result.processed, 0);
+    assert_eq!(result.total, 0);
+    assert_eq!(result.message.as_deref(), Some("account token not found"));
+
+    let _ = std::fs::remove_file(&db_path);
 }
 
 /// 函数 `enqueue_usage_refresh_for_same_account_is_deduplicated_until_finish`

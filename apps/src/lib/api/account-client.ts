@@ -126,6 +126,15 @@ export interface AccountSortUpdatePayload {
   sort: number;
 }
 
+export interface AccountUsageRefreshResult {
+  ok: boolean;
+  source: string;
+  accountId: string | null;
+  processed: number;
+  total: number;
+  message: string | null;
+}
+
 interface LoginStartPayload {
   loginType?: string;
   openBrowser?: boolean;
@@ -271,6 +280,32 @@ function splitImportContents(contents: string[]): string[][] {
   }
 
   return chunks;
+}
+
+function normalizeUsageRefreshResult(payload: unknown): AccountUsageRefreshResult {
+  const source =
+    payload && typeof payload === "object" && !Array.isArray(payload)
+      ? (payload as Record<string, unknown>)
+      : {};
+  const toInteger = (value: unknown, fallback = 0) => {
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number.parseInt(value, 10)
+          : Number.NaN;
+    return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : fallback;
+  };
+  const toStringOrNull = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+  return {
+    ok: source.ok === true,
+    source: toStringOrNull(source.source) || "manual",
+    accountId: toStringOrNull(source.accountId ?? source.account_id),
+    processed: toInteger(source.processed),
+    total: toInteger(source.total),
+    message: toStringOrNull(source.message),
+  };
 }
 
 /**
@@ -640,9 +675,9 @@ export const accountClient = {
     const result = await invoke<unknown>("service_usage_list", withAddr());
     return normalizeUsageList(result);
   },
-  refreshUsage: (accountId?: string) => {
+  async refreshUsage(accountId?: string): Promise<AccountUsageRefreshResult> {
     const targetAccountId = accountId?.trim();
-    return invoke(
+    const result = await invoke<unknown>(
       "service_usage_refresh",
       withAddr(
         targetAccountId
@@ -650,6 +685,7 @@ export const accountClient = {
           : {}
       )
     );
+    return normalizeUsageRefreshResult(result);
   },
   async aggregateUsage(): Promise<UsageAggregateSummary> {
     const result = await invoke<unknown>("service_usage_aggregate", withAddr());
