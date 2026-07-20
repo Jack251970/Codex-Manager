@@ -7,10 +7,15 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::storage_helpers::open_storage;
 use crate::usage_account_meta::{derive_account_meta, resolve_workspace_id_for_account};
-use crate::usage_http::{consume_reset_credit_request, fetch_reset_credits_snapshot};
+use crate::usage_http::{
+    consume_reset_credit_request, consume_reset_credit_request_with_explicit_proxy,
+    fetch_reset_credits_snapshot, fetch_reset_credits_snapshot_with_explicit_proxy,
+    log_account_data_route, UsageActionHttpError,
+};
 use crate::usage_token_refresh::{refresh_and_persist_access_token, token_refresh_ahead_secs};
 
 static RESET_CREDIT_LOCKS: OnceLock<Mutex<HashMap<String, Arc<Mutex<()>>>>> = OnceLock::new();
+const RESET_CREDIT_LOCK_POISONED_MESSAGE: &str = "reset credit lock poisoned; restart CodexManager, verify the account's reset-credit balance and usage state upstream, then retry";
 
 fn reset_credit_lock(account_id: &str) -> Arc<Mutex<()>> {
     let locks = RESET_CREDIT_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
@@ -63,19 +68,102 @@ fn refresh_token_for_reset(storage: &Storage, token: &mut Token) -> Result<(), S
     )
 }
 
+fn account_proxy_error(message: &str) -> UsageActionHttpError {
+    UsageActionHttpError {
+        status: None,
+        message: message.to_string(),
+    }
+}
+
+fn fetch_snapshot_for_account(
+    account_id: &str,
+    base_url: &str,
+    bearer: &str,
+    workspace_id: Option<&str>,
+) -> Result<ResetCreditsSnapshot, UsageActionHttpError> {
+    let proxy_mode = crate::account_proxy::resolve_account_proxy_mode(account_id);
+    log_account_data_route(
+        "reset_credit_read",
+        account_id,
+        &proxy_mode,
+        "rate_limit_reset_credits",
+        true,
+    );
+    match &proxy_mode {
+        crate::account_proxy::AccountProxyMode::Disabled => {
+            fetch_reset_credits_snapshot(base_url, bearer, workspace_id)
+        }
+        crate::account_proxy::AccountProxyMode::Explicit { proxy_url, .. } => {
+            fetch_reset_credits_snapshot_with_explicit_proxy(
+                base_url,
+                bearer,
+                workspace_id,
+                proxy_url,
+            )
+        }
+        crate::account_proxy::AccountProxyMode::Invalid { error, .. } => {
+            Err(account_proxy_error(error))
+        }
+    }
+}
+
+fn consume_for_account(
+    account_id: &str,
+    base_url: &str,
+    bearer: &str,
+    workspace_id: Option<&str>,
+    redeem_request_id: &str,
+) -> Result<(), UsageActionHttpError> {
+    let proxy_mode = crate::account_proxy::resolve_account_proxy_mode(account_id);
+    log_account_data_route(
+        "reset_credit_consume",
+        account_id,
+        &proxy_mode,
+        "rate_limit_reset_credits_consume",
+        true,
+    );
+    match &proxy_mode {
+        crate::account_proxy::AccountProxyMode::Disabled => {
+            consume_reset_credit_request(base_url, bearer, workspace_id, redeem_request_id)
+        }
+        crate::account_proxy::AccountProxyMode::Explicit { proxy_url, .. } => {
+            consume_reset_credit_request_with_explicit_proxy(
+                base_url,
+                bearer,
+                workspace_id,
+                redeem_request_id,
+                proxy_url,
+            )
+        }
+        crate::account_proxy::AccountProxyMode::Invalid { error, .. } => {
+            Err(account_proxy_error(error))
+        }
+    }
+}
+
 fn fetch_snapshot_with_retry(
     storage: &Storage,
     token: &mut Token,
 ) -> Result<ResetCreditsSnapshot, String> {
     let base_url = usage_base_url();
     let mut workspace_id = resolve_workspace_header(storage, token);
-    match fetch_reset_credits_snapshot(&base_url, &token.access_token, workspace_id.as_deref()) {
+    match fetch_snapshot_for_account(
+        token.account_id.as_str(),
+        &base_url,
+        &token.access_token,
+        workspace_id.as_deref(),
+    ) {
         Ok(snapshot) => Ok(snapshot),
         Err(error) if error.is_unauthorized() => {
             refresh_token_for_reset(storage, token)?;
             workspace_id = resolve_workspace_header(storage, token);
-            fetch_reset_credits_snapshot(&base_url, &token.access_token, workspace_id.as_deref())
-                .map_err(|retry_error| retry_error.message)
+            fetch_snapshot_for_account(
+                token.account_id.as_str(),
+                &base_url,
+                &token.access_token,
+                workspace_id.as_deref(),
+            )
+            .map_err(|retry_error| retry_error.message)
         }
         Err(error) => Err(error.message),
     }
@@ -88,7 +176,8 @@ fn consume_with_retry(
 ) -> Result<(), String> {
     let base_url = usage_base_url();
     let mut workspace_id = resolve_workspace_header(storage, token);
-    match consume_reset_credit_request(
+    match consume_for_account(
+        token.account_id.as_str(),
         &base_url,
         &token.access_token,
         workspace_id.as_deref(),
@@ -98,7 +187,8 @@ fn consume_with_retry(
         Err(error) if error.is_unauthorized() => {
             refresh_token_for_reset(storage, token)?;
             workspace_id = resolve_workspace_header(storage, token);
-            consume_reset_credit_request(
+            consume_for_account(
+                token.account_id.as_str(),
                 &base_url,
                 &token.access_token,
                 workspace_id.as_deref(),
@@ -143,7 +233,7 @@ pub(crate) fn consume_reset_credit(account_id: &str) -> Result<ResetCreditConsum
     let account_lock = reset_credit_lock(account_id);
     let _guard = account_lock
         .lock()
-        .map_err(|_| "reset credit lock poisoned".to_string())?;
+        .map_err(|_| RESET_CREDIT_LOCK_POISONED_MESSAGE.to_string())?;
     let storage = open_storage().ok_or_else(|| "storage unavailable".to_string())?;
     let mut token = load_token(&storage, account_id)?;
 
@@ -174,7 +264,7 @@ pub(crate) fn consume_reset_credit(account_id: &str) -> Result<ResetCreditConsum
 
 #[cfg(test)]
 mod tests {
-    use super::random_uuid_v4;
+    use super::{random_uuid_v4, RESET_CREDIT_LOCK_POISONED_MESSAGE};
 
     #[test]
     fn generated_redeem_request_id_is_uuid_v4() {
@@ -186,5 +276,12 @@ mod tests {
             value.chars().filter(|character| *character == '-').count(),
             4
         );
+    }
+
+    #[test]
+    fn poisoned_lock_message_is_actionable() {
+        assert!(RESET_CREDIT_LOCK_POISONED_MESSAGE.contains("restart CodexManager"));
+        assert!(RESET_CREDIT_LOCK_POISONED_MESSAGE.contains("verify"));
+        assert!(RESET_CREDIT_LOCK_POISONED_MESSAGE.contains("then retry"));
     }
 }
