@@ -259,7 +259,6 @@ export const EN_ACCOUNTS_MESSAGES: MessageCatalog = {
   "可用": "Available",
   "已使用": "Used",
   "已过期": "Expired",
-  "未知": "Unknown",
   "暂无重置券记录": "No reset credit history",
   "无法读取重置券详情，请重新核对。":
     "Reset credit details could not be loaded. Check again.",
