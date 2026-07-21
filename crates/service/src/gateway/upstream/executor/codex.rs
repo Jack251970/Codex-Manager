@@ -103,7 +103,7 @@ where
         false
     };
 
-    let (upstream, auth_token) = match run_primary_upstream_flow(
+    let (upstream, authorization) = match run_primary_upstream_flow(
         &client,
         storage,
         method,
@@ -126,8 +126,8 @@ where
     ) {
         PrimaryFlowDecision::Continue {
             upstream,
-            auth_token,
-        } => (upstream, auth_token),
+            authorization,
+        } => (upstream, authorization),
         PrimaryFlowDecision::RespondUpstream(resp) => {
             return CandidateUpstreamDecision::RespondUpstream(resp);
         }
@@ -154,11 +154,11 @@ where
         primary_url,
         alt_url,
         request_deadline,
-        request_ctx,
+        request_ctx.with_fedramp(authorization.is_fedramp),
         incoming_headers,
         body,
         is_stream,
-        auth_token.as_str(),
+        &authorization,
         account,
         token,
         upstream_fallback_base,

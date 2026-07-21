@@ -46,6 +46,7 @@ fn resolve_user_agent_header(
 
 pub(crate) struct CodexUpstreamHeaderInput<'a> {
     pub(crate) auth_token: &'a str,
+    pub(crate) is_fedramp: bool,
     pub(crate) chatgpt_account_id: Option<&'a str>,
     pub(crate) incoming_user_agent: Option<&'a str>,
     pub(crate) incoming_originator: Option<&'a str>,
@@ -70,6 +71,7 @@ pub(crate) struct CodexUpstreamHeaderInput<'a> {
 
 pub(crate) struct CodexCompactUpstreamHeaderInput<'a> {
     pub(crate) auth_token: &'a str,
+    pub(crate) is_fedramp: bool,
     pub(crate) chatgpt_account_id: Option<&'a str>,
     pub(crate) installation_id: Option<&'a str>,
     pub(crate) incoming_user_agent: Option<&'a str>,
@@ -124,6 +126,9 @@ pub(crate) fn build_codex_upstream_headers(
         "Authorization".to_string(),
         crate::agent_identity::format_upstream_authorization(input.auth_token),
     ));
+    if input.is_fedramp {
+        headers.push(("x-openai-fedramp".to_string(), "true".to_string()));
+    }
     if let Some(account_id) = input
         .chatgpt_account_id
         .map(str::trim)
@@ -273,6 +278,9 @@ pub(crate) fn build_codex_compact_upstream_headers(
         "Authorization".to_string(),
         crate::agent_identity::format_upstream_authorization(input.auth_token),
     ));
+    if input.is_fedramp {
+        headers.push(("x-openai-fedramp".to_string(), "true".to_string()));
+    }
     if let Some(account_id) = input
         .chatgpt_account_id
         .map(str::trim)

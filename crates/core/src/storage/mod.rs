@@ -65,7 +65,7 @@ pub struct AccountAgentIdentity {
     pub account_id: String,
     pub agent_runtime_id: String,
     pub agent_private_key: String,
-    pub task_id: String,
+    pub task_id: Option<String>,
     pub chatgpt_user_id: String,
     pub chatgpt_account_is_fedramp: bool,
     pub auth_mode: String,

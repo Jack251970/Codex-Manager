@@ -737,21 +737,33 @@ fn summarize_endpoint_error_response(
     body: &str,
     force_html_error: bool,
 ) -> String {
+    let invalid_agent_task = crate::agent_identity::is_agent_identity_task_invalid_response(
+        status.as_u16(),
+        body.as_bytes(),
+    );
     let request_id = extract_response_header(headers, REQUEST_ID_HEADER)
         .or_else(|| extract_response_header(headers, OAI_REQUEST_ID_HEADER));
     let cf_ray = extract_response_header(headers, CF_RAY_HEADER);
     let auth_error = extract_response_header(headers, AUTH_ERROR_HEADER);
     let identity_error_code = crate::gateway::extract_identity_error_code_from_headers(headers);
-    let body_hint = if force_html_error {
-        crate::gateway::summarize_upstream_error_hint_from_body(403, body.as_bytes())
+    let body_hint = if invalid_agent_task {
+        "invalid_task_id".to_string()
     } else {
-        crate::gateway::summarize_upstream_error_hint_from_body(status.as_u16(), body.as_bytes())
-    }
-    .or_else(|| {
-        let trimmed = body.trim();
-        (!trimmed.is_empty()).then(|| trimmed.to_string())
-    })
-    .unwrap_or_else(|| "unknown error".to_string());
+        let summarized = if force_html_error {
+            crate::gateway::summarize_upstream_error_hint_from_body(403, body.as_bytes())
+        } else {
+            crate::gateway::summarize_upstream_error_hint_from_body(
+                status.as_u16(),
+                body.as_bytes(),
+            )
+        };
+        summarized
+            .or_else(|| {
+                let trimmed = body.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            })
+            .unwrap_or_else(|| "unknown error".to_string())
+    };
 
     let mut details = Vec::new();
     if let Some(request_id) = request_id {
@@ -760,11 +772,18 @@ fn summarize_endpoint_error_response(
     if let Some(cf_ray) = cf_ray {
         details.push(format!("cf-ray: {cf_ray}"));
     }
-    if let Some(auth_error) = auth_error {
-        details.push(format!("auth error: {auth_error}"));
+    if !invalid_agent_task {
+        if let Some(auth_error) = auth_error {
+            details.push(format!("auth error: {auth_error}"));
+        }
     }
-    if let Some(identity_error_code) = identity_error_code {
-        details.push(format!("identity error code: {identity_error_code}"));
+    if !invalid_agent_task {
+        if let Some(identity_error_code) = identity_error_code {
+            details.push(format!("identity error code: {identity_error_code}"));
+        }
+    }
+    if invalid_agent_task {
+        details.push("agent identity task error: invalid_task_id".to_string());
     }
 
     if details.is_empty() {

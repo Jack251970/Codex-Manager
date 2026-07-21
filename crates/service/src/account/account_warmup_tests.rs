@@ -1,11 +1,33 @@
 use super::{
     build_warmup_headers, consume_warmup_stream, resolve_target_accounts,
-    resolve_warmup_model_slug, should_retry_warmup_with_refresh, DEFAULT_WARMUP_MODEL,
+    resolve_warmup_model_slug, should_retry_warmup_with_refresh, summarize_warmup_error,
+    DEFAULT_WARMUP_MODEL,
 };
 use codexmanager_core::storage::{
     now_ts, Account, ManagedModelV2, ManagedModelV2Upsert, ModelPriceV2, Storage, Token,
 };
 use std::io::Cursor;
+
+#[test]
+fn summarize_warmup_error_redacts_invalid_agent_task_details() {
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        "x-openai-authorization-error",
+        reqwest::header::HeaderValue::from_static("task-secret-from-header"),
+    );
+    let summary = summarize_warmup_error(
+        401,
+        &headers,
+        r#"{"error":{"code":"task_expired","message":"task-secret-from-body"}}"#,
+    );
+
+    assert!(summary.contains("invalid_task_id"));
+    assert!(crate::agent_identity::is_agent_identity_task_invalid_error(
+        &summary
+    ));
+    assert!(!summary.contains("task-secret-from-body"));
+    assert!(!summary.contains("task-secret-from-header"));
+}
 
 fn make_model(slug: &str, sort_order: i64, supported_in_api: bool) -> ManagedModelV2Upsert {
     ManagedModelV2Upsert {

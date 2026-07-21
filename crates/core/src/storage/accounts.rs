@@ -1905,9 +1905,9 @@ fn usage_refresh_token_targets_by_status_sql(status_condition: &str) -> String {
                     )
                     OR (
                         ai.account_id IS NOT NULL
+                        AND LOWER(TRIM(COALESCE(ai.auth_mode, ''))) = 'agentidentity'
                         AND TRIM(COALESCE(ai.agent_runtime_id, '')) <> ''
                         AND TRIM(COALESCE(ai.agent_private_key, '')) <> ''
-                        AND TRIM(COALESCE(ai.task_id, '')) <> ''
                     )
               )
         ),

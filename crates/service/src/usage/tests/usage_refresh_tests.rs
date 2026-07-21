@@ -207,7 +207,7 @@ fn refresh_usage_for_agent_identity_uses_assertion_and_skips_subscription_check(
                 account_id: account_id.to_string(),
                 agent_runtime_id: "agent-runtime-usage".to_string(),
                 agent_private_key: BASE64_STANDARD.encode(private_key.as_bytes()),
-                task_id: "task-usage".to_string(),
+                task_id: Some("task-usage".to_string()),
                 chatgpt_user_id: "user-usage".to_string(),
                 chatgpt_account_is_fedramp: false,
                 auth_mode: "agentIdentity".to_string(),

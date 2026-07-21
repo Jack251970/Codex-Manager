@@ -61,6 +61,19 @@ test("readAccountImportResult 统一清洗导入结果与错误列表", () => {
   assert.deepEqual(result.errors, [{ index: 2, message: "invalid" }]);
 });
 
+test("readAccountImportResult 保留旧服务缺少刷新账号字段的语义", () => {
+  const legacyResult = accountMaintenance.readAccountImportResult({
+    imported_account_ids: ["acc-1"],
+  });
+  const currentResult = accountMaintenance.readAccountImportResult({
+    imported_account_ids: ["acc-1"],
+    usage_refresh_account_ids: [],
+  });
+
+  assert.equal(legacyResult.usageRefreshAccountIds, undefined);
+  assert.deepEqual(currentResult.usageRefreshAccountIds, []);
+});
+
 test("readAccountExportResult 与 readDeleteUnavailableFreeResult 对齐数字字段", () => {
   const exportResult = accountMaintenance.readAccountExportResult({
     canceled: true,

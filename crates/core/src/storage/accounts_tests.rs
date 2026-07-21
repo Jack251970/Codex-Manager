@@ -1695,7 +1695,7 @@ fn list_account_usage_refresh_token_targets_filters_blocked_latest_status_in_sql
             account_id: agent_identity.id.clone(),
             agent_runtime_id: "agent-runtime-1".to_string(),
             agent_private_key: "private-key-1".to_string(),
-            task_id: "task-1".to_string(),
+            task_id: None,
             chatgpt_user_id: "user-1".to_string(),
             chatgpt_account_is_fedramp: false,
             auth_mode: "agentIdentity".to_string(),
@@ -1791,6 +1791,42 @@ fn usage_refresh_token_targets_scope_latest_status_to_target_accounts() {
         plan.contains("idx_events_account_status_lookup"),
         "expected scoped latest status lookup to use event account status index, got {plan}"
     );
+}
+
+#[test]
+fn usage_refresh_token_targets_ignore_non_agent_identity_auth_mode() {
+    let storage = Storage::open_in_memory().expect("open");
+    storage.init().expect("init");
+    let now = now_ts();
+    let account = sample_account("acc-non-agent-identity-target", "active", now);
+    storage.insert_account(&account).expect("insert account");
+    storage
+        .insert_token(&Token {
+            id_token: String::new(),
+            access_token: String::new(),
+            refresh_token: String::new(),
+            ..sample_token(&account.id, now)
+        })
+        .expect("insert empty token");
+    storage
+        .upsert_account_agent_identity(&AccountAgentIdentity {
+            account_id: account.id.clone(),
+            agent_runtime_id: "agent-runtime-1".to_string(),
+            agent_private_key: "private-key-1".to_string(),
+            task_id: None,
+            chatgpt_user_id: "user-1".to_string(),
+            chatgpt_account_is_fedramp: false,
+            auth_mode: "oauth".to_string(),
+            workspace_id: None,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("insert non-agent identity row");
+
+    let targets = storage
+        .list_account_usage_refresh_token_targets_by_statuses(&["active".to_string()])
+        .expect("list usage refresh targets");
+    assert!(targets.is_empty());
 }
 
 #[test]

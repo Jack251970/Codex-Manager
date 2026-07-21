@@ -55,7 +55,7 @@ struct ImportTokenPayload {
 struct ImportAgentIdentityPayload {
     agent_runtime_id: String,
     agent_private_key: String,
-    task_id: String,
+    task_id: Option<String>,
     chatgpt_user_id: String,
     chatgpt_account_is_fedramp: bool,
     auth_mode: String,
@@ -775,19 +775,31 @@ fn parse_items_from_content(content: &str) -> Result<Vec<Value>, String> {
 }
 
 fn expand_import_value(value: Value) -> Vec<Value> {
-    value
-        .get("accounts")
-        .and_then(Value::as_array)
-        .filter(|_| {
-            value
-                .get("type")
-                .and_then(Value::as_str)
-                .is_some_and(|kind| kind.eq_ignore_ascii_case("sub2api-data"))
-                || value.get("exported_at").is_some()
-                || value.get("version").is_some()
-        })
-        .cloned()
-        .unwrap_or_else(|| vec![value])
+    let is_sub2api_wrapper = value
+        .get("type")
+        .and_then(Value::as_str)
+        .is_some_and(|kind| kind.eq_ignore_ascii_case("sub2api-data"))
+        || value.get("exported_at").is_some()
+        || value.get("version").is_some();
+    if is_sub2api_wrapper {
+        if let Some(accounts) = value.get("accounts").and_then(Value::as_array) {
+            return accounts
+                .iter()
+                .filter(|account| is_supported_sub2api_chatgpt_account(account))
+                .cloned()
+                .collect();
+        }
+    }
+    if value.get("platform").is_some() && !is_supported_sub2api_chatgpt_account(&value) {
+        return Vec::new();
+    }
+    vec![value]
+}
+
+fn is_supported_sub2api_chatgpt_account(account: &Value) -> bool {
+    optional_string(account, "platform")
+        .is_some_and(|platform| platform.eq_ignore_ascii_case("openai"))
+        && optional_string(account, "type").is_some_and(|kind| kind.eq_ignore_ascii_case("oauth"))
 }
 
 /// 函数 `import_single_item`
@@ -825,12 +837,18 @@ fn import_single_item_with_account_id(
     let meta = extract_account_meta(item);
     let claims = parse_id_token_claims(&payload.id_token).ok();
     let token_fingerprint = token_fingerprint(&payload.refresh_token);
-    let subject_account_id = extract_import_subject_account_id(
-        claims.as_ref(),
-        &payload.id_token,
-        &payload.access_token,
-        &payload.refresh_token,
-    );
+    let subject_account_id = payload
+        .agent_identity
+        .as_ref()
+        .map(|identity| identity.chatgpt_user_id.clone())
+        .or_else(|| {
+            extract_import_subject_account_id(
+                claims.as_ref(),
+                &payload.id_token,
+                &payload.access_token,
+                &payload.refresh_token,
+            )
+        });
     let chatgpt_account_id = clean_value(
         meta.chatgpt_account_id
             .clone()
@@ -1151,11 +1169,10 @@ fn extract_agent_identity_payload(
         (item, "agent_private_key"),
         (item, "agentPrivateKey"),
     ]);
-    let is_agent_identity = auth_mode
-        .as_deref()
-        .is_some_and(|mode| mode.eq_ignore_ascii_case("agentIdentity"))
-        || agent_runtime_id.is_some()
-        || agent_private_key.is_some();
+    let is_agent_identity = match auth_mode.as_deref() {
+        Some(mode) => mode.eq_ignore_ascii_case("agentIdentity"),
+        None => agent_runtime_id.is_some() || agent_private_key.is_some(),
+    };
     if !is_agent_identity {
         return Ok(None);
     }
@@ -1166,15 +1183,12 @@ fn extract_agent_identity_payload(
     Ok(Some(ImportAgentIdentityPayload {
         agent_runtime_id: required(agent_runtime_id, "agent_runtime_id")?,
         agent_private_key: required(agent_private_key, "agent_private_key")?,
-        task_id: required(
-            optional_string_any(&[
-                (credentials, "task_id"),
-                (credentials, "taskId"),
-                (item, "task_id"),
-                (item, "taskId"),
-            ]),
-            "task_id",
-        )?,
+        task_id: optional_string_any(&[
+            (credentials, "task_id"),
+            (credentials, "taskId"),
+            (item, "task_id"),
+            (item, "taskId"),
+        ]),
         chatgpt_user_id: required(
             optional_string_any(&[
                 (credentials, "chatgpt_user_id"),

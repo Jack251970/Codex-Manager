@@ -224,7 +224,6 @@ function createEmptyImportResult(): AccountImportResult {
     failed: 0,
     errors: [],
     importedAccountIds: [],
-    usageRefreshAccountIds: [],
   };
 }
 
@@ -346,17 +345,18 @@ function mergeImportResult(
       target.importedAccountIds.push(normalizedAccountId);
     }
   }
-  const usageRefreshAccountIds = source.usageRefreshAccountIds || [];
-  if (!target.usageRefreshAccountIds) {
-    target.usageRefreshAccountIds = [];
-  }
-  for (const accountId of usageRefreshAccountIds) {
-    const normalizedAccountId = String(accountId || "").trim();
-    if (
-      normalizedAccountId &&
-      !target.usageRefreshAccountIds.includes(normalizedAccountId)
-    ) {
-      target.usageRefreshAccountIds.push(normalizedAccountId);
+  if (source.usageRefreshAccountIds !== undefined) {
+    if (!target.usageRefreshAccountIds) {
+      target.usageRefreshAccountIds = [];
+    }
+    for (const accountId of source.usageRefreshAccountIds) {
+      const normalizedAccountId = String(accountId || "").trim();
+      if (
+        normalizedAccountId &&
+        !target.usageRefreshAccountIds.includes(normalizedAccountId)
+      ) {
+        target.usageRefreshAccountIds.push(normalizedAccountId);
+      }
     }
   }
 

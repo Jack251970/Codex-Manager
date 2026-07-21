@@ -70,6 +70,7 @@ impl Storage {
                     updated_at
                  FROM account_agent_identities
                  WHERE account_id = ?1
+                   AND LOWER(TRIM(auth_mode)) = 'agentidentity'
                  LIMIT 1",
                 [account_id],
                 |row| {
@@ -88,6 +89,31 @@ impl Storage {
                 },
             )
             .optional()
+    }
+
+    pub fn update_account_agent_identity_task_id(
+        &self,
+        account_id: &str,
+        expected_agent_runtime_id: &str,
+        expected_agent_private_key: &str,
+        task_id: Option<&str>,
+    ) -> Result<bool> {
+        let updated = self.conn.execute(
+            "UPDATE account_agent_identities
+             SET task_id = ?1, updated_at = ?2
+             WHERE account_id = ?3
+               AND agent_runtime_id = ?4
+               AND agent_private_key = ?5
+               AND LOWER(TRIM(auth_mode)) = 'agentidentity'",
+            (
+                task_id,
+                now_ts(),
+                account_id,
+                expected_agent_runtime_id,
+                expected_agent_private_key,
+            ),
+        )?;
+        Ok(updated > 0)
     }
 
     pub fn delete_account_agent_identity(&self, account_id: &str) -> Result<()> {

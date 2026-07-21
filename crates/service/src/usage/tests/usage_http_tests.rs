@@ -1501,6 +1501,36 @@ fn summarize_usage_error_response_stabilizes_html_and_debug_headers() {
     assert!(summary.contains("identity error code: token_expired"));
 }
 
+#[test]
+fn summarize_usage_error_response_redacts_invalid_agent_task_details() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-openai-authorization-error",
+        HeaderValue::from_static("task-secret-from-header"),
+    );
+    headers.insert(
+        "x-error-json",
+        HeaderValue::from_static(
+            "{\"details\":{\"identity_error_code\":\"task-secret-from-identity-header\"}}",
+        ),
+    );
+
+    let summary = summarize_usage_error_response(
+        StatusCode::UNAUTHORIZED,
+        &headers,
+        r#"{"error":{"code":"task_expired","message":"task-secret-from-body"}}"#,
+        false,
+    );
+
+    assert!(summary.contains("invalid_task_id"));
+    assert!(crate::agent_identity::is_agent_identity_task_invalid_error(
+        &summary
+    ));
+    assert!(!summary.contains("task-secret-from-body"));
+    assert!(!summary.contains("task-secret-from-header"));
+    assert!(!summary.contains("task-secret-from-identity-header"));
+}
+
 /// 函数 `summarize_usage_error_response_accepts_raw_error_json_header`
 ///
 /// 作者: gaohongshun

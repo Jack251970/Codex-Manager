@@ -293,10 +293,295 @@ fn extract_token_payload_supports_sub2api_agent_identity_credentials() {
     let identity = payload.agent_identity.expect("agent identity");
     assert_eq!(identity.agent_runtime_id, "agent-runtime-1");
     assert_eq!(identity.agent_private_key, "private-key");
-    assert_eq!(identity.task_id, "task-agent");
+    assert_eq!(identity.task_id.as_deref(), Some("task-agent"));
     assert_eq!(identity.chatgpt_user_id, "user-agent");
     assert_eq!(identity.workspace_id.as_deref(), Some("workspace-agent"));
     assert!(!identity.chatgpt_account_is_fedramp);
+}
+
+#[test]
+fn extract_token_payload_respects_explicit_non_agent_auth_mode() {
+    let value = json!({
+        "platform": "openai",
+        "type": "oauth",
+        "credentials": {
+            "auth_mode": "personalAccessToken",
+            "access_token": "at-personal-token",
+            "agent_private_key": "stale-private-key",
+            "agent_runtime_id": "stale-runtime-id"
+        }
+    });
+
+    let payload = extract_token_payload(&value).expect("parse personal access token payload");
+    assert_eq!(payload.access_token, "at-personal-token");
+    assert!(payload.agent_identity.is_none());
+}
+
+#[test]
+fn extract_token_payload_infers_agent_identity_without_requiring_task_id() {
+    let value = json!({
+        "platform": "openai",
+        "type": "oauth",
+        "credentials": {
+            "agent_private_key": "private-key",
+            "agent_runtime_id": "runtime-id",
+            "chatgpt_user_id": "user-id"
+        }
+    });
+
+    let payload = extract_token_payload(&value).expect("infer legacy agent identity payload");
+    let identity = payload.agent_identity.expect("agent identity");
+    assert_eq!(identity.auth_mode, "agentIdentity");
+    assert_eq!(identity.chatgpt_user_id, "user-id");
+    assert_eq!(identity.task_id, None);
+}
+
+#[test]
+fn import_account_auth_json_skips_non_chatgpt_sub2api_accounts() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+
+    let content = json!({
+        "type": "sub2api-data",
+        "version": 1,
+        "accounts": [
+            {
+                "name": "chatgpt@example.com",
+                "platform": "openai",
+                "type": "oauth",
+                "credentials": {
+                    "access_token": "access.openai",
+                    "refresh_token": "refresh.openai",
+                    "account_id": "chatgpt-account"
+                }
+            },
+            {
+                "name": "claude@example.com",
+                "platform": "anthropic",
+                "type": "oauth",
+                "credentials": {
+                    "access_token": "access.anthropic",
+                    "refresh_token": "refresh.anthropic",
+                    "account_id": "anthropic-account"
+                }
+            },
+            {
+                "name": "gemini@example.com",
+                "platform": "gemini",
+                "type": "oauth",
+                "credentials": {
+                    "access_token": "access.gemini",
+                    "refresh_token": "refresh.gemini",
+                    "account_id": "gemini-account"
+                }
+            },
+            {
+                "name": "openai-api-key@example.com",
+                "platform": "openai",
+                "type": "api_key",
+                "credentials": {
+                    "access_token": "sk-not-chatgpt",
+                    "account_id": "openai-api-key-account"
+                }
+            }
+        ]
+    })
+    .to_string();
+
+    let result = import_account_auth_json_with_storage(&storage, vec![content], false)
+        .expect("import mixed sub2api data");
+    assert_eq!(result.total, 1);
+    assert_eq!(result.created, 1);
+    assert_eq!(result.updated, 0);
+    assert_eq!(result.failed, 0);
+    assert!(result.errors.is_empty());
+    assert_eq!(result.imported_account_ids.len(), 1);
+    assert_eq!(result.usage_refresh_account_ids.len(), 1);
+
+    let accounts = storage.list_accounts().expect("list accounts");
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].label, "chatgpt@example.com");
+}
+
+#[test]
+fn import_account_auth_json_skips_standalone_non_openai_sub2api_account() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+
+    let content = json!({
+        "name": "claude@example.com",
+        "platform": "anthropic",
+        "type": "oauth",
+        "credentials": {
+            "access_token": "access.anthropic",
+            "refresh_token": "refresh.anthropic",
+            "account_id": "anthropic-account"
+        }
+    })
+    .to_string();
+
+    let result = import_account_auth_json_with_storage(&storage, vec![content], false)
+        .expect("ignore standalone anthropic account");
+    assert_eq!(result.total, 0);
+    assert_eq!(result.created, 0);
+    assert_eq!(result.updated, 0);
+    assert_eq!(result.failed, 0);
+    assert!(result.errors.is_empty());
+    assert!(result.imported_account_ids.is_empty());
+    assert!(result.usage_refresh_account_ids.is_empty());
+    assert!(storage.list_accounts().expect("list accounts").is_empty());
+}
+
+#[test]
+fn import_sub2api_personal_access_token_ignores_stale_agent_fields() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+
+    let content = json!({
+        "type": "sub2api-data",
+        "version": 1,
+        "accounts": [{
+            "name": "pat@example.com",
+            "platform": "openai",
+            "type": "oauth",
+            "credentials": {
+                "account_id": "pat-account",
+                "access_token": "at-personal-token",
+                "auth_mode": "personalAccessToken",
+                "agent_private_key": "stale-private-key",
+                "agent_runtime_id": "stale-runtime-id"
+            }
+        }]
+    })
+    .to_string();
+
+    let result = import_account_auth_json_with_storage(&storage, vec![content], false)
+        .expect("import personal access token");
+    assert_eq!(result.total, 1);
+    assert_eq!(result.created, 1);
+    assert_eq!(result.failed, 0);
+    assert!(result.usage_refresh_account_ids.is_empty());
+
+    let account = storage
+        .list_accounts()
+        .expect("list accounts")
+        .into_iter()
+        .next()
+        .expect("stored account");
+    assert!(storage
+        .find_account_agent_identity(&account.id)
+        .expect("find identity")
+        .is_none());
+    let token = storage
+        .find_token_by_account_id(&account.id)
+        .expect("find token")
+        .expect("stored token");
+    assert_eq!(token.access_token, "at-personal-token");
+}
+
+#[test]
+fn import_agent_identities_distinguishes_users_in_the_same_workspace() {
+    let storage = Storage::open_in_memory().expect("open storage");
+    storage.init().expect("init storage");
+
+    let private_key_a = test_agent_private_key(11);
+    let private_key_b = test_agent_private_key(12);
+    let content = json!({
+        "type": "sub2api-data",
+        "version": 1,
+        "accounts": [
+            {
+                "name": "member-a@example.com",
+                "platform": "openai",
+                "type": "oauth",
+                "credentials": {
+                    "account_id": "chatgpt-team",
+                    "agent_private_key": private_key_a,
+                    "agent_runtime_id": "runtime-a",
+                    "auth_mode": "agentIdentity",
+                    "chatgpt_account_id": "chatgpt-team",
+                    "chatgpt_user_id": "member-a",
+                    "task_id": "task-a",
+                    "workspace_id": "workspace-shared"
+                }
+            },
+            {
+                "name": "member-b@example.com",
+                "platform": "openai",
+                "type": "oauth",
+                "credentials": {
+                    "account_id": "chatgpt-team",
+                    "agent_private_key": private_key_b,
+                    "agent_runtime_id": "runtime-b",
+                    "auth_mode": "agentIdentity",
+                    "chatgpt_account_id": "chatgpt-team",
+                    "chatgpt_user_id": "member-b",
+                    "workspace_id": "workspace-shared"
+                }
+            }
+        ]
+    })
+    .to_string();
+
+    let result = import_account_auth_json_with_storage(&storage, vec![content], false)
+        .expect("import team members");
+    assert_eq!(result.created, 2);
+    assert_eq!(result.updated, 0);
+    assert_eq!(result.failed, 0);
+
+    let reimport = json!({
+        "type": "sub2api-data",
+        "version": 1,
+        "accounts": [{
+            "name": "member-a@example.com",
+            "platform": "openai",
+            "type": "oauth",
+            "credentials": {
+                "account_id": "chatgpt-team",
+                "agent_private_key": test_agent_private_key(13),
+                "agent_runtime_id": "runtime-a-updated",
+                "auth_mode": "agentIdentity",
+                "chatgpt_account_id": "chatgpt-team",
+                "chatgpt_user_id": "member-a",
+                "task_id": "task-a-updated",
+                "workspace_id": "workspace-shared"
+            }
+        }]
+    })
+    .to_string();
+    let reimport_result = import_account_auth_json_with_storage(&storage, vec![reimport], false)
+        .expect("reimport member a");
+    assert_eq!(reimport_result.created, 0);
+    assert_eq!(reimport_result.updated, 1);
+    assert_eq!(reimport_result.failed, 0);
+
+    let accounts = storage.list_accounts().expect("list accounts");
+    assert_eq!(accounts.len(), 2);
+    let identities = accounts
+        .iter()
+        .map(|account| {
+            storage
+                .find_account_agent_identity(&account.id)
+                .expect("find identity")
+                .expect("stored identity")
+        })
+        .collect::<Vec<_>>();
+    assert!(identities
+        .iter()
+        .any(|identity| identity.chatgpt_user_id == "member-a"));
+    assert!(identities
+        .iter()
+        .any(|identity| identity.chatgpt_user_id == "member-b"));
+    assert!(identities.iter().any(|identity| {
+        identity.chatgpt_user_id == "member-a" && identity.agent_runtime_id == "runtime-a-updated"
+    }));
+    assert!(identities.iter().any(|identity| {
+        identity.chatgpt_user_id == "member-b" && identity.agent_runtime_id == "runtime-b"
+    }));
+    assert!(identities
+        .iter()
+        .any(|identity| { identity.chatgpt_user_id == "member-b" && identity.task_id.is_none() }));
+    assert_ne!(accounts[0].id, accounts[1].id);
 }
 
 #[test]
@@ -382,7 +667,10 @@ fn import_account_auth_json_expands_sub2api_accounts_and_persists_agent_identiti
             .expect("find identity")
             .expect("stored identity");
         assert!(identity.agent_runtime_id.starts_with("agent-runtime-"));
-        assert!(identity.task_id.starts_with("task-agent-"));
+        assert!(identity
+            .task_id
+            .as_deref()
+            .is_some_and(|task_id| task_id.starts_with("task-agent-")));
     }
 }
 

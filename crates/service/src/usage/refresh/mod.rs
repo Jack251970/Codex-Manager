@@ -629,18 +629,50 @@ fn refresh_usage_for_token(
     let resolved_subscription_account_id =
         clean_header_value(derived_chatgpt_id.or_else(|| resolved_workspace_id.clone()));
 
-    if let Some(identity) = agent_identity.as_ref() {
-        let authorization =
-            crate::agent_identity::authorization_header_for_agent_identity(identity)?;
-        return match refresh_account_snapshot(
+    if agent_identity.is_some() {
+        let registration_client = crate::gateway::upstream_client_for_account(&current.account_id)
+            .map_err(|err| format!("build agent task registration client failed: {err}"))?;
+        let authorization = crate::agent_identity::resolve_account_agent_identity_authorization(
+            storage,
+            &registration_client,
+            &current.account_id,
+        )?
+        .ok_or_else(|| "agent identity disappeared before usage refresh".to_string())?;
+        let failed_task_id = authorization.task_id.clone();
+        let first = refresh_account_snapshot(
             storage,
             &current.account_id,
             &base_url,
-            &authorization,
+            &authorization.value,
             resolved_workspace_id.as_deref(),
             None,
-            identity.chatgpt_account_is_fedramp,
-        ) {
+            authorization.is_fedramp,
+        );
+        let outcome = match first {
+            Err(err) if crate::agent_identity::is_agent_identity_task_invalid_error(&err) => {
+                let recovered =
+                    crate::agent_identity::recover_account_agent_identity_authorization(
+                        storage,
+                        &registration_client,
+                        &current.account_id,
+                        &failed_task_id,
+                    )?
+                    .ok_or_else(|| {
+                        "agent identity disappeared during usage task recovery".to_string()
+                    })?;
+                refresh_account_snapshot(
+                    storage,
+                    &current.account_id,
+                    &base_url,
+                    &recovered.value,
+                    resolved_workspace_id.as_deref(),
+                    None,
+                    recovered.is_fedramp,
+                )
+            }
+            other => other,
+        };
+        return match outcome {
             Ok(status) => Ok(UsageRefreshResult { _status: status }),
             Err(err) => {
                 mark_usage_unreachable_if_needed(storage, &current.account_id, &err);

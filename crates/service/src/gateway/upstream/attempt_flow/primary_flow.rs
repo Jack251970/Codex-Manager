@@ -11,7 +11,7 @@ use super::transport::UpstreamRequestContext;
 pub(in crate::gateway::upstream) enum PrimaryFlowDecision {
     Continue {
         upstream: GatewayUpstreamResponse,
-        auth_token: String,
+        authorization: PrimaryAuthorization,
     },
     RespondUpstream(GatewayUpstreamResponse),
     Failover,
@@ -19,6 +19,14 @@ pub(in crate::gateway::upstream) enum PrimaryFlowDecision {
         status_code: u16,
         message: String,
     },
+}
+
+#[derive(Debug, Clone)]
+pub(in crate::gateway::upstream) struct PrimaryAuthorization {
+    pub(in crate::gateway::upstream) value: String,
+    pub(in crate::gateway::upstream) task_id: Option<String>,
+    pub(in crate::gateway::upstream) uses_agent_identity: bool,
+    pub(in crate::gateway::upstream) is_fedramp: bool,
 }
 
 /// 函数 `resolve_chatgpt_primary_bearer`
@@ -43,18 +51,37 @@ fn resolve_chatgpt_primary_bearer(token: &Token) -> Option<String> {
 
 fn resolve_chatgpt_primary_authorization(
     storage: &Storage,
+    client: &reqwest::blocking::Client,
     account: &Account,
     token: &Token,
-) -> Result<(String, &'static str, bool), String> {
-    if let Some(identity) = storage
-        .find_account_agent_identity(&account.id)
-        .map_err(|err| format!("load agent identity failed: {err}"))?
-    {
-        return crate::agent_identity::authorization_header_for_agent_identity(&identity)
-            .map(|header| (header, "agent_identity", true));
+) -> Result<(PrimaryAuthorization, &'static str), String> {
+    if let Some(resolved) = crate::agent_identity::resolve_account_agent_identity_authorization(
+        storage,
+        client,
+        &account.id,
+    )? {
+        return Ok((
+            PrimaryAuthorization {
+                value: resolved.value,
+                task_id: Some(resolved.task_id),
+                uses_agent_identity: true,
+                is_fedramp: resolved.is_fedramp,
+            },
+            "agent_identity",
+        ));
     }
     resolve_chatgpt_primary_bearer(token)
-        .map(|access_token| (access_token, "access_token", false))
+        .map(|access_token| {
+            (
+                PrimaryAuthorization {
+                    value: access_token,
+                    task_id: None,
+                    uses_agent_identity: false,
+                    is_fedramp: false,
+                },
+                "access_token",
+            )
+        })
         .ok_or_else(|| "missing chatgpt access token".to_string())
 }
 
@@ -94,8 +121,8 @@ pub(in crate::gateway::upstream) fn run_primary_upstream_flow<F>(
 where
     F: FnMut(Option<&str>, u16, Option<&str>),
 {
-    let (auth_token, token_source, uses_agent_identity) =
-        match resolve_chatgpt_primary_authorization(storage, account, token) {
+    let (authorization, token_source) =
+        match resolve_chatgpt_primary_authorization(storage, client, account, token) {
             Ok(resolved) => resolved,
             Err(err) => {
                 log_gateway_result(Some(primary_url), 401, Some(err.as_str()));
@@ -120,11 +147,11 @@ where
         method,
         primary_url,
         request_deadline,
-        request_ctx,
+        request_ctx.with_fedramp(authorization.is_fedramp),
         incoming_headers,
         body,
         is_stream,
-        auth_token.as_str(),
+        authorization.value.as_str(),
         account,
         strip_session_affinity,
         has_more_candidates,
@@ -158,7 +185,7 @@ where
         token,
         strip_session_affinity,
         debug,
-        allow_openai_fallback && !uses_agent_identity,
+        allow_openai_fallback && !authorization.uses_agent_identity,
         status,
         upstream.headers().get(CONTENT_TYPE),
         has_more_candidates,
@@ -166,7 +193,7 @@ where
     ) {
         FallbackBranchResult::NotTriggered => PrimaryFlowDecision::Continue {
             upstream,
-            auth_token,
+            authorization,
         },
         FallbackBranchResult::RespondUpstream(resp) => PrimaryFlowDecision::RespondUpstream(resp),
         FallbackBranchResult::Failover => PrimaryFlowDecision::Failover,
