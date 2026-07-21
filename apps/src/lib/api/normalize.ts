@@ -56,6 +56,7 @@ import {
   toNullableNumber,
 } from "@/lib/utils/usage";
 import { readBillingModeLock } from "./billing-mode-lock";
+import { normalizeGatewayTransportValues } from "@/lib/gateway/transport-settings";
 
 const DEFAULT_BACKGROUND_TASKS: BackgroundTaskSettings = {
   usagePollingEnabled: true,
@@ -1775,9 +1776,7 @@ export function normalizeAppSettings(payload: unknown): AppSettings {
     ),
     upstreamProxyUrl: asString(source.upstreamProxyUrl),
     upstreamProxyBypassHosts: asString(source.upstreamProxyBypassHosts),
-    upstreamStreamTimeoutMs: asInteger(source.upstreamStreamTimeoutMs, 300_000, 0),
-    upstreamTotalTimeoutMs: asInteger(source.upstreamTotalTimeoutMs, 0, 0),
-    sseKeepaliveIntervalMs: asInteger(source.sseKeepaliveIntervalMs, 15_000, 1),
+    ...normalizeGatewayTransportValues(source),
     backgroundTasks: normalizeBackgroundTasks(source.backgroundTasks),
     runtimeTimeZone: normalizeRuntimeTimeZone(source.runtimeTimeZone),
     envOverrides: normalizeStringRecord(source.envOverrides),

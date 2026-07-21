@@ -83,6 +83,22 @@ async function loadTransportWebCommandsModule() {
 const transportWebCommands = await loadTransportWebCommandsModule();
 const commandMap = transportWebCommands.createWebCommandMap(async () => ({}));
 
+test("createWebCommandMap keeps app and gateway transport settings payloads aligned", () => {
+  const appSettingsSet = commandMap.app_settings_set;
+  assert.equal(appSettingsSet.rpcMethod, "appSettings/set");
+  assert.ok(appSettingsSet.mapParams);
+  assert.deepEqual(
+    appSettingsSet.mapParams({
+      patch: { sseKeepaliveEnabled: false },
+    }),
+    { sseKeepaliveEnabled: false }
+  );
+
+  assert.deepEqual(commandMap.service_gateway_transport_set, {
+    rpcMethod: "gateway/transport/set",
+  });
+});
+
 test("createWebCommandMap 复用 keyId 到 id 的参数映射", () => {
   const descriptor = commandMap.service_apikey_delete;
   assert.ok(descriptor.mapParams);

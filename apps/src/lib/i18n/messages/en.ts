@@ -833,6 +833,8 @@ export const EN_MESSAGES: MessageCatalog = {
     "Max duration allowed for a single upstream request (ms). Requests beyond this will be terminated with a timeout error.",
   "控制流式上游请求允许持续的最长时间，单位毫秒；填 0 可关闭流式超时上限。":
     "Max duration allowed for streaming upstream requests (ms). Set 0 to disable streaming timeout.",
+  "控制是否向下游补发 SSE keep-alive 帧；默认开启，关闭后不会发送连接心跳。":
+    "Controls whether downstream SSE keep-alive frames are sent. Enabled by default; when disabled, connection heartbeats are not sent.",
   "控制向下游补发 SSE keep-alive 帧的间隔，单位毫秒；上游长时间安静时可避免客户端误判连接中断。":
     "Interval for downstream SSE keep-alive frames (ms) to prevent clients from misjudging idle upstreams as disconnected.",
   "控制连接上游服务器时的超时时间，单位秒；主要影响握手和网络建立阶段。":
@@ -972,6 +974,9 @@ export const EN_MESSAGES: MessageCatalog = {
   "确认卸载这个插件吗？": "Are you sure to uninstall this plugin?",
   任务间隔已更新: "Task interval updated",
   任务已执行: "Task executed",
+  保持连接心跳: "Keep connection heartbeat",
+  "开启后会按下方间隔向客户端发送 SSE 心跳，防止代理或网络链路因空闲断开。":
+    "When enabled, SSE heartbeats are sent to clients at the interval below to prevent idle disconnects by proxies or network links.",
   "上游代理 (Proxy)": "Upstream proxy (Proxy)",
   "上游总超时 (ms，0 为关闭)": "Upstream total timeout (ms, 0 to disable)",
   "上游流式空闲超时 (ms)": "Upstream stream idle timeout (ms)",
@@ -1236,6 +1241,7 @@ export const EN_MESSAGES: MessageCatalog = {
   "Prompt 缓存 TTL（秒）": "Prompt cache TTL (s)",
   "Prompt 缓存清理间隔（秒）": "Prompt cache cleanup interval (s)",
   "Prompt 缓存容量": "Prompt cache capacity",
+  "启用 SSE 保活": "Enable SSE keepalive",
   "SSE 保活间隔（毫秒）": "SSE keepalive interval (ms)",
   "Trace 队列容量": "Trace queue capacity",
   "Trace Body 预览上限（字节）": "Trace body preview limit (bytes)",
