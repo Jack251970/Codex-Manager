@@ -20,6 +20,15 @@ export const EN_MESSAGES: MessageCatalog = {
   "下载预设": "Download preset",
   "上传预设": "Upload preset",
   "默认（所有大小）": "Default (all sizes)",
+  "100 kB（很小）": "100 kB (tiny)",
+  "1 MB（快速）": "1 MB (quick)",
+  "10 MB（标准）": "10 MB (standard)",
+  "25 MB（完整）": "25 MB (full)",
+  "50 MB（完整）": "50 MB (full)",
+  "选择预设": "Select preset",
+  "HTTP 代理": "HTTP proxy",
+  "HTTPS 代理": "HTTPS proxy",
+  "SOCKS5 代理": "SOCKS5 proxy",
   "Download determines how fast your network connection can get data from the test network. This is important when downloading large files such as updates for applications or streaming video services. Download speed is tested by downloading files of various sizes. The number reported represents the 90th percentile of download measurements and not the absolute maximum. Scroll down to view details.": "Download determines how fast your network connection can get data from the test network. This is important when downloading large files such as updates for applications or streaming video services. Download speed is tested by downloading files of various sizes. The number reported represents the 90th percentile of download measurements and not the absolute maximum.",
   "展开高级设置": "Expand advanced settings",
   "未配置上传测试接口。请在系统设置或环境变量中设置 CODEXMANAGER_PROXY_TEST_UPLOAD_URL。": "Upload test endpoint is not configured. Please set CODEXMANAGER_PROXY_TEST_UPLOAD_URL in system settings or environment variables.",
@@ -157,6 +166,11 @@ export const EN_MESSAGES: MessageCatalog = {
   "接入配置 · 请求观测": "Access Config · Request Observability",
   收起侧边栏: "Collapse Sidebar",
   展开侧边栏: "Expand Sidebar",
+  "关于 CodexManager": "About CodexManager",
+  "查看软件名称、功能简介和当前版本信息":
+    "View the app name, feature summary, and current version.",
+  "CodexManager 用于统一管理 Codex CLI 账号、本地网关、平台密钥、请求日志和用量统计，让 Codex 接入与运维更集中可控。":
+    "CodexManager centralizes Codex CLI accounts, the local gateway, platform keys, request logs, and usage analytics, making Codex access and operations easier to manage.",
   基础设置: "Basic settings",
   控制应用启动和窗口行为: "Control startup and window behavior.",
   自动检查更新: "Check updates automatically",
@@ -824,6 +838,8 @@ export const EN_MESSAGES: MessageCatalog = {
     "Max duration allowed for a single upstream request (ms). Requests beyond this will be terminated with a timeout error.",
   "控制流式上游请求允许持续的最长时间，单位毫秒；填 0 可关闭流式超时上限。":
     "Max duration allowed for streaming upstream requests (ms). Set 0 to disable streaming timeout.",
+  "控制是否向下游补发 SSE keep-alive 帧；默认开启，关闭后不会发送连接心跳。":
+    "Controls whether downstream SSE keep-alive frames are sent. Enabled by default; when disabled, connection heartbeats are not sent.",
   "控制向下游补发 SSE keep-alive 帧的间隔，单位毫秒；上游长时间安静时可避免客户端误判连接中断。":
     "Interval for downstream SSE keep-alive frames (ms) to prevent clients from misjudging idle upstreams as disconnected.",
   "控制连接上游服务器时的超时时间，单位秒；主要影响握手和网络建立阶段。":
@@ -963,6 +979,9 @@ export const EN_MESSAGES: MessageCatalog = {
   "确认卸载这个插件吗？": "Are you sure to uninstall this plugin?",
   任务间隔已更新: "Task interval updated",
   任务已执行: "Task executed",
+  保持连接心跳: "Keep connection heartbeat",
+  "开启后会按下方间隔向客户端发送 SSE 心跳，防止代理或网络链路因空闲断开。":
+    "When enabled, SSE heartbeats are sent to clients at the interval below to prevent idle disconnects by proxies or network links.",
   "上游代理 (Proxy)": "Upstream proxy (Proxy)",
   "上游总超时 (ms，0 为关闭)": "Upstream total timeout (ms, 0 to disable)",
   "上游流式空闲超时 (ms)": "Upstream stream idle timeout (ms)",
@@ -1071,6 +1090,9 @@ export const EN_MESSAGES: MessageCatalog = {
   "批量删除完成：成功{success}个，失败{failed}个":
     "Bulk delete finished: {success} succeeded, {failed} failed",
   账号用量已刷新: "Account usage refreshed",
+  "账号用量已刷新：{processed}/{total}":
+    "Account usage refreshed: {processed}/{total}",
+  "账号用量刷新未执行：{message}": "Account usage refresh was not run: {message}",
   "账号长期未登录，refresh 已过期，已改为不可用状态":
     "Account inactive for a long time; refresh expired and marked unavailable.",
   "正在等待服务连接。": "Waiting for service connection.",
@@ -1224,6 +1246,7 @@ export const EN_MESSAGES: MessageCatalog = {
   "Prompt 缓存 TTL（秒）": "Prompt cache TTL (s)",
   "Prompt 缓存清理间隔（秒）": "Prompt cache cleanup interval (s)",
   "Prompt 缓存容量": "Prompt cache capacity",
+  "启用 SSE 保活": "Enable SSE keepalive",
   "SSE 保活间隔（毫秒）": "SSE keepalive interval (ms)",
   "Trace 队列容量": "Trace queue capacity",
   "Trace Body 预览上限（字节）": "Trace body preview limit (bytes)",

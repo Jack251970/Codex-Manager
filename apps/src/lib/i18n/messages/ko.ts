@@ -24,6 +24,15 @@ export const KO_MESSAGES: MessageCatalog = {
   "下载预设": "다운로드 프리셋",
   "上传预设": "업로드 프리셋",
   "默认（所有大小）": "기본값 (모든 크기)",
+  "100 kB（很小）": "100 kB (매우 작음)",
+  "1 MB（快速）": "1 MB (빠름)",
+  "10 MB（标准）": "10 MB (표준)",
+  "25 MB（完整）": "25 MB (전체)",
+  "50 MB（完整）": "50 MB (전체)",
+  "选择预设": "프리셋 선택",
+  "HTTP 代理": "HTTP 프록시",
+  "HTTPS 代理": "HTTPS 프록시",
+  "SOCKS5 代理": "SOCKS5 프록시",
   "Download determines how fast your network connection can get data from the test network. This is important when downloading large files such as updates for applications or streaming video services. Download speed is tested by downloading files of various sizes. The number reported represents the 90th percentile of download measurements and not the absolute maximum. Scroll down to view details.": "다운로드 속도는 네트워크 연결이 테스트 네트워크에서 데이터를 얼마나 빨리 가져올 수 있는지를 결정합니다. 이는 애플리케이션 업데이트나 스트리밍 비디오 서비스와 같은 대용량 파일을 다운로드할 때 중요합니다. 다운로드 속도는 다양한 크기의 파일을 다운로드하여 테스트합니다. 보고된 수치는 절대적인 최대값이 아니라 다운로드 측정값의 90번째 백분위수를 나타냅니다.",
   "展开高级设置": "고급 설정 펼치기",
   "未配置上传测试接口。请在系统设置或环境变量中设置 CODEXMANAGER_PROXY_TEST_UPLOAD_URL。":
@@ -172,6 +181,11 @@ export const KO_MESSAGES: MessageCatalog = {
   "接入配置 · 请求观测": "연결 설정 · 요청 관측",
   收起侧边栏: "사이드바 접기",
   展开侧边栏: "사이드바 펼치기",
+  "关于 CodexManager": "CodexManager 정보",
+  "查看软件名称、功能简介和当前版本信息":
+    "앱 이름, 기능 요약, 현재 버전 정보를 확인합니다.",
+  "CodexManager 用于统一管理 Codex CLI 账号、本地网关、平台密钥、请求日志和用量统计，让 Codex 接入与运维更集中可控。":
+    "CodexManager는 Codex CLI 계정, 로컬 게이트웨이, 플랫폼 키, 요청 로그, 사용량 통계를 통합 관리하여 Codex 연결과 운영을 더 집중적이고 제어 가능하게 합니다.",
   基础设置: "기본 설정",
   自动检查更新: "자동 업데이트 확인",
   开机自动启动: "시작 시 자동 실행",
@@ -711,6 +725,8 @@ export const KO_MESSAGES: MessageCatalog = {
     "단일 업스트림 요청의 최대 지속 시간(ms). 초과 시 요청이 종료되고 타임아웃 오류가 반환됩니다.",
   "控制流式上游请求允许持续的最长时间，单位毫秒；填 0 可关闭流式超时上限。":
     "스트리밍 업스트림 요청의 최대 지속 시간(ms). 0으로 설정하면 타임아웃을 끕니다.",
+  "控制是否向下游补发 SSE keep-alive 帧；默认开启，关闭后不会发送连接心跳。":
+    "다운스트림 SSE keep-alive 프레임 전송 여부를 제어합니다. 기본적으로 활성화되며, 비활성화하면 연결 하트비트를 보내지 않습니다.",
   "控制向下游补发 SSE keep-alive 帧的间隔，单位毫秒；上游长时间安静时可避免客户端误判连接中断。":
     "다운스트림 SSE keep-alive 프레임 전송 간격(ms). 업스트림이 오래 조용할 때 연결 끊김으로 오해하는 것을 방지합니다.",
   "控制连接上游服务器时的超时时间，单位秒；主要影响握手和网络建立阶段。":
@@ -850,6 +866,9 @@ export const KO_MESSAGES: MessageCatalog = {
   "确认卸载这个插件吗？": "이 플러그인을 제거할까요?",
   任务间隔已更新: "작업 간격이 업데이트되었습니다",
   任务已执行: "작업이 실행되었습니다",
+  保持连接心跳: "연결 하트비트 유지",
+  "开启后会按下方间隔向客户端发送 SSE 心跳，防止代理或网络链路因空闲断开。":
+    "활성화하면 아래 간격으로 클라이언트에 SSE 하트비트를 보내 프록시나 네트워크 경로가 유휴 상태로 연결을 끊는 것을 방지합니다.",
   "上游代理 (Proxy)": "업스트림 프록시 (Proxy)",
   "上游总超时 (ms，0 为关闭)": "업스트림 전체 타임아웃(ms, 0=비활성)",
   "上游流式空闲超时 (ms)": "업스트림 스트리밍 유휴 타임아웃(ms)",
@@ -958,6 +977,10 @@ export const KO_MESSAGES: MessageCatalog = {
   "批量删除完成：成功{success}个，失败{failed}个":
     "일괄 삭제 완료: 성공 {success}개, 실패 {failed}개",
   账号用量已刷新: "계정 사용량이 새로고침되었습니다",
+  "账号用量已刷新：{processed}/{total}":
+    "계정 사용량이 새로고침되었습니다: {processed}/{total}",
+  "账号用量刷新未执行：{message}":
+    "계정 사용량 새로고침이 실행되지 않았습니다: {message}",
   "账号长期未登录，refresh 已过期，已改为不可用状态":
     "계정이 오랫동안 로그인하지 않아 refresh가 만료되어 사용 불가로 변경되었습니다.",
   "正在等待服务连接。": "서비스 연결 대기 중.",
@@ -1199,6 +1222,7 @@ export const KO_MESSAGES: MessageCatalog = {
   "Prompt 缓存 TTL（秒）": "프롬프트 캐시 TTL(초)",
   "Prompt 缓存清理间隔（秒）": "프롬프트 캐시 청소 간격(초)",
   "Prompt 缓存容量": "프롬프트 캐시 용량",
+  "启用 SSE 保活": "SSE keepalive 활성화",
   "SSE 保活间隔（毫秒）": "SSE keepalive 간격(밀리초)",
   "Trace 队列容量": "Trace 큐 용량",
   "Trace Body 预览上限（字节）": "Trace body 미리보기 한도(바이트)",

@@ -220,6 +220,46 @@ fn post_rpc_method(
     post_rpc(addr, &json)
 }
 
+#[test]
+fn rpc_gateway_transport_round_trips_sse_keepalive_enabled() {
+    let ctx = RpcTestContext::new("rpc-gateway-transport-sse-keepalive");
+    let storage = Storage::open(ctx.db_path()).expect("open db");
+    storage.init().expect("init schema");
+    drop(storage);
+    let previous_enabled = codexmanager_service::current_gateway_sse_keepalive_enabled();
+    let _enabled_env = EnvGuard::set("CODEXMANAGER_SSE_KEEPALIVE_ENABLED", "");
+
+    let set_server = codexmanager_service::start_one_shot_server().expect("start set server");
+    let set_response = post_rpc_method(
+        &set_server.addr,
+        1,
+        "gateway/transport/set",
+        Some(serde_json::json!({
+            "sseKeepaliveEnabled": false
+        })),
+    );
+    assert_eq!(set_response["result"]["sseKeepaliveEnabled"], false);
+
+    let get_server = codexmanager_service::start_one_shot_server().expect("start get server");
+    let get_response = post_rpc_method(&get_server.addr, 2, "gateway/transport/get", None);
+    assert_eq!(get_response["result"]["sseKeepaliveEnabled"], false);
+    assert!(get_response["result"]["envKeys"]
+        .as_array()
+        .expect("transport env keys")
+        .iter()
+        .any(|value| value.as_str() == Some("CODEXMANAGER_SSE_KEEPALIVE_ENABLED")));
+
+    let storage = Storage::open(ctx.db_path()).expect("reopen db");
+    assert_eq!(
+        storage
+            .get_app_setting(codexmanager_service::APP_SETTING_GATEWAY_SSE_KEEPALIVE_ENABLED_KEY)
+            .expect("read persisted sse keepalive setting"),
+        Some("0".to_string())
+    );
+    codexmanager_service::set_gateway_sse_keepalive_enabled(previous_enabled)
+        .expect("restore sse keepalive setting");
+}
+
 fn wait_for_proxy_test_job(job_id: &str) -> serde_json::Value {
     for idx in 0..120 {
         let server = codexmanager_service::start_one_shot_server().expect("start server");

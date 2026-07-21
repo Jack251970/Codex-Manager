@@ -52,7 +52,19 @@ const SETTINGS_SNAPSHOT = {
   appearancePreset: "classic",
 };
 
+const LONG_AGGREGATE_ID =
+  "aggregate-provider-with-an-exceptionally-long-identifier-for-layout-testing";
+const LONG_AGGREGATE_NAME =
+  "Aggregate Provider With An Exceptionally Long Display Name For Layout Testing";
+
 type JsonObject = Record<string, unknown>;
+
+type Rect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 type MockState = {
   models: JsonObject[];
@@ -63,13 +75,14 @@ type MockState = {
 };
 
 const PRICED_MODELS: Record<string, [number, number, number]> = {
-  "gpt-5.6-sol": [5_000_000, 5_000_000, 30_000_000],
-  "gpt-5.6-terra": [2_500_000, 2_500_000, 15_000_000],
-  "gpt-5.6-luna": [1_000_000, 1_000_000, 6_000_000],
+  "gpt-5.6-sol": [5_000_000, 500_000, 30_000_000],
+  "gpt-5.6-terra": [2_500_000, 250_000, 15_000_000],
+  "gpt-5.6-luna": [1_000_000, 100_000, 6_000_000],
   "gpt-5.5": [5_000_000, 500_000, 30_000_000],
   "gpt-5.4": [2_500_000, 250_000, 15_000_000],
   "gpt-5.4-mini": [750_000, 75_000, 4_500_000],
   "gpt-5.2": [1_750_000, 175_000, 14_000_000],
+  "gpt-image-2": [8_000_000, 2_000_000, 30_000_000],
 };
 
 function builtinModel(
@@ -78,12 +91,15 @@ function builtinModel(
   visibility: "list" | "hide" = "list",
 ): JsonObject {
   const rates = PRICED_MODELS[slug] ?? null;
+  const isImageModel = slug === "gpt-image-2";
   const price = rates
     ? {
-        priceStatus: slug.startsWith("gpt-5.6") ? "estimated" : "official",
-        priceSource: slug.startsWith("gpt-5.6")
-          ? "user_provided_openai_gpt-5.6_2026-07-14_cached_at_input_rate"
-          : "seed-2026-05-11",
+        priceStatus: "official",
+        priceSource: isImageModel
+          ? "https://developers.openai.com/api/docs/pricing#image-generation"
+          : slug.startsWith("gpt-5.6")
+            ? "https://developers.openai.com/api/docs/models/compare"
+            : "seed-2026-05-11",
         inputMicrousdPer1m: rates[0],
         cachedInputMicrousdPer1m: rates[1],
         outputMicrousdPer1m: rates[2],
@@ -98,28 +114,55 @@ function builtinModel(
   return {
     id: `builtin:${slug}`,
     slug,
-    displayName: slug.toUpperCase(),
-    description: `${slug} builtin`,
+    displayName: isImageModel ? "GPT Image 2" : slug.toUpperCase(),
+    description: isImageModel
+      ? "State-of-the-art image generation and editing model."
+      : `${slug} builtin`,
     provider: "openai",
-    family: "gpt-5",
-    category: "reasoning",
-    tags: ["coding"],
+    family: isImageModel ? "gpt-image" : "gpt-5",
+    category: isImageModel ? "image" : "reasoning",
+    tags: isImageModel ? ["image-generation", "image-editing"] : ["coding"],
     origin: "builtin",
     enabled: true,
     supportedInApi: true,
     visibility,
     sortOrder,
-    contextWindow: slug.startsWith("gpt-5.6") ? 372_000 : 272_000,
-    maxContextWindow: slug === "gpt-5.4" ? 1_000_000 : 272_000,
-    defaultReasoningEffort: "medium",
-    capabilities: {
-      reasoningEfforts: ["low", "medium", "high", "xhigh"],
-      inputModalities: ["text", "image"],
-      supportsParallelToolCalls: true,
-    },
+    contextWindow: isImageModel
+      ? null
+      : slug.startsWith("gpt-5.6")
+        ? 372_000
+        : 272_000,
+    maxContextWindow: isImageModel
+      ? null
+      : slug === "gpt-5.4"
+        ? 1_000_000
+        : 272_000,
+    defaultReasoningEffort: isImageModel ? null : "medium",
+    capabilities: isImageModel
+      ? {
+          reasoningEfforts: [],
+          serviceTiers: [],
+          additionalSpeedTiers: [],
+          inputModalities: ["text", "image"],
+          outputModalities: ["image"],
+          supportedEndpoints: [
+            "/v1/images/generations",
+            "/v1/images/edits",
+          ],
+          snapshot: "gpt-image-2-2026-04-21",
+          supportsTextGeneration: false,
+          supportsImageGeneration: true,
+          supportsImageEditing: true,
+          supportsTransparentBackground: false,
+        }
+      : {
+          reasoningEfforts: ["low", "medium", "high", "xhigh"],
+          inputModalities: ["text", "image"],
+          supportsParallelToolCalls: true,
+        },
     instructionsMode: "passthrough",
     instructionsText: null,
-    builtinRevision: 2,
+    builtinRevision: isImageModel ? 5 : slug.startsWith("gpt-5.6") ? 4 : 2,
     userEdited: false,
     price,
     priceTiers: rates
@@ -130,6 +173,16 @@ function builtinModel(
             cachedInputMicrousdPer1m: rates[1],
             outputMicrousdPer1m: rates[2],
           },
+          ...(slug.startsWith("gpt-5.6")
+            ? [
+                {
+                  minInputTokens: 272_000,
+                  inputMicrousdPer1m: rates[0] * 2,
+                  cachedInputMicrousdPer1m: rates[1] * 2,
+                  outputMicrousdPer1m: (rates[2] * 3) / 2,
+                },
+              ]
+            : []),
         ]
       : [],
     routes: [
@@ -158,6 +211,7 @@ function freshModels(): JsonObject[] {
     builtinModel("gpt-5.4", 16),
     builtinModel("gpt-5.4-mini", 23),
     builtinModel("gpt-5.2", 29),
+    builtinModel("gpt-image-2", 44),
     builtinModel("codex-auto-review", 43, "hide"),
   ];
 }
@@ -286,6 +340,13 @@ async function installMockRuntime(page: Page): Promise<MockState> {
             baseUrl: "https://aggregate.invalid/v1",
             status: "enabled",
           },
+          {
+            id: LONG_AGGREGATE_ID,
+            supplierName: LONG_AGGREGATE_NAME,
+            providerType: "openai_compat",
+            baseUrl: "https://long-aggregate.invalid/v1",
+            status: "enabled",
+          },
         ],
       });
       return;
@@ -369,6 +430,15 @@ async function installMockRuntime(page: Page): Promise<MockState> {
   return state;
 }
 
+function rectanglesOverlap(first: Rect, second: Rect): boolean {
+  return (
+    first.x < second.x + second.width &&
+    first.x + first.width > second.x &&
+    first.y < second.y + second.height &&
+    first.y + first.height > second.y
+  );
+}
+
 test("编辑器不依赖后续动画帧即可载入目标模型", async ({ page }) => {
   await installMockRuntime(page);
   await page.goto("/models/");
@@ -406,6 +476,134 @@ test("编辑器不依赖后续动画帧即可载入目标模型", async ({ page 
   );
   await expect(page.getByLabel("默认推理强度")).toHaveValue("medium");
   await expect(page.getByRole("combobox", { name: "可见性" })).toBeVisible();
+});
+
+test("长路由来源不会覆盖相邻的模型和批量路由字段", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 800 });
+  await installMockRuntime(page);
+  await page.goto("/models/");
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "模型管理" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "新增自定义模型" }).click();
+  const modelDialog = page.getByRole("dialog");
+  await modelDialog.getByRole("tab", { name: "路由" }).click();
+  await modelDialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await modelDialog.locator("#route-source-1").click();
+  await page.getByRole("option", { name: `聚合 API：${LONG_AGGREGATE_NAME}` }).click();
+
+  const routeSource = modelDialog.locator("#route-source-1");
+  const upstreamModel = modelDialog.locator("#route-model-1");
+  const routeCard = routeSource.locator('xpath=ancestor::div[@data-slot="card"][1]');
+  await expect(routeSource).toContainText(`聚合 API：${LONG_AGGREGATE_NAME}`);
+  const [routeSourceBox, upstreamModelBox, routeCardBox] = await Promise.all([
+    routeSource.boundingBox(),
+    upstreamModel.boundingBox(),
+    routeCard.boundingBox(),
+  ]);
+  expect(routeSourceBox).not.toBeNull();
+  expect(upstreamModelBox).not.toBeNull();
+  expect(routeCardBox).not.toBeNull();
+  expect(routeSourceBox!.x + routeSourceBox!.width).toBeLessThanOrEqual(
+    upstreamModelBox!.x + 1,
+  );
+  expect(routeSourceBox!.x + routeSourceBox!.width).toBeLessThanOrEqual(
+    routeCardBox!.x + routeCardBox!.width + 1,
+  );
+
+  await modelDialog.getByRole("button", { name: "取消" }).click();
+  await page.getByLabel("选择模型 gpt-5.6-sol").click();
+  await page.getByRole("button", { name: "批量分配路由 (1)" }).click();
+
+  const batchDialog = page.getByRole("dialog", { name: "批量分配模型路由" });
+  await batchDialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await batchDialog.locator("#batch-route-source-1").click();
+  await page.getByRole("option", { name: `聚合 API：${LONG_AGGREGATE_NAME}` }).click();
+
+  const batchSource = batchDialog.locator("#batch-route-source-1");
+  const batchPriority = batchDialog.locator("#batch-route-priority-1");
+  const batchCard = batchSource.locator('xpath=ancestor::div[@data-slot="card"][1]');
+  await expect(batchSource).toContainText(`聚合 API：${LONG_AGGREGATE_NAME}`);
+  const [compactDialogBox, batchSourceBox, batchPriorityBox, batchCardBox] =
+    await Promise.all([
+      batchDialog.boundingBox(),
+      batchSource.boundingBox(),
+      batchPriority.boundingBox(),
+      batchCard.boundingBox(),
+    ]);
+  expect(compactDialogBox).not.toBeNull();
+  expect(compactDialogBox!.width).toBeGreaterThanOrEqual(866);
+  expect(batchSourceBox).not.toBeNull();
+  expect(batchPriorityBox).not.toBeNull();
+  expect(batchCardBox).not.toBeNull();
+  expect(rectanglesOverlap(batchSourceBox!, batchPriorityBox!)).toBe(false);
+  expect(batchSourceBox!.x + batchSourceBox!.width).toBeLessThanOrEqual(
+    batchCardBox!.x + batchCardBox!.width + 1,
+  );
+
+  await page.setViewportSize({ width: 1600, height: 900 });
+  const [wideDialogBox, wideSourceBox, widePriorityBox] = await Promise.all([
+    batchDialog.boundingBox(),
+    batchSource.boundingBox(),
+    batchPriority.boundingBox(),
+  ]);
+  expect(wideDialogBox).not.toBeNull();
+  expect(wideSourceBox).not.toBeNull();
+  expect(widePriorityBox).not.toBeNull();
+  expect(wideDialogBox!.width).toBeGreaterThanOrEqual(1228);
+  expect(Math.abs(wideSourceBox!.y - widePriorityBox!.y)).toBeLessThanOrEqual(10);
+  expect(wideSourceBox!.x + wideSourceBox!.width).toBeLessThanOrEqual(
+    widePriorityBox!.x + 1,
+  );
+});
+
+test("批量路由弹窗在小窗口内保留底部操作并允许正文滚动", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 560 });
+  await installMockRuntime(page);
+  await page.goto("/models/");
+  await expect(
+    page.getByRole("main").getByRole("heading", { name: "模型管理" }),
+  ).toBeVisible();
+
+  for (const slug of Object.keys(PRICED_MODELS)) {
+    await page
+      .getByRole("checkbox", { name: `选择模型 ${slug}`, exact: true })
+      .click();
+  }
+  await page.getByRole("button", { name: "批量分配路由 (8)" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "批量分配模型路由" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+  await dialog.getByRole("button", { name: "添加账号池路由" }).click();
+  await dialog.getByRole("button", { name: "添加聚合路由" }).click();
+
+  const body = dialog.getByTestId("batch-route-dialog-body");
+  const applyButton = dialog.getByRole("button", { name: "应用到 8 个模型" });
+  const [dialogBox, applyButtonBox, bodyMetrics] = await Promise.all([
+    dialog.boundingBox(),
+    applyButton.boundingBox(),
+    body.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    })),
+  ]);
+  const viewport = page.viewportSize();
+  expect(dialogBox).not.toBeNull();
+  expect(applyButtonBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(dialogBox!.height).toBeLessThanOrEqual(viewport!.height - 32 + 1);
+  expect(applyButtonBox!.y + applyButtonBox!.height).toBeLessThanOrEqual(
+    viewport!.height - 8,
+  );
+  expect(bodyMetrics.scrollHeight).toBeGreaterThan(bodyMetrics.clientHeight);
+
+  const scrollTop = await body.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    return element.scrollTop;
+  });
+  expect(scrollTop).toBeGreaterThan(0);
 });
 
 test("模型目录支持中文展示并为多个模型批量分配路由", async ({ page }) => {
@@ -453,7 +651,7 @@ test("模型目录支持中文展示并为多个模型批量分配路由", async
   await expect(dialog.getByText("gpt-5.6-terra", { exact: true })).toBeVisible();
   await dialog.getByRole("button", { name: "添加聚合路由" }).click();
   await dialog.locator("#batch-route-source-1").click();
-  await page.getByRole("option", { name: "Aggregate Test" }).click();
+  await page.getByRole("option", { name: "聚合 API：Aggregate Test" }).click();
   await dialog.getByRole("button", { name: "应用到 2 个模型" }).click();
 
   await expect(dialog).toHaveCount(0);
@@ -489,10 +687,14 @@ test("模型目录 V2 完成本地管理、原子保存、导入和主动导出"
   ).toBeVisible();
 
   const rows = page.getByRole("main").locator("tbody tr");
-  await expect(rows).toHaveCount(7);
-  await expect(page.locator("tr", { hasText: "gpt-5.6-sol" })).toContainText(
-    "5 / 5 / 30",
-  );
+  await expect(rows).toHaveCount(8);
+  const solRow = page.locator("tr", { hasText: "gpt-5.6-sol" });
+  await expect(solRow).toContainText("官方价格");
+  await expect(solRow).toContainText("5 / 0.5 / 30");
+  const imageRow = page.locator("tr", { hasText: "gpt-image-2" });
+  await expect(imageRow).toContainText("先进的图像生成和编辑模型。");
+  await expect(imageRow).toContainText("官方价格");
+  await expect(imageRow).toContainText("8 / 2 / 30");
   await expect(page.getByText("codex-auto-review", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "远端并入" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "清理远端旧模型" })).toHaveCount(0);
@@ -506,6 +708,9 @@ test("模型目录 V2 完成本地管理、原子保存、导入和主动导出"
   expect(downloadPath).not.toBeNull();
   const cache = JSON.parse(await readFile(downloadPath!, "utf8"));
   expect(cache.models).toHaveLength(7);
+  expect(
+    cache.models.some((model: JsonObject) => model.slug === "gpt-image-2"),
+  ).toBe(false);
   expect(
     cache.models.every(
       (model: JsonObject) => model.base_instructions === "",
@@ -532,7 +737,7 @@ test("模型目录 V2 完成本地管理、原子保存、导入和主动导出"
   await expect(page.getByRole("combobox", { name: "来源类型" })).toHaveCount(2);
   await expect(page.getByRole("switch", { name: "启用路由" })).toHaveCount(2);
   await page.locator("#route-source-1").click();
-  await page.getByRole("option", { name: "Aggregate Test" }).click();
+  await page.getByRole("option", { name: "聚合 API：Aggregate Test" }).click();
   await page.locator("#route-model-1").fill("upstream-custom-v1");
 
   await page.getByRole("tab", { name: "指令策略" }).click();
@@ -616,7 +821,7 @@ test("模型目录 V2 完成本地管理、原子保存、导入和主动导出"
   await expect(importDialog.getByText("base_instructions", { exact: true })).toBeVisible();
 
   await importDialog.getByRole("combobox").click();
-  await page.getByRole("option", { name: "replace_custom" }).click();
+  await page.getByRole("option", { name: "替换自定义模型" }).click();
   await importDialog.getByRole("button", { name: "预览导入" }).click();
   await importDialog.getByRole("button", { name: "提交导入" }).click();
   await expect(page.locator("tr", { hasText: "imported-local" })).toBeVisible();

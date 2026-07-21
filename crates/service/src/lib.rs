@@ -6,7 +6,9 @@ mod aggregate_api;
 mod apikey;
 pub(crate) mod app_settings;
 mod auth;
+mod codex_model_catalog;
 mod codex_profile;
+mod codex_runtime;
 mod dashboard;
 mod errors;
 mod gateway;
@@ -87,6 +89,7 @@ pub(crate) use usage::keepalive as usage_keepalive;
 pub(crate) use usage::list as usage_list;
 pub(crate) use usage::read as usage_read;
 pub(crate) use usage::refresh as usage_refresh;
+pub(crate) use usage::reset_credits as usage_reset_credits;
 pub(crate) use usage::scheduler as usage_scheduler;
 pub(crate) use usage::snapshot_store as usage_snapshot_store;
 pub(crate) use usage::token_refresh as usage_token_refresh;
@@ -98,7 +101,8 @@ pub use app_settings::{
     current_codex_cli_guide_dismissed, current_gateway_account_max_inflight,
     current_gateway_free_account_max_model, current_gateway_model_forward_rules,
     current_gateway_originator, current_gateway_request_compression_enabled,
-    current_gateway_residency_requirement, current_gateway_sse_keepalive_interval_ms,
+    current_gateway_residency_requirement, current_gateway_sse_keepalive_enabled,
+    current_gateway_sse_keepalive_interval_ms,
     current_gateway_thread_aware_account_distribution_enabled,
     current_gateway_upstream_proxy_bypass_hosts, current_gateway_upstream_stream_timeout_ms,
     current_gateway_upstream_total_timeout_ms, current_gateway_user_agent_version,
@@ -112,20 +116,21 @@ pub use app_settings::{
     set_gateway_account_max_inflight, set_gateway_background_tasks,
     set_gateway_free_account_max_model, set_gateway_model_forward_rules, set_gateway_originator,
     set_gateway_request_compression_enabled, set_gateway_residency_requirement,
-    set_gateway_route_strategy, set_gateway_sse_keepalive_interval_ms,
-    set_gateway_thread_aware_account_distribution_enabled, set_gateway_upstream_proxy_bypass_hosts,
-    set_gateway_upstream_proxy_url, set_gateway_upstream_stream_timeout_ms,
-    set_gateway_upstream_total_timeout_ms, set_gateway_user_agent_version,
-    set_lightweight_mode_on_close_to_tray_setting, set_saved_service_addr, set_service_bind_mode,
-    set_ui_appearance_preset, set_ui_low_transparency_enabled, set_ui_theme,
-    set_update_auto_check_enabled, sync_runtime_settings_from_storage, BackgroundTasksInput,
-    APP_SETTING_AUTO_START_ENABLED_KEY, APP_SETTING_CLOSE_TO_TRAY_ON_CLOSE_KEY,
-    APP_SETTING_DISTRIBUTION_ENABLED_KEY, APP_SETTING_ENV_OVERRIDES_KEY,
-    APP_SETTING_GATEWAY_ACCOUNT_MAX_INFLIGHT_KEY, APP_SETTING_GATEWAY_BACKGROUND_TASKS_KEY,
-    APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY, APP_SETTING_GATEWAY_MODEL_FORWARD_RULES_KEY,
-    APP_SETTING_GATEWAY_ORIGINATOR_KEY, APP_SETTING_GATEWAY_QUOTA_GUARD_KEY,
-    APP_SETTING_GATEWAY_REQUEST_COMPRESSION_ENABLED_KEY,
+    set_gateway_route_strategy, set_gateway_sse_keepalive_enabled,
+    set_gateway_sse_keepalive_interval_ms, set_gateway_thread_aware_account_distribution_enabled,
+    set_gateway_upstream_proxy_bypass_hosts, set_gateway_upstream_proxy_url,
+    set_gateway_upstream_stream_timeout_ms, set_gateway_upstream_total_timeout_ms,
+    set_gateway_user_agent_version, set_lightweight_mode_on_close_to_tray_setting,
+    set_saved_service_addr, set_service_bind_mode, set_ui_appearance_preset,
+    set_ui_low_transparency_enabled, set_ui_theme, set_update_auto_check_enabled,
+    sync_runtime_settings_from_storage, BackgroundTasksInput, APP_SETTING_AUTO_START_ENABLED_KEY,
+    APP_SETTING_CLOSE_TO_TRAY_ON_CLOSE_KEY, APP_SETTING_DISTRIBUTION_ENABLED_KEY,
+    APP_SETTING_ENV_OVERRIDES_KEY, APP_SETTING_GATEWAY_ACCOUNT_MAX_INFLIGHT_KEY,
+    APP_SETTING_GATEWAY_BACKGROUND_TASKS_KEY, APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY,
+    APP_SETTING_GATEWAY_MODEL_FORWARD_RULES_KEY, APP_SETTING_GATEWAY_ORIGINATOR_KEY,
+    APP_SETTING_GATEWAY_QUOTA_GUARD_KEY, APP_SETTING_GATEWAY_REQUEST_COMPRESSION_ENABLED_KEY,
     APP_SETTING_GATEWAY_RESIDENCY_REQUIREMENT_KEY, APP_SETTING_GATEWAY_ROUTE_STRATEGY_KEY,
+    APP_SETTING_GATEWAY_SSE_KEEPALIVE_ENABLED_KEY,
     APP_SETTING_GATEWAY_SSE_KEEPALIVE_INTERVAL_MS_KEY,
     APP_SETTING_GATEWAY_THREAD_AWARE_ACCOUNT_DISTRIBUTION_ENABLED_KEY,
     APP_SETTING_GATEWAY_UPSTREAM_PROXY_BYPASS_HOSTS_KEY,

@@ -809,14 +809,6 @@ pub(crate) fn upstream_client_for_aggregate_url(url: &str) -> reqwest::blocking:
     runtime_config::upstream_client_for_aggregate_url(url)
 }
 
-pub(crate) fn apply_blocking_upstream_proxy(
-    builder: reqwest::blocking::ClientBuilder,
-    proxy_url: Option<&str>,
-    invalid_event: &str,
-) -> reqwest::blocking::ClientBuilder {
-    runtime_config::apply_blocking_upstream_proxy(builder, proxy_url, invalid_event)
-}
-
 pub(crate) fn apply_async_upstream_proxy(
     builder: reqwest::ClientBuilder,
     proxy_url: Option<&str>,
@@ -901,7 +893,23 @@ pub(crate) fn set_upstream_total_timeout_ms(timeout_ms: u64) -> u64 {
 /// # 返回
 /// 返回函数执行结果
 pub(crate) fn current_sse_keepalive_interval_ms() -> u64 {
-    http_bridge::current_sse_keepalive_interval_ms()
+    runtime_config::current_sse_keepalive_interval_ms()
+}
+
+pub(crate) fn current_sse_keepalive_enabled() -> bool {
+    runtime_config::current_sse_keepalive_enabled()
+}
+
+pub(crate) fn sse_keepalive_enabled_is_env_overridden() -> bool {
+    runtime_config::sse_keepalive_enabled_is_env_overridden()
+}
+
+pub(crate) fn sse_keepalive_interval_is_env_overridden() -> bool {
+    runtime_config::sse_keepalive_interval_is_env_overridden()
+}
+
+pub(crate) fn set_sse_keepalive_enabled(enabled: bool) -> bool {
+    runtime_config::set_sse_keepalive_enabled(enabled)
 }
 
 /// 函数 `set_sse_keepalive_interval_ms`
@@ -916,7 +924,7 @@ pub(crate) fn current_sse_keepalive_interval_ms() -> u64 {
 /// # 返回
 /// 返回函数执行结果
 pub(crate) fn set_sse_keepalive_interval_ms(interval_ms: u64) -> Result<u64, String> {
-    http_bridge::set_sse_keepalive_interval_ms(interval_ms)
+    runtime_config::set_sse_keepalive_interval_ms(interval_ms)
 }
 
 /// 函数 `manual_preferred_account`

@@ -106,6 +106,8 @@ export const EN_MODELS_MESSAGES: MessageCatalog = {
     "Small, fast, and cost-efficient model for simpler coding tasks.",
   "针对专业工作和长时间运行智能体优化的模型。":
     "Optimized for professional work and long-running agents.",
+  "先进的图像生成和编辑模型。":
+    "State-of-the-art image generation and editing model.",
   "用于 Codex 自动审批审查的模型。":
     "Automatic approval review model for Codex.",
   "已删除 {count} 个模型": "Deleted {count} models",
@@ -116,6 +118,8 @@ export const EN_MODELS_MESSAGES: MessageCatalog = {
     "Supports model catalog exports and Codex catalog JSON; every imported item becomes a custom model.",
   "本地 JSON 文件": "Local JSON file",
   冲突策略: "Conflict strategy",
+  保留现有模型: "Keep existing models",
+  替换自定义模型: "Replace custom models",
   预览导入: "Preview import",
   "处理中...": "Processing...",
   新增: "Added",

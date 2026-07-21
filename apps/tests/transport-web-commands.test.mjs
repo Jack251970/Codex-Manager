@@ -83,6 +83,22 @@ async function loadTransportWebCommandsModule() {
 const transportWebCommands = await loadTransportWebCommandsModule();
 const commandMap = transportWebCommands.createWebCommandMap(async () => ({}));
 
+test("createWebCommandMap keeps app and gateway transport settings payloads aligned", () => {
+  const appSettingsSet = commandMap.app_settings_set;
+  assert.equal(appSettingsSet.rpcMethod, "appSettings/set");
+  assert.ok(appSettingsSet.mapParams);
+  assert.deepEqual(
+    appSettingsSet.mapParams({
+      patch: { sseKeepaliveEnabled: false },
+    }),
+    { sseKeepaliveEnabled: false }
+  );
+
+  assert.deepEqual(commandMap.service_gateway_transport_set, {
+    rpcMethod: "gateway/transport/set",
+  });
+});
+
 test("createWebCommandMap 复用 keyId 到 id 的参数映射", () => {
   const descriptor = commandMap.service_apikey_delete;
   assert.ok(descriptor.mapParams);
@@ -120,6 +136,15 @@ test("createWebCommandMap 为账号预热命令提供 Web RPC 映射", () => {
 test("createWebCommandMap 为批量账号排序提供 Web RPC 映射", () => {
   assert.deepEqual(commandMap.service_account_update_sorts, {
     rpcMethod: "account/updateSorts",
+  });
+});
+
+test("createWebCommandMap 为额度重置查询和消费提供 Web RPC 映射", () => {
+  assert.deepEqual(commandMap.service_usage_reset_credits, {
+    rpcMethod: "account/usage/resetCredits",
+  });
+  assert.deepEqual(commandMap.service_usage_reset_credit_consume, {
+    rpcMethod: "account/usage/resetCredit/consume",
   });
 });
 
@@ -234,10 +259,22 @@ test("createWebCommandMap 为管理员用量分析提供 Web RPC 映射", () => 
   const summary = commandMap.service_dashboard_admin_usage_summary;
   assert.equal(summary.rpcMethod, "dashboard/adminUsageSummary");
   assert.ok(summary.mapParams);
-  assert.deepEqual(summary.mapParams({ start_ts: 100, end_ts: 200 }), {
-    startTs: 100,
-    endTs: 200,
-  });
+  assert.deepEqual(
+    summary.mapParams({
+      start_ts: 100,
+      end_ts: 200,
+      include_breakdowns: false,
+      include_series: true,
+      series_bucket_seconds: 3_600,
+    }),
+    {
+      startTs: 100,
+      endTs: 200,
+      includeBreakdowns: false,
+      includeSeries: true,
+      seriesBucketSeconds: 3_600,
+    },
+  );
 });
 
 test("createWebCommandMap 为模型目录 V2 原子命令提供 Web RPC 映射", () => {
