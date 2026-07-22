@@ -45,8 +45,8 @@ export const EN_SKILLS_MESSAGES: MessageCatalog = {
   "将从服务主机永久删除“{name}”目录。此操作不可撤销。":
     "Permanently delete the “{name}” directory from the service host. This cannot be undone.",
   确认删除: "Delete",
-  插件市场: "Plugin marketplace",
-  "Codex 插件市场": "Codex plugin marketplace",
+  "Skills 市场": "Skills Marketplace",
+  "Codex Skills 市场": "Codex Skills Marketplace",
   "通过 Codex 原生 Marketplace 安装完整插件，只展示包含标准 SKILL.md 的插件。":
     "Install complete plugins through the native Codex Marketplace. Only plugins containing standard SKILL.md files are shown.",
   "包含 {count} 个 Codex Skills": "Contains {count} Codex Skills",
@@ -75,9 +75,9 @@ export const EN_SKILLS_MESSAGES: MessageCatalog = {
   "{count} 个兼容插件": "{count} compatible plugins",
   刷新市场: "Refresh markets",
   "Marketplace 加载失败": "Failed to load Marketplace",
-  当前无法读取插件市场: "Plugin Marketplace is currently unavailable",
-  "当前 Codex CLI 不支持插件市场":
-    "The current Codex CLI does not support plugin marketplaces",
+  "当前无法读取 Skills 市场": "Skills Marketplace is currently unavailable",
+  "当前 Codex CLI 不支持 Skills 市场":
+    "The current Codex CLI does not support the Skills Marketplace",
   "请在 codexmanager-service 主机安装或升级支持 plugin 命令的 Codex CLI。":
     "Install or upgrade to a Codex CLI with plugin command support on the codexmanager-service host.",
   "没有匹配的 Marketplace 插件": "No matching Marketplace plugins",

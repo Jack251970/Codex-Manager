@@ -403,7 +403,7 @@ export function SkillsMarketplaceDialog({
       disablePointerDismissal={anyMutationPending}
     >
       <DialogContent
-        className="flex h-[min(88dvh,860px)] max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 sm:max-w-[760px] lg:max-w-[980px]"
+        className="flex h-[min(88dvh,860px)] max-h-[calc(100dvh-2rem)] flex-col gap-0 p-0 sm:max-w-[880px] md:max-w-[880px] lg:max-w-[1120px] xl:max-w-[1240px]"
         showCloseButton={!anyMutationPending}
       >
         <DialogHeader className="shrink-0 border-b border-border/60 px-5 pb-4 pt-5 pr-12 sm:px-6 sm:pt-6">
@@ -412,7 +412,7 @@ export function SkillsMarketplaceDialog({
               <Store className="size-5" />
             </div>
             <div className="min-w-0">
-              <DialogTitle>{t("Codex 插件市场")}</DialogTitle>
+              <DialogTitle>{t("Codex Skills 市场")}</DialogTitle>
               <DialogDescription className="mt-1 leading-5">
                 {t(
                   "通过 Codex 原生 Marketplace 安装完整插件，只展示包含标准 SKILL.md 的插件。",
@@ -544,7 +544,7 @@ export function SkillsMarketplaceDialog({
                   <AlertTriangle />
                 </EmptyMedia>
                 <EmptyHeader>
-                  <EmptyTitle>{t("当前无法读取插件市场")}</EmptyTitle>
+                  <EmptyTitle>{t("当前无法读取 Skills 市场")}</EmptyTitle>
                   <EmptyDescription>
                     {t("请确认管理 RPC 可用并已连接 codexmanager-service。")}
                   </EmptyDescription>
@@ -580,7 +580,7 @@ export function SkillsMarketplaceDialog({
                   <TerminalSquare />
                 </EmptyMedia>
                 <EmptyHeader>
-                  <EmptyTitle>{t("当前 Codex CLI 不支持插件市场")}</EmptyTitle>
+                  <EmptyTitle>{t("当前 Codex CLI 不支持 Skills 市场")}</EmptyTitle>
                   <EmptyDescription>
                     {t(
                       "请在 codexmanager-service 主机安装或升级支持 plugin 命令的 Codex CLI。",

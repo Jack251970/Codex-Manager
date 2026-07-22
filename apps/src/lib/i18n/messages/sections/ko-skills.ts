@@ -45,8 +45,8 @@ export const KO_SKILLS_MESSAGES: MessageCatalog = {
   "将从服务主机永久删除“{name}”目录。此操作不可撤销。":
     "서비스 호스트에서 ‘{name}’ 디렉터리를 영구 삭제합니다. 이 작업은 되돌릴 수 없습니다.",
   确认删除: "삭제",
-  插件市场: "플러그인 마켓",
-  "Codex 插件市场": "Codex 플러그인 마켓",
+  "Skills 市场": "Skills 마켓",
+  "Codex Skills 市场": "Codex Skills 마켓",
   "通过 Codex 原生 Marketplace 安装完整插件，只展示包含标准 SKILL.md 的插件。":
     "Codex 기본 Marketplace를 통해 전체 플러그인을 설치합니다. 표준 SKILL.md가 포함된 플러그인만 표시합니다.",
   "包含 {count} 个 Codex Skills": "Codex Skills {count}개 포함",
@@ -75,9 +75,9 @@ export const KO_SKILLS_MESSAGES: MessageCatalog = {
   "{count} 个兼容插件": "호환 플러그인 {count}개",
   刷新市场: "마켓 새로 고침",
   "Marketplace 加载失败": "Marketplace를 불러오지 못했습니다",
-  当前无法读取插件市场: "현재 플러그인 Marketplace를 읽을 수 없습니다",
-  "当前 Codex CLI 不支持插件市场":
-    "현재 Codex CLI는 플러그인 마켓을 지원하지 않습니다",
+  "当前无法读取 Skills 市场": "현재 Skills Marketplace를 읽을 수 없습니다",
+  "当前 Codex CLI 不支持 Skills 市场":
+    "현재 Codex CLI는 Skills 마켓을 지원하지 않습니다",
   "请在 codexmanager-service 主机安装或升级支持 plugin 命令的 Codex CLI。":
     "codexmanager-service 호스트에서 plugin 명령을 지원하는 Codex CLI를 설치하거나 업그레이드하세요.",
   "没有匹配的 Marketplace 插件": "일치하는 Marketplace 플러그인 없음",

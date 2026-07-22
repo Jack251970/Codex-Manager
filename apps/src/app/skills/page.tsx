@@ -357,7 +357,7 @@ export default function SkillsPage() {
               onClick={() => setMarketplaceDialogOpen(true)}
             >
               <Store className="size-4" />
-              {t("插件市场")}
+              {t("Skills 市场")}
             </Button>
             <Button
               type="button"
