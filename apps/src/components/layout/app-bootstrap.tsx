@@ -28,6 +28,7 @@ import { withTimeout } from "@/lib/utils/timeout";
 const DEFAULT_SERVICE_ADDR = "localhost:48760";
 const STARTUP_STEP_TIMEOUT_MS = 15_000;
 const WEB_GATEWAY_SETTINGS_TIMEOUT_MS = 60_000;
+const TRAY_PREVIEW_SERVICE_INITIALIZE_RETRIES = 40;
 const CODEX_CLI_GUIDE_SESSION_DISMISSED_KEY =
   "codexmanager.codexCliGuide.sessionDismissed";
 const UNSUPPORTED_RUNTIME_AUTO_RETRY_LIMIT = 8;
@@ -298,7 +299,10 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
 
       if (desktopRuntime) {
         markDesktopShellReady(settings.lowTransparency);
-        void startAndInitializeService(addr)
+        const connectToDesktopService = isTrayPreview
+          ? initializeService(addr, TRAY_PREVIEW_SERVICE_INITIALIZE_RETRIES)
+          : startAndInitializeService(addr);
+        void connectToDesktopService
           .then(() => {
             applyConnectedServiceState(addr, "", settings.lowTransparency);
           })
@@ -329,6 +333,7 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
   }, [
     applyConnectedServiceState,
     initializeService,
+    isTrayPreview,
     markDesktopShellReady,
     setAppSettings,
     setRuntimeCapabilities,

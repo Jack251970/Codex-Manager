@@ -105,11 +105,11 @@ pub(super) fn apply_app_settings_patch(patch: AppSettingsPatch) -> Result<(), St
     if let Some(enabled) = patch.close_to_tray_on_close {
         set_close_to_tray_on_close_setting(enabled)?;
     }
-    if let Some(enabled) = patch.keep_window_ui_mounted {
-        set_keep_window_ui_mounted_setting(enabled)?;
-    }
     if let Some(enabled) = patch.lightweight_mode_on_close_to_tray {
         set_lightweight_mode_on_close_to_tray_setting(enabled)?;
+    }
+    if let Some(enabled) = patch.keep_window_ui_mounted {
+        set_keep_window_ui_mounted_setting(enabled)?;
     }
     if let Some(dismissed) = patch.codex_cli_guide_dismissed {
         set_codex_cli_guide_dismissed(dismissed)?;

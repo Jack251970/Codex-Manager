@@ -1716,18 +1716,23 @@ export function normalizeEnvOverrideCatalog(payload: unknown): EnvOverrideCatalo
  */
 export function normalizeAppSettings(payload: unknown): AppSettings {
   const source = asObject(payload);
+  const legacyLightweightMode = asBoolean(
+    source.lightweightModeOnCloseToTray,
+    false
+  );
+  const keepWindowUiMounted = asBoolean(
+    source.keepWindowUiMounted,
+    !legacyLightweightMode
+  );
   return {
     updateAutoCheck: asBoolean(source.updateAutoCheck, true),
     autoStartEnabled: asBoolean(source.autoStartEnabled, false),
     autoStartSupported: asBoolean(source.autoStartSupported, false),
     closeToTrayOnClose: asBoolean(source.closeToTrayOnClose, false),
     closeToTraySupported: asBoolean(source.closeToTraySupported, false),
-    keepWindowUiMounted: asBoolean(source.keepWindowUiMounted, true),
+    keepWindowUiMounted,
     lowTransparency: asBoolean(source.lowTransparency, false),
-    lightweightModeOnCloseToTray: asBoolean(
-      source.lightweightModeOnCloseToTray,
-      false
-    ),
+    lightweightModeOnCloseToTray: !keepWindowUiMounted,
     codexCliGuideDismissed: asBoolean(source.codexCliGuideDismissed, false),
     webAccessPasswordConfigured: asBoolean(
       source.webAccessPasswordConfigured,

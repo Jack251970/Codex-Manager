@@ -165,13 +165,23 @@ fn current_app_settings_value_inner(
     let persisted_close_to_tray =
         setting_bool(&settings, APP_SETTING_CLOSE_TO_TRAY_ON_CLOSE_KEY, false);
     let close_to_tray = close_to_tray_on_close.unwrap_or(persisted_close_to_tray);
-    let keep_window_ui_mounted =
-        setting_bool(&settings, APP_SETTING_KEEP_WINDOW_UI_MOUNTED_KEY, true);
-    let lightweight_mode_on_close_to_tray = setting_bool(
+    let persisted_lightweight_mode_on_close_to_tray = setting_bool(
         &settings,
         APP_SETTING_LIGHTWEIGHT_MODE_ON_CLOSE_TO_TRAY_KEY,
         false,
     );
+    let keep_window_ui_mounted = if settings.contains_key(APP_SETTING_KEEP_WINDOW_UI_MOUNTED_KEY) {
+        setting_bool(
+            &settings,
+            APP_SETTING_KEEP_WINDOW_UI_MOUNTED_KEY,
+            !cfg!(target_os = "windows"),
+        )
+    } else if cfg!(target_os = "windows") {
+        false
+    } else {
+        !persisted_lightweight_mode_on_close_to_tray
+    };
+    let lightweight_mode_on_close_to_tray = !keep_window_ui_mounted;
     let codex_cli_guide_dismissed = setting_bool(
         &settings,
         APP_SETTING_UI_CODEX_CLI_GUIDE_DISMISSED_KEY,
@@ -373,8 +383,6 @@ fn current_app_settings_value_inner(
             "keepWindowUiMounted".to_string(),
             serde_json::json!(keep_window_ui_mounted),
         );
-    }
-    if let Some(object) = result.as_object_mut() {
         object.insert("autoStartEnabled".to_string(), auto_start_enabled.into());
         object.insert("autoStartSupported".to_string(), false.into());
         object.insert(

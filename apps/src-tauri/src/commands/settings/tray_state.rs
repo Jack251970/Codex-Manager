@@ -74,17 +74,13 @@ pub fn sync_window_runtime_state_from_settings(settings: &mut serde_json::Value)
         .get("closeToTraySupported")
         .and_then(|value| value.as_bool())
         .unwrap_or_else(tray_available);
-    let requested_lightweight_mode = settings
-        .get("lightweightModeOnCloseToTray")
-        .and_then(|value| value.as_bool())
-        .unwrap_or(false);
     let keep_window_ui_mounted = settings
         .get("keepWindowUiMounted")
         .and_then(|value| value.as_bool())
-        .unwrap_or(true);
+        .unwrap_or(!cfg!(target_os = "windows"));
     let effective_close_to_tray = requested_close_to_tray && supported;
     let effective_lightweight_mode = effective_lightweight_mode_on_close_to_tray(
-        requested_lightweight_mode,
+        !keep_window_ui_mounted,
         effective_close_to_tray,
     );
     if let Some(object) = settings.as_object_mut() {
@@ -102,7 +98,7 @@ pub fn sync_window_runtime_state_from_settings(settings: &mut serde_json::Value)
         );
         object.insert(
             "lightweightModeOnCloseToTray".to_string(),
-            serde_json::json!(requested_lightweight_mode),
+            serde_json::json!(!keep_window_ui_mounted),
         );
     }
     CLOSE_TO_TRAY_ON_CLOSE.store(effective_close_to_tray, Ordering::Relaxed);

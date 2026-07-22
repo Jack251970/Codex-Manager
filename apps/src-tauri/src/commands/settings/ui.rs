@@ -134,7 +134,8 @@ pub async fn app_settings_get(app: tauri::AppHandle) -> Result<serde_json::Value
     .await
     .map_err(|err| format!("app_settings_get task failed: {err}"))??;
     sync_window_runtime_state_from_settings(&mut settings);
-    sync_window_ui_mount_state(&app);
+    // The tray preview also loads settings during bootstrap. Mount-state changes
+    // here would close a newly opened preview when resource retention is off.
     annotate_auto_start_settings(&app, &mut settings);
     Ok(settings)
 }
