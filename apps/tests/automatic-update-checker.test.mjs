@@ -56,27 +56,18 @@ test("an available update restores and focuses the main window before opening th
   );
 });
 
-test("development mode uses a safe local update dialog demo", () => {
-  assert.match(
-    checkerSource,
-    /IS_UPDATE_DIALOG_DEMO = process\.env\.NODE_ENV === "development"/,
-  );
-  assert.match(checkerSource, /latestVersion: "9\.9\.9-test"/);
-  assert.match(
-    checkerSource,
-    /if \(IS_UPDATE_DIALOG_DEMO\) \{[\s\S]*未执行实际更新[\s\S]*return;/,
-  );
-  assert.match(
-    bootstrapSource,
-    /appSettings\.updateAutoCheck \|\| process\.env\.NODE_ENV === "development"/,
-  );
-});
-
 test("automatic updater starts only after desktop settings are ready and enabled", () => {
   assert.match(
     bootstrapSource,
     /!isInitializing[\s\S]*isDesktopRuntime[\s\S]*appSettings\.updateAutoCheck[\s\S]*<AutomaticUpdateChecker/,
   );
+});
+
+test("automatic updater has no development-only forced dialog path", () => {
+  assert.doesNotMatch(checkerSource, /IS_UPDATE_DIALOG_DEMO|9\.9\.9-test/);
+  assert.doesNotMatch(bootstrapSource, /NODE_ENV === "development"/);
+  assert.match(checkerSource, /const summary = await checkForUpdate\(\)/);
+  assert.match(checkerSource, /const summary = await appClient\.prepareUpdate\(\)/);
 });
 
 test("basic settings exposes the persisted automatic update toggle", () => {
