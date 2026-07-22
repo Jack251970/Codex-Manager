@@ -13,8 +13,10 @@ import { EN_MODEL_GROUPS_MESSAGES } from "./sections/en-model-groups";
 import { EN_MODELS_MESSAGES } from "./sections/en-models";
 import { EN_PLATFORM_MODE_MESSAGES } from "./sections/en-platform-mode";
 import { EN_RUNTIME_UI_MESSAGES } from "./sections/en-runtime-ui";
+import { EN_SKILLS_MESSAGES } from "./sections/en-skills";
 
 export const EN_MESSAGES: MessageCatalog = {
+  ...EN_SKILLS_MESSAGES,
   "延迟测试设置": "Latency test settings",
   "速度测试设置": "Speed test settings",
   "下载预设": "Download preset",
@@ -521,6 +523,31 @@ export const EN_MESSAGES: MessageCatalog = {
     "Authorization completed, but the account list has not synced successfully yet.",
   开始登录授权: "start login authorization",
   设备验证码: "Device code",
+  登录方式: "Login method",
+  浏览器登录: "Browser login",
+  设备码登录: "Device code login",
+  "在任意设备打开验证页并输入验证码，验证码有效期为 15 分钟。":
+    "Open the verification page on any device and enter the code. The code is valid for 15 minutes.",
+  "在当前设备的浏览器中完成 ChatGPT 授权。":
+    "Complete ChatGPT authorization in this device's browser.",
+  重新开始授权: "Restart authorization",
+  生成设备验证码: "Generate device code",
+  复制验证码: "Copy code",
+  验证码已复制: "Code copied",
+  设备验证链接: "Device verification URL",
+  登录链接: "Login URL",
+  打开验证页: "Open verification page",
+  打开: "Open",
+  复制链接: "Copy link",
+  登录已取消: "Login cancelled",
+  "设备登录已过期，请重新生成验证码。":
+    "Device login expired. Please generate a new code.",
+  "服务返回了无效的登录任务，请重试。":
+    "The service returned an invalid login task. Please try again.",
+  "验证码有效期为 15 分钟，正在等待授权完成...":
+    "The code is valid for 15 minutes. Waiting for authorization...",
+  "授权已确认，正在完成登录...":
+    "Authorization confirmed. Finishing sign-in...",
   "正在等待授权完成...": "waiting for authorization...",
   "已生成设备登录信息，请按提示完成授权":
     "Device login info generated. Please complete authorization as prompted.",

@@ -19,17 +19,19 @@ CodexManager is a local desktop + service-process account pool manager and gatew
 - Account pool management: groups, tags, ordering, notes, ban recognition, and filtering.
 - Batch import/export: multi-file import, desktop recursive folder import, per-account export.
 - Usage display: 5-hour + 7-day windows, single-window accounts, and official extra buckets such as Code Review / Spark.
+- Account authorization: `chatgpt.com` browser OAuth and Device Code login; browser OAuth also supports manual callback parsing.
 - Platform keys: create, disable, delete, model binding, reasoning tier, and service tier.
 - Aggregate API: create/edit/test third-party relay upstreams with supplier naming and priority ordering.
 - Plugin center: built-in, private, and custom source modes with task/log views and Rhai integration.
+- Skills management: scans `$CODEX_HOME/skills` on the service host, with search, ZIP installation, existing-directory import, and safe deletion of user skills; `.system` skills are read-only. It can also import GitHub sources through the native Codex Marketplace, preview their standard Skills, and install complete plugins.
 - Local service + gateway: custom bind/listen settings, upstream proxy, total request timeout, stream idle timeout, SSE keepalive, and a unified compatible endpoint. SSE keepalive is enabled by default; set `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0` (or `false`) to disable it.
 - Image generation: automatically injects the official Codex `image_generation` tool for `/v1/responses` by default, forwards explicit tools unchanged, and exposes compatible `/v1/images/generations` and `/v1/images/edits` endpoints with `gpt-image-2` as the default image tool model.
 
 ## Quick Start
 
 1. Launch desktop app and click **Start Service**.
-2. Open **Account Management** and complete account authorization.
-3. If callback parsing fails, paste the callback URL for manual parsing.
+2. Open **Account Management** and choose browser authorization or Device Code login for `chatgpt.com`.
+3. If a browser callback fails, paste its callback URL for manual parsing.
 4. Refresh usage and verify account status.
 
 ## Screenshots

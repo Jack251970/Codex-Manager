@@ -7,6 +7,8 @@
 
 ### Added
 
+- 账号授权新增 `chatgpt.com` Device Code 登录，支持展示/复制验证码、打开验证页、自动轮询、取消会话和过期处理；浏览器授权及其手动回调解析保持可用（#370）。
+- 新增独立 `/skills/` 管理页面：支持扫描搜索服务主机 `$CODEX_HOME/skills`、ZIP 安装、已有目录导入和用户 Skill 安全删除，`.system` 内置 Skill 只读展示；同时接入 Codex 原生 Marketplace，可导入 GitHub 市场、仅列出含标准 `SKILL.md` 的插件并在确认来源与 Skill 清单后整包安装（#126）。
 - 新增 `gpt-image-2`（快照 `gpt-image-2-2026-04-21`），作为第 9 个 builtin、普通列表中的第 8 个模型。该目录项仅用于 `/v1/images/generations` 与 `/v1/images/edits`，不会作为文本生成、Chat Completions 或直接 Responses 主模型；目录价格元数据记录官方每 1M image input / cached input / output tokens 8 / 2 / 30 USD。
 
 ### Fixed

@@ -46,6 +46,7 @@
 | 用量 | `service_usage_refresh` | `account/usage/refresh` | 参数可选：`accountId`；不传则刷新全部 |
 | 登录 | `service_login_start` | `account/login/start` | 参数：`loginType`、`openBrowser`、`note`、`tags`、`groupName`、`workspaceId` |
 | 登录 | `service_login_status` | `account/login/status` | 参数：`loginId` |
+| Login | `service_login_cancel` | `account/login/cancel` | Param: `loginId`; cancels an in-progress login flow |
 | 登录 | `service_login_complete` | `account/login/complete` | 参数：`state`、`code`、`redirectUri` |
 | 登录 | `service_login_chatgpt_auth_tokens` | `account/login/start` | 固定参数：`type=chatgptAuthTokens`；其余参数：`accessToken`、`refreshToken`、`idToken`、`chatgptAccountId`、`workspaceId`、`chatgptPlanType` |
 | 登录 | `service_account_read` | `account/read` | 参数：`refreshToken` |
@@ -94,6 +95,14 @@
 | 插件中心 | `service_plugin_tasks_list` | `plugin/tasks/list` | 参数可选：`pluginId` |
 | 插件中心 | `service_plugin_tasks_run` | `plugin/tasks/run` | 参数：`taskId`、`input` |
 | 插件中心 | `service_plugin_logs_list` | `plugin/logs/list` | 参数：`pluginId`、`taskId`、`limit` |
+| Codex Skills | `service_codex_skills_list` | `codexSkills/list` | Optional param: `codexHome`; scans user and built-in Skills |
+| Codex Skills | `service_codex_skills_install_zip` | `codexSkills/installZip` | Params: `fileName`, `archiveBase64`; optional: `codexHome` |
+| Codex Skills | `service_codex_skills_import_directory` | `codexSkills/importDirectory` | Param: `sourcePath`; optional: `codexHome` |
+| Codex Skills | `service_codex_skills_delete` | `codexSkills/delete` | Param: `directoryName`; optional: `codexHome` |
+| Codex Skills | `service_codex_skills_marketplace_list` | `codexSkills/marketplaceList` | Optional param: `codexHome`; lists Marketplaces and available plugins |
+| Codex Skills | `service_codex_skills_marketplace_add` | `codexSkills/marketplaceAdd` | Param: `source`; optional: `refName`, `codexHome` |
+| Codex Skills | `service_codex_skills_marketplace_refresh` | `codexSkills/marketplaceRefresh` | Optional params: `marketplaceName`, `codexHome` |
+| Codex Skills | `service_codex_skills_marketplace_plugin_install` | `codexSkills/marketplacePluginInstall` | Param: `pluginId`; optional: `codexHome`; installs the complete Codex plugin |
 | 系统 | `open_in_browser` | `direct` | 参数：`url`，本地打开浏览器 |
 | 系统 | `open_in_file_manager` | `direct` | 参数：`path`，本地打开目录 |
 | 系统 | `app_window_unsaved_draft_sections_set` | `direct` | 参数：`sections[]`，设置页未保存草稿标记 |

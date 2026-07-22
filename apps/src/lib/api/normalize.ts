@@ -1323,14 +1323,27 @@ export function normalizeDeviceAuthInfo(payload: unknown): DeviceAuthInfo | null
  */
 export function normalizeLoginStartResult(payload: unknown): LoginStartResult {
   const source = asObject(payload);
+  const type = asString(source.type ?? source.loginType ?? source.login_type);
   const verificationUrl = asString(source.verificationUrl ?? source.verification_url);
-  return {
-    type: asString(source.type ?? source.loginType ?? source.login_type),
-    authUrl: asString(source.authUrl ?? source.auth_url ?? verificationUrl),
-    loginId: asString(source.loginId ?? source.login_id),
-    verificationUrl: verificationUrl || null,
-    userCode: asString(source.userCode ?? source.user_code) || null,
-  };
+  const loginId = asString(source.loginId ?? source.login_id);
+
+  if (type === "chatgptDeviceCode") {
+    return {
+      type,
+      loginId,
+      verificationUrl,
+      userCode: asString(source.userCode ?? source.user_code),
+    };
+  }
+  if (type === "chatgpt") {
+    return {
+      type,
+      loginId,
+      authUrl: asString(source.authUrl ?? source.auth_url),
+    };
+  }
+
+  throw new Error(`unsupported login start result type: ${type || "unknown"}`);
 }
 
 /**

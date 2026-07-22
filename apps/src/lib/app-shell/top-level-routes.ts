@@ -136,6 +136,12 @@ export const TOP_LEVEL_ROUTE_CONFIG = [
     roles: ["system_admin", "admin"],
   },
   {
+    path: "/skills",
+    label: "Skills 管理",
+    section: "system",
+    roles: ["system_admin", "admin"],
+  },
+  {
     path: "/author",
     label: "赞助与推荐",
     section: "system",

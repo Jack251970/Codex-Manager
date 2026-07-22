@@ -1,5 +1,7 @@
 use codexmanager_core::rpc::types::{JsonRpcMessage, JsonRpcRequest};
 
+pub const RPC_BODY_LIMIT_BYTES: usize = 24 * 1024 * 1024;
+
 mod account;
 mod account_identity;
 mod agent_identity;
@@ -10,6 +12,8 @@ mod auth;
 mod codex_model_catalog;
 mod codex_profile;
 mod codex_runtime;
+mod codex_skills;
+mod codex_skills_marketplace;
 mod dashboard;
 mod errors;
 mod gateway;

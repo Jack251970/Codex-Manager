@@ -69,6 +69,7 @@ import {
   CurrentAccessTokenAccountReadResult,
   LoginStatusResult,
   LoginStartResult,
+  LoginType,
   AccountProxyUrlTestListResult,
   ProxyDiagnosticTestListResult,
   ProxySpeedTestListResult,
@@ -135,8 +136,8 @@ export interface AccountUsageRefreshResult {
   message: string | null;
 }
 
-interface LoginStartPayload {
-  loginType?: string;
+export interface LoginStartPayload {
+  loginType: LoginType;
   openBrowser?: boolean;
   note?: string | null;
   tags?: string[] | string | null;
@@ -727,6 +728,9 @@ export const accountClient = {
   async getLoginStatus(loginId: string): Promise<LoginStatusResult> {
     const result = await invoke<unknown>("service_login_status", withAddr({ loginId }));
     return readLoginStatusResult(result);
+  },
+  async cancelLogin(loginId: string): Promise<void> {
+    await invoke<unknown>("service_login_cancel", withAddr({ loginId }));
   },
   completeLogin: (state: string, code: string, redirectUri: string) =>
     invoke("service_login_complete", withAddr({ state, code, redirectUri })),

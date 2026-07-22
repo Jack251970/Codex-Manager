@@ -43,6 +43,7 @@ const LAZY_PAGE_COMPONENTS: Record<
   "/models": lazy(() => import("@/app/models/page")),
   "/model-groups": lazy(() => import("@/app/model-groups/page")),
   "/plugins": lazy(() => import("@/app/plugins/page")),
+  "/skills": lazy(() => import("@/app/skills/page")),
   "/logs": lazy(() => import("@/app/logs/page")),
   "/settings": lazy(() => import("@/app/settings/page")),
   "/proxy-settings": lazy(() => import("@/app/proxy-settings/page")),

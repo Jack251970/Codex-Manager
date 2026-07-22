@@ -120,6 +120,14 @@ fn member_actor_cannot_call_admin_only_rpc() {
         "accountManager/users/list",
         "codexProfile/repairHistory",
         "codexProfile/pruneHistoryBackups",
+        "codexSkills/list",
+        "codexSkills/installZip",
+        "codexSkills/importDirectory",
+        "codexSkills/delete",
+        "codexSkills/marketplaceList",
+        "codexSkills/marketplaceAdd",
+        "codexSkills/marketplaceRefresh",
+        "codexSkills/marketplacePluginInstall",
         "apikey/managedModelUpdateStateV2",
         "apikey/managedModelBatchUpdateStateV2",
     ] {
@@ -141,6 +149,65 @@ fn member_actor_cannot_call_admin_only_rpc() {
             .unwrap_or("");
         assert!(err.contains("permission_denied"), "{method}: {err}");
     }
+}
+
+#[test]
+fn admin_actor_can_list_codex_skills() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let codex_home = std::env::temp_dir().join(format!(
+        "codexmanager-admin-skills-rpc-{}-{nonce}",
+        std::process::id()
+    ));
+    let codex_home_string = codex_home.to_string_lossy().to_string();
+    let req = JsonRpcRequest {
+        id: 22.into(),
+        method: "codexSkills/list".to_string(),
+        params: Some(serde_json::json!({ "codexHome": codex_home_string })),
+        trace: None,
+    };
+
+    let resp = response_result(handle_request_with_actor(req, RpcActor::system_admin()));
+
+    assert!(resp.result.get("error").is_none(), "{:?}", resp.result);
+    assert_eq!(
+        resp.result
+            .get("codexHome")
+            .and_then(|value| value.as_str()),
+        Some(codex_home_string.as_str())
+    );
+    assert_eq!(
+        resp.result
+            .get("items")
+            .and_then(|value| value.as_array())
+            .map(Vec::len),
+        Some(0)
+    );
+}
+
+#[test]
+fn admin_actor_can_reach_codex_skills_marketplace_rpc() {
+    let req = JsonRpcRequest {
+        id: 23.into(),
+        method: "codexSkills/marketplaceAdd".to_string(),
+        params: Some(serde_json::json!({ "source": "not-a-github-source" })),
+        trace: None,
+    };
+
+    let resp = response_result(handle_request_with_actor(req, RpcActor::system_admin()));
+    let err = resp
+        .result
+        .get("error")
+        .and_then(|value| value.as_str())
+        .unwrap_or("");
+    assert!(
+        err.contains("GitHub"),
+        "unexpected response: {:?}",
+        resp.result
+    );
+    assert!(!err.contains("permission_denied"));
 }
 
 #[test]

@@ -364,6 +364,10 @@ pub(super) fn try_handle(req: &JsonRpcRequest) -> Option<JsonRpcResponse> {
             let login_id = super::str_param(req, "loginId").unwrap_or("");
             super::as_json(auth_login::login_status(login_id))
         }
+        "account/login/cancel" => {
+            let login_id = super::str_param(req, "loginId").unwrap_or("");
+            super::value_or_error(auth_login::login_cancel(login_id))
+        }
         "account/login/complete" => {
             let state = super::str_param(req, "state").unwrap_or("");
             let code = super::str_param(req, "code").unwrap_or("");

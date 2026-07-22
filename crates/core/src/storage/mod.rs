@@ -636,6 +636,36 @@ fn update_login_session_code_verifier_sql() -> &'static str {
     "UPDATE login_sessions SET code_verifier = ?1, updated_at = ?2 WHERE login_id = ?3"
 }
 
+fn claim_login_session_for_completion_sql() -> &'static str {
+    "UPDATE login_sessions
+     SET status = 'completing', error = NULL, updated_at = ?1
+     WHERE login_id = ?2 AND status = 'pending'"
+}
+
+fn finish_login_session_sql() -> &'static str {
+    "UPDATE login_sessions
+     SET status = ?1, error = ?2, code_verifier = '', updated_at = ?3
+     WHERE login_id = ?4 AND status IN ('pending', 'completing')"
+}
+
+fn fail_pending_login_session_sql() -> &'static str {
+    "UPDATE login_sessions
+     SET status = 'failed', error = ?1, code_verifier = '', updated_at = ?2
+     WHERE login_id = ?3 AND status = 'pending'"
+}
+
+fn cancel_login_session_sql() -> &'static str {
+    "UPDATE login_sessions
+     SET status = 'cancelled', error = NULL, code_verifier = '', updated_at = ?1
+     WHERE login_id = ?2 AND status = 'pending'"
+}
+
+fn update_login_session_code_verifier_if_pending_sql() -> &'static str {
+    "UPDATE login_sessions
+     SET code_verifier = ?1, updated_at = ?2
+     WHERE login_id = ?3 AND status = 'pending'"
+}
+
 #[derive(Debug, Clone)]
 pub struct UsageSnapshotRecord {
     pub account_id: String,
@@ -2384,6 +2414,66 @@ impl Storage {
             (code_verifier, now_ts(), login_id),
         )?;
         Ok(())
+    }
+
+    /// Atomically claims a pending login session for token/account persistence.
+    pub fn claim_login_session_for_completion(&self, login_id: &str) -> Result<bool> {
+        let changed = self.conn.execute(
+            claim_login_session_for_completion_sql(),
+            (now_ts(), login_id),
+        )?;
+        Ok(changed == 1)
+    }
+
+    /// Moves an active login session to a terminal state and clears its PKCE verifier.
+    ///
+    /// The guarded update prevents a late completion/error from overwriting a session
+    /// that has already been cancelled or otherwise completed.
+    pub fn finish_login_session(
+        &self,
+        login_id: &str,
+        status: &str,
+        error: Option<&str>,
+    ) -> Result<bool> {
+        let changed = self.conn.execute(
+            finish_login_session_sql(),
+            (status, error, now_ts(), login_id),
+        )?;
+        Ok(changed == 1)
+    }
+
+    /// Fails a session only before a completion worker has claimed ownership.
+    ///
+    /// OAuth error callbacks use this narrower transition so a second browser
+    /// callback cannot overwrite an in-flight successful completion.
+    pub fn fail_pending_login_session(&self, login_id: &str, error: Option<&str>) -> Result<bool> {
+        let changed = self.conn.execute(
+            fail_pending_login_session_sql(),
+            (error, now_ts(), login_id),
+        )?;
+        Ok(changed == 1)
+    }
+
+    /// Cancels a pending login session without racing a completion owner.
+    pub fn cancel_login_session(&self, login_id: &str) -> Result<bool> {
+        let changed = self
+            .conn
+            .execute(cancel_login_session_sql(), (now_ts(), login_id))?;
+        Ok(changed == 1)
+    }
+
+    /// Stores a verifier returned by the Device Code endpoint only while the
+    /// session is still pending.
+    pub fn update_login_session_code_verifier_if_pending(
+        &self,
+        login_id: &str,
+        code_verifier: &str,
+    ) -> Result<bool> {
+        let changed = self.conn.execute(
+            update_login_session_code_verifier_if_pending_sql(),
+            (code_verifier, now_ts(), login_id),
+        )?;
+        Ok(changed == 1)
     }
 
     /// 函数 `ensure_column`

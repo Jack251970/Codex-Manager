@@ -7,6 +7,7 @@ export const ROOT_PAGE_PATHS = [
   "/models",
   "/model-groups",
   "/plugins",
+  "/skills",
   "/logs",
   "/settings",
   "/author",

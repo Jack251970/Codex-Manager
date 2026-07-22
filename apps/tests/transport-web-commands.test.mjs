@@ -14,6 +14,7 @@ const modulePaths = [
   path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "apikey.ts"),
   path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "browser-direct.ts"),
   path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "codex-profile.ts"),
+  path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "codex-skills.ts"),
   path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "gateway.ts"),
   path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "login.ts"),
   path.join(appsRoot, "src", "lib", "api", "transport-web-commands", "misc.ts"),
@@ -29,6 +30,7 @@ function rewriteImports(outputText) {
     .replaceAll('./transport-web-commands/apikey', './transport-web-commands/apikey.js')
     .replaceAll('./transport-web-commands/browser-direct', './transport-web-commands/browser-direct.js')
     .replaceAll('./transport-web-commands/codex-profile', './transport-web-commands/codex-profile.js')
+    .replaceAll('./transport-web-commands/codex-skills', './transport-web-commands/codex-skills.js')
     .replaceAll('./transport-web-commands/gateway', './transport-web-commands/gateway.js')
     .replaceAll('./transport-web-commands/login', './transport-web-commands/login.js')
     .replaceAll('./transport-web-commands/misc', './transport-web-commands/misc.js')
@@ -117,6 +119,21 @@ test("createWebCommandMap 为登录命令补齐 Web 运行壳参数", () => {
     type: "chatgpt",
     openBrowser: false,
   });
+  assert.deepEqual(
+    startLogin.mapParams({
+      loginType: "chatgptDeviceCode",
+      openBrowser: true,
+    }),
+    {
+      loginType: "chatgptDeviceCode",
+      type: "chatgptDeviceCode",
+      openBrowser: false,
+    },
+  );
+
+  assert.deepEqual(commandMap.service_login_cancel, {
+    rpcMethod: "account/login/cancel",
+  });
 
   const authTokens = commandMap.service_login_chatgpt_auth_tokens;
   assert.ok(authTokens.mapParams);
@@ -173,6 +190,34 @@ test("createWebCommandMap 为 Codex profile 管理提供 Web RPC 映射", () => 
   assert.deepEqual(commandMap.service_codex_profile_prune_history_backups, {
     rpcMethod: "codexProfile/pruneHistoryBackups",
   });
+});
+
+test("createWebCommandMap 为 Codex Skills 管理提供 Web RPC 映射", () => {
+  assert.deepEqual(commandMap.service_codex_skills_list, {
+    rpcMethod: "codexSkills/list",
+  });
+  assert.deepEqual(commandMap.service_codex_skills_install_zip, {
+    rpcMethod: "codexSkills/installZip",
+  });
+  assert.deepEqual(commandMap.service_codex_skills_import_directory, {
+    rpcMethod: "codexSkills/importDirectory",
+  });
+  assert.deepEqual(commandMap.service_codex_skills_delete, {
+    rpcMethod: "codexSkills/delete",
+  });
+  assert.deepEqual(commandMap.service_codex_skills_marketplace_list, {
+    rpcMethod: "codexSkills/marketplaceList",
+  });
+  assert.deepEqual(commandMap.service_codex_skills_marketplace_add, {
+    rpcMethod: "codexSkills/marketplaceAdd",
+  });
+  assert.deepEqual(commandMap.service_codex_skills_marketplace_refresh, {
+    rpcMethod: "codexSkills/marketplaceRefresh",
+  });
+  assert.deepEqual(
+    commandMap.service_codex_skills_marketplace_plugin_install,
+    { rpcMethod: "codexSkills/marketplacePluginInstall" },
+  );
 });
 
 test("createWebCommandMap 为按状态清理账号提供 Web RPC 映射", () => {
