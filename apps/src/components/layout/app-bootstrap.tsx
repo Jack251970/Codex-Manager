@@ -128,6 +128,7 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
   const { canManageService, isDesktopRuntime, isUnsupportedWebRuntime } =
     useRuntimeCapabilities();
   const [isInitializing, setIsInitializing] = useState(true);
+  const [desktopStartupSettled, setDesktopStartupSettled] = useState(false);
   const hasInitializedOnce = useRef(false);
   const hasBootstrappedOnce = useRef(false);
   const unsupportedRuntimeRetryCountRef = useRef(0);
@@ -300,6 +301,7 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
 
       if (desktopRuntime) {
         markDesktopShellReady(settings.lowTransparency);
+        setDesktopStartupSettled(false);
         const connectToDesktopService = isTrayPreview
           ? initializeService(addr, TRAY_PREVIEW_SERVICE_INITIALIZE_RETRIES)
           : startAndInitializeService(addr);
@@ -310,6 +312,9 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
           .catch((serviceError: unknown) => {
             setServiceStatus({ addr, connected: false, version: "" });
             setError(formatServiceError(serviceError));
+          })
+          .finally(() => {
+            setDesktopStartupSettled(true);
           });
         return;
       }
@@ -538,6 +543,7 @@ export function AppBootstrap({ children }: { children: React.ReactNode }) {
       !isInitializing &&
       !showCodexGuide &&
       isDesktopRuntime &&
+      desktopStartupSettled &&
       appSettings.updateAutoCheck ? (
         <AutomaticUpdateChecker />
       ) : null}

@@ -178,8 +178,8 @@ export const EN_MESSAGES: MessageCatalog = {
   基础设置: "Basic settings",
   控制应用启动和窗口行为: "Control startup and window behavior.",
   自动检查更新: "Check updates automatically",
-  "启动时检查更新，并在启动后每 7 小时检查一次":
-    "Check for updates at startup and every 7 hours afterward.",
+  "启动完成后在后台检查更新，并每 7 小时检查一次":
+    "Check for updates in the background after startup, then every 7 hours.",
   "检测到新版本，是否现在更新？":
     "A new version is available. Would you like to update now?",
   "更新包已准备完成，是否立即替换更新？":

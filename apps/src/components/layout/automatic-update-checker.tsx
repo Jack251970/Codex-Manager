@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -24,8 +24,44 @@ import type {
 import { getAppErrorMessage } from "@/lib/api/transport";
 
 export const AUTO_UPDATE_CHECK_INTERVAL_MS = 7 * 60 * 60 * 1_000;
+export const AUTO_UPDATE_INITIAL_DELAY_MS = 5_000;
+export const AUTO_UPDATE_IDLE_TIMEOUT_MS = 30_000;
+export const AUTO_UPDATE_LAST_CHECK_AT_KEY =
+  "codexmanager.update.lastAutomaticCheckAt";
 
 let automaticCheckInFlight: Promise<UpdateCheckResult> | null = null;
+
+function readLastAutomaticCheckAt(): number | null {
+  try {
+    const value = Number.parseInt(
+      window.localStorage.getItem(AUTO_UPDATE_LAST_CHECK_AT_KEY) || "",
+      10,
+    );
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function recordAutomaticCheckCompleted(at: number) {
+  try {
+    window.localStorage.setItem(AUTO_UPDATE_LAST_CHECK_AT_KEY, String(at));
+  } catch {
+    // Storage can be unavailable in restricted embedded runtimes. The in-memory timer still works.
+  }
+}
+
+function initialAutomaticCheckDelay(now: number): number {
+  const lastCheckAt = readLastAutomaticCheckAt();
+  if (!lastCheckAt || lastCheckAt > now) {
+    return AUTO_UPDATE_INITIAL_DELAY_MS;
+  }
+
+  const remaining = AUTO_UPDATE_CHECK_INTERVAL_MS - (now - lastCheckAt);
+  return remaining > 0
+    ? Math.max(AUTO_UPDATE_INITIAL_DELAY_MS, remaining)
+    : AUTO_UPDATE_INITIAL_DELAY_MS;
+}
 
 function checkForUpdate(): Promise<UpdateCheckResult> {
   if (!automaticCheckInFlight) {
@@ -50,6 +86,7 @@ function buildReleaseUrl(summary: UpdateCheckResult): string {
 
 export function AutomaticUpdateChecker() {
   const { t } = useI18n();
+  const activeRef = useRef(false);
   const [updateCheck, setUpdateCheck] = useState<UpdateCheckResult | null>(null);
   const [preparedUpdate, setPreparedUpdate] =
     useState<UpdatePrepareResult | null>(null);
@@ -60,10 +97,16 @@ export function AutomaticUpdateChecker() {
   const runCheck = useCallback(async () => {
     try {
       const summary = await checkForUpdate();
+      if (!activeRef.current) return;
+
       if (!summary.hasUpdate) {
+        recordAutomaticCheckCompleted(Date.now());
         return;
       }
       await appClient.showMainWindow().catch(() => undefined);
+      if (!activeRef.current) return;
+
+      recordAutomaticCheckCompleted(Date.now());
       setUpdateCheck(summary);
       setPreparedUpdate((current) =>
         current?.latestVersion === summary.latestVersion ? current : null,
@@ -75,12 +118,52 @@ export function AutomaticUpdateChecker() {
   }, []);
 
   useEffect(() => {
-    void runCheck();
-    const intervalId = window.setInterval(
-      () => void runCheck(),
-      AUTO_UPDATE_CHECK_INTERVAL_MS,
-    );
-    return () => window.clearInterval(intervalId);
+    activeRef.current = true;
+    let disposed = false;
+    let timeoutId: number | null = null;
+    let idleCallbackId: number | null = null;
+
+    const scheduleCheck = (delayMs: number) => {
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+
+        const checkWhenIdle = () => {
+          idleCallbackId = null;
+          if (disposed) return;
+
+          void runCheck().finally(() => {
+            if (!disposed) {
+              scheduleCheck(AUTO_UPDATE_CHECK_INTERVAL_MS);
+            }
+          });
+        };
+
+        if (typeof window.requestIdleCallback === "function") {
+          idleCallbackId = window.requestIdleCallback(checkWhenIdle, {
+            timeout: AUTO_UPDATE_IDLE_TIMEOUT_MS,
+          });
+          return;
+        }
+
+        checkWhenIdle();
+      }, delayMs);
+    };
+
+    scheduleCheck(initialAutomaticCheckDelay(Date.now()));
+
+    return () => {
+      activeRef.current = false;
+      disposed = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      if (
+        idleCallbackId !== null &&
+        typeof window.cancelIdleCallback === "function"
+      ) {
+        window.cancelIdleCallback(idleCallbackId);
+      }
+    };
   }, [runCheck]);
 
   const prepareUpdate = async () => {

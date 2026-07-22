@@ -38,14 +38,58 @@ const globalsSource = await fs.readFile(
   "utf8",
 );
 
-test("automatic updater checks immediately and then every seven hours", () => {
+test("automatic updater defers network access until startup is idle", () => {
   assert.match(
     checkerSource,
     /AUTO_UPDATE_CHECK_INTERVAL_MS = 7 \* 60 \* 60 \* 1_000/,
   );
+  assert.match(checkerSource, /AUTO_UPDATE_INITIAL_DELAY_MS = 5_000/);
+  assert.match(checkerSource, /AUTO_UPDATE_IDLE_TIMEOUT_MS = 30_000/);
   assert.match(
     checkerSource,
-    /useEffect\(\(\) => \{[\s\S]*void runCheck\(\);[\s\S]*window\.setInterval\([\s\S]*AUTO_UPDATE_CHECK_INTERVAL_MS/,
+    /scheduleCheck\(initialAutomaticCheckDelay\(Date\.now\(\)\)\)/,
+  );
+  assert.match(checkerSource, /window\.requestIdleCallback\(checkWhenIdle/);
+  assert.match(
+    checkerSource,
+    /runCheck\(\)\.finally\([\s\S]*scheduleCheck\(AUTO_UPDATE_CHECK_INTERVAL_MS\)/,
+  );
+  assert.match(checkerSource, /window\.clearTimeout\(timeoutId\)/);
+  assert.match(checkerSource, /window\.cancelIdleCallback\(idleCallbackId\)/);
+  assert.doesNotMatch(
+    checkerSource,
+    /useEffect\(\(\) => \{\s*void runCheck\(\)/,
+  );
+});
+
+test("automatic updater persists a cooldown across UI reconstruction", () => {
+  assert.match(
+    checkerSource,
+    /codexmanager\.update\.lastAutomaticCheckAt/,
+  );
+  assert.match(checkerSource, /readLastAutomaticCheckAt\(\)/);
+  assert.match(
+    checkerSource,
+    /const summary = await checkForUpdate\(\);[\s\S]*if \(!activeRef\.current\) return;[\s\S]*recordAutomaticCheckCompleted\(Date\.now\(\)\)/,
+  );
+  assert.match(
+    checkerSource,
+    /AUTO_UPDATE_CHECK_INTERVAL_MS - \(now - lastCheckAt\)/,
+  );
+});
+
+test("automatic updater drops in-flight results after its UI unmounts", () => {
+  assert.match(
+    checkerSource,
+    /await appClient\.showMainWindow\(\)[\s\S]*if \(!activeRef\.current\) return;[\s\S]*recordAutomaticCheckCompleted\(Date\.now\(\)\)[\s\S]*setUpdateCheck\(summary\)/,
+  );
+  assert.match(
+    checkerSource,
+    /return \(\) => \{[\s\S]*activeRef\.current = false;[\s\S]*disposed = true/,
+  );
+  assert.doesNotMatch(
+    checkerSource,
+    /recordAutomaticCheckCompleted\(Date\.now\(\)\);\s*try/,
   );
 });
 
@@ -59,7 +103,11 @@ test("an available update restores and focuses the main window before opening th
 test("automatic updater starts only after desktop settings are ready and enabled", () => {
   assert.match(
     bootstrapSource,
-    /!isInitializing[\s\S]*isDesktopRuntime[\s\S]*appSettings\.updateAutoCheck[\s\S]*<AutomaticUpdateChecker/,
+    /!isTrayPreview[\s\S]*!isInitializing[\s\S]*!showCodexGuide[\s\S]*isDesktopRuntime[\s\S]*desktopStartupSettled[\s\S]*appSettings\.updateAutoCheck[\s\S]*<AutomaticUpdateChecker/,
+  );
+  assert.match(
+    bootstrapSource,
+    /connectToDesktopService[\s\S]*\.finally\(\(\) => \{[\s\S]*setDesktopStartupSettled\(true\)/,
   );
 });
 

@@ -131,7 +131,7 @@ export function GeneralBasicsCard({
           <div className="space-y-0.5">
             <Label>{t("自动检查更新")}</Label>
             <p className="text-xs text-muted-foreground">
-              {t("启动时检查更新，并在启动后每 7 小时检查一次")}
+              {t("启动完成后在后台检查更新，并每 7 小时检查一次")}
             </p>
           </div>
           <Switch
