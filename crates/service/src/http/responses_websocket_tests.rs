@@ -52,6 +52,7 @@ fn websocket_bearer_authorization(value: &str) -> WsUpstreamAuthorization {
         task_id: None,
         uses_agent_identity: false,
         is_fedramp: false,
+        account_scope_id: None,
     }
 }
 
@@ -376,6 +377,7 @@ fn upstream_websocket_request_preserves_agent_assertion_and_fedramp() {
         task_id: Some("task-1".to_string()),
         uses_agent_identity: true,
         is_fedramp: true,
+        account_scope_id: Some("agent-bound-scope".to_string()),
     };
 
     let request = build_upstream_websocket_request(
@@ -399,6 +401,13 @@ fn upstream_websocket_request_preserves_agent_assertion_and_fedramp() {
             .get("x-openai-fedramp")
             .and_then(|value| value.to_str().ok()),
         Some("true")
+    );
+    assert_eq!(
+        request
+            .headers()
+            .get("chatgpt-account-id")
+            .and_then(|value| value.to_str().ok()),
+        Some("agent-bound-scope")
     );
 }
 

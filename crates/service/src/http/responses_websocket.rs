@@ -78,6 +78,7 @@ struct WsUpstreamAuthorization {
     task_id: Option<String>,
     uses_agent_identity: bool,
     is_fedramp: bool,
+    account_scope_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -975,7 +976,8 @@ async fn connect_account_upstream_websocket(
             .as_deref()
             .ok_or_else(|| "agent identity websocket authorization omitted task_id".to_string())?;
         let recovered = recover_agent_identity_authorization_for_websocket(
-            account.id.clone(),
+            account.clone(),
+            token.clone(),
             failed_task_id.to_string(),
         )
         .await?
@@ -1004,6 +1006,7 @@ async fn connect_account_upstream_websocket(
             task_id: None,
             uses_agent_identity: false,
             is_fedramp: false,
+            account_scope_id: None,
         }
     };
 
@@ -1024,20 +1027,32 @@ async fn resolve_upstream_authorization_for_websocket(
         let storage = open_storage()
             .ok_or_else(|| crate::gateway::bilingual_error("存储不可用", "storage unavailable"))?;
         let client = crate::gateway::upstream_client_for_account(account.id.as_str())?;
-        if let Some(resolved) = crate::agent_identity::resolve_account_agent_identity_authorization(
-            &storage,
-            &client,
-            &account.id,
-        )? {
-            return Ok((
-                WsUpstreamAuthorization {
-                    value: resolved.value,
-                    task_id: Some(resolved.task_id),
-                    uses_agent_identity: true,
-                    is_fedramp: resolved.is_fedramp,
-                },
-                token,
-            ));
+        match crate::agent_identity::resolve_or_bootstrap_account_agent_identity_authorization(
+            &storage, &client, &account, &token,
+        ) {
+            Ok(Some(resolved)) => {
+                return Ok((
+                    WsUpstreamAuthorization {
+                        value: resolved.value,
+                        task_id: Some(resolved.task_id),
+                        uses_agent_identity: true,
+                        is_fedramp: resolved.is_fedramp,
+                        account_scope_id: resolved.account_scope_id,
+                    },
+                    token,
+                ));
+            }
+            Ok(None) => {}
+            Err(err) => {
+                if token.access_token.trim().is_empty() {
+                    return Err(err);
+                }
+                log::warn!(
+                    "event=responses_ws_agent_identity_resolution_failed account_id={} error={}",
+                    account.id,
+                    err
+                );
+            }
         }
         let mut token = token;
         let bearer =
@@ -1048,6 +1063,7 @@ async fn resolve_upstream_authorization_for_websocket(
                 task_id: None,
                 uses_agent_identity: false,
                 is_fedramp: false,
+                account_scope_id: None,
             },
             token,
         ))
@@ -1064,17 +1080,19 @@ async fn resolve_upstream_authorization_for_websocket(
 }
 
 async fn recover_agent_identity_authorization_for_websocket(
-    account_id: String,
+    account: codexmanager_core::storage::Account,
+    token: codexmanager_core::storage::Token,
     failed_task_id: String,
 ) -> Result<Option<WsUpstreamAuthorization>, String> {
     tokio::task::spawn_blocking(move || {
         let storage = open_storage()
             .ok_or_else(|| crate::gateway::bilingual_error("存储不可用", "storage unavailable"))?;
-        let client = crate::gateway::upstream_client_for_account(account_id.as_str())?;
+        let client = crate::gateway::upstream_client_for_account(account.id.as_str())?;
         crate::agent_identity::recover_account_agent_identity_authorization(
             &storage,
             &client,
-            &account_id,
+            &account,
+            &token,
             &failed_task_id,
         )
         .map(|resolved| {
@@ -1083,6 +1101,7 @@ async fn recover_agent_identity_authorization_for_websocket(
                 task_id: Some(resolved.task_id),
                 uses_agent_identity: true,
                 is_fedramp: resolved.is_fedramp,
+                account_scope_id: resolved.account_scope_id,
             })
         })
     })
@@ -1511,9 +1530,11 @@ fn build_upstream_websocket_request(
     if authorization.is_fedramp {
         insert_header(headers, "x-openai-fedramp", "true")?;
     }
-    if let Some(account_id) = account
-        .chatgpt_account_id
+    if let Some(account_id) = authorization
+        .account_scope_id
         .as_deref()
+        .or(account.workspace_id.as_deref())
+        .or(account.chatgpt_account_id.as_deref())
         .map(str::trim)
         .filter(|value| !value.is_empty())
     {
