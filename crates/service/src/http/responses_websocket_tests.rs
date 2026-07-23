@@ -2,7 +2,8 @@ use super::{
     build_socks5_connect_request, build_upstream_websocket_request, infer_ws_terminal_status,
     inspect_ws_terminal_event, is_previous_response_not_found_terminal, merge_client_metadata,
     parse_websocket_target, parse_ws_usage, proxy_basic_auth_header, rewrite_client_frame,
-    strip_previous_response_id_from_ws_text, WsRequestContext, WsUpstreamAuthorization,
+    should_buffer_ws_upstream_preamble, strip_previous_response_id_from_ws_text, WsRequestContext,
+    WsUpstreamAuthorization,
 };
 use axum::http::{HeaderMap, HeaderValue};
 use codexmanager_core::storage::{now_ts, Account, ApiKey, Storage, Token};
@@ -236,6 +237,54 @@ fn inspect_ws_terminal_event_infers_usage_limit_status_without_explicit_status()
     .expect("terminal event");
 
     assert_eq!(event.status_code, 429);
+    assert!(event.is_usage_limit);
+}
+
+#[test]
+fn inspect_ws_terminal_event_reads_standard_nested_usage_limit_error() {
+    let event = inspect_ws_terminal_event(
+        r#"{"type":"response.failed","response":{"id":"resp_limited","status":"failed","error":{"code":"usage_limit_reached","message":"The usage limit has been reached"}}}"#,
+    )
+    .expect("terminal event");
+
+    assert_eq!(event.status_code, 429);
+    assert_eq!(
+        event.error.as_deref(),
+        Some("The usage limit has been reached")
+    );
+    assert!(event.is_usage_limit);
+}
+
+#[test]
+fn inspect_ws_terminal_event_recognizes_usage_limit_code_without_message() {
+    let event = inspect_ws_terminal_event(
+        r#"{"type":"response.failed","response":{"error":{"code":"usage_limit_reached"}}}"#,
+    )
+    .expect("terminal event");
+
+    assert_eq!(event.status_code, 429);
+    assert_eq!(event.error.as_deref(), Some("usage_limit_reached"));
+    assert!(event.is_usage_limit);
+}
+
+#[test]
+fn usage_limit_words_in_normal_output_are_not_treated_as_terminal() {
+    assert!(inspect_ws_terminal_event(
+        r#"{"type":"response.output_text.delta","delta":"The usage limit has been reached is an English error message."}"#,
+    )
+    .is_none());
+}
+
+#[test]
+fn websocket_created_event_is_buffered_but_actual_output_is_not() {
+    assert!(should_buffer_ws_upstream_preamble(
+        r#"{"type":"response.created","response":{"id":"resp_a"}}"#,
+        0,
+    ));
+    assert!(!should_buffer_ws_upstream_preamble(
+        r#"{"type":"response.output_item.added","item":{"type":"message"}}"#,
+        1,
+    ));
 }
 
 #[test]
