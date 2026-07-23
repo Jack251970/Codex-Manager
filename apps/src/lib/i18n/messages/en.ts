@@ -188,6 +188,9 @@ export const EN_MESSAGES: MessageCatalog = {
   开机自动启动: "Launch at startup",
   系统登录后自动启动桌面端并保持网关可用:
     "Launch the desktop app after system sign-in and keep the gateway available.",
+  启动时显示主界面: "Show main window on startup",
+  "开启时直接显示主界面；关闭此项时保持隐藏，可从托盘菜单打开":
+    "When disabled, the app starts with the main window hidden; open it from the tray menu.",
   关闭时最小化到托盘: "Minimize to tray on close",
   点击关闭按钮不会直接退出程序:
     "Closing the window won't exit the app immediately.",
