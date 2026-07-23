@@ -18,7 +18,7 @@ use super::state::{
 pub(crate) const MAIN_WINDOW_LABEL: &str = "main";
 pub(crate) const TRAY_PREVIEW_WINDOW_LABEL: &str = "tray-preview";
 const TRAY_PREVIEW_WIDTH: f64 = 360.0;
-const TRAY_PREVIEW_HEIGHT: f64 = 423.0;
+const TRAY_PREVIEW_HEIGHT: f64 = 430.0;
 const TRAY_PREVIEW_MARGIN: f64 = 8.0;
 static SHOW_MAIN_WINDOW_PENDING: AtomicBool = AtomicBool::new(false);
 static MAIN_WINDOW_CREATED_ONCE: AtomicBool = AtomicBool::new(false);
