@@ -5,14 +5,22 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-23
+
 ### Added
 
 - Added `chatgpt.com` Device Code account authorization with code display/copy, verification-page launch, automatic polling, cancellation, and expiry handling; browser authorization and manual callback parsing remain available (#370).
 - `/skills/` now separates **Skills Installation** from **Codex Plugin Installation**. Individual Skills can be installed from built-in or custom GitHub repositories, skills.sh search results, ZIPs, and existing directories, with background repository refresh and safe uninstall; the native Codex Marketplace remains available for complete standard-plugin installation, and `.system` skills stay read-only (#126).
 - Added `gpt-image-2` (snapshot `gpt-image-2-2026-04-21`) as the ninth builtin and eighth normally visible catalog model. The entry is limited to `/v1/images/generations` and `/v1/images/edits`, is not exposed as a text, Chat Completions, or direct Responses main model, and stores the official $8 / $2 / $30 per-1M image input / cached input / output token rates as catalog metadata.
 
+### Changed
+
+- Bumped the release version to `0.5.0` and synchronized workspace, frontend package, Tauri desktop metadata, and lockfiles.
+- Cleaned up frontend lint errors and warnings so the pre-release quality checks run cleanly.
+
 ### Fixed
 
+- Fixed Responses WebSocket failover when an upstream sends `response.created` before reporting quota exhaustion in a nested `response.failed` event. Content-free lifecycle events are now buffered, nested errors are recognized, exhausted accounts are marked limited immediately, and the current request is replayed silently on the next available account.
 - Added a `compatible` aggregate API provider type so one upstream URL and key can serve both Codex/OpenAI and native Claude requests using the incoming request path, without duplicate provider records (#359).
 - Fixed 401 responses for accounts imported with only a ChatGPT `/api/auth/session` `accessToken`. HTTP, Responses WebSocket, and account warmup paths now register and persist missing AgentIdentity material on demand, validate the account binding, use AgentAssertion, and accept the official nested snake_case/camelCase AgentIdentity shapes (#376).
 - Fixed `/api/auth/session` accounts appearing as generic imported-account placeholders. Display names now resolve from the access-token OpenAI profile or session user data, while preserving manually edited names and upgrading legacy placeholder labels.
@@ -415,7 +423,8 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 ### Changed
 - The operation area of ​​the account management page is integrated into a single "Account Operation" drop-down menu, replacing the stack of multiple buttons on the right, making the interface more concise.
 
-[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.4...v0.5.0
 [0.4.4]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/qxcnm/Codex-Manager/compare/v0.4.1...v0.4.2
