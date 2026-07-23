@@ -40,6 +40,7 @@ const REQUEST_ID_HEADER: &str = "x-request-id";
 const OAI_REQUEST_ID_HEADER: &str = "x-oai-request-id";
 const CF_RAY_HEADER: &str = "cf-ray";
 const AUTH_ERROR_HEADER: &str = "x-openai-authorization-error";
+const X_OPENAI_FEDRAMP_HEADER_NAME: &str = "x-openai-fedramp";
 
 #[derive(Debug, Clone)]
 pub(crate) struct UsageActionHttpError {
@@ -643,7 +644,7 @@ fn build_usage_http_default_headers() -> HeaderMap {
 ///
 /// # 返回
 /// 返回函数执行结果
-fn build_usage_request_headers(workspace_id: Option<&str>) -> HeaderMap {
+fn build_usage_request_headers(workspace_id: Option<&str>, is_fedramp: bool) -> HeaderMap {
     let mut headers = HeaderMap::new();
     if let Some(workspace_id) = workspace_id
         .map(str::trim)
@@ -654,6 +655,12 @@ fn build_usage_request_headers(workspace_id: Option<&str>) -> HeaderMap {
                 headers.insert(name, value);
             }
         }
+    }
+    if is_fedramp {
+        headers.insert(
+            HeaderName::from_static(X_OPENAI_FEDRAMP_HEADER_NAME),
+            HeaderValue::from_static("true"),
+        );
     }
     headers
 }
@@ -730,21 +737,33 @@ fn summarize_endpoint_error_response(
     body: &str,
     force_html_error: bool,
 ) -> String {
+    let invalid_agent_task = crate::agent_identity::is_agent_identity_task_invalid_response(
+        status.as_u16(),
+        body.as_bytes(),
+    );
     let request_id = extract_response_header(headers, REQUEST_ID_HEADER)
         .or_else(|| extract_response_header(headers, OAI_REQUEST_ID_HEADER));
     let cf_ray = extract_response_header(headers, CF_RAY_HEADER);
     let auth_error = extract_response_header(headers, AUTH_ERROR_HEADER);
     let identity_error_code = crate::gateway::extract_identity_error_code_from_headers(headers);
-    let body_hint = if force_html_error {
-        crate::gateway::summarize_upstream_error_hint_from_body(403, body.as_bytes())
+    let body_hint = if invalid_agent_task {
+        "invalid_task_id".to_string()
     } else {
-        crate::gateway::summarize_upstream_error_hint_from_body(status.as_u16(), body.as_bytes())
-    }
-    .or_else(|| {
-        let trimmed = body.trim();
-        (!trimmed.is_empty()).then(|| trimmed.to_string())
-    })
-    .unwrap_or_else(|| "unknown error".to_string());
+        let summarized = if force_html_error {
+            crate::gateway::summarize_upstream_error_hint_from_body(403, body.as_bytes())
+        } else {
+            crate::gateway::summarize_upstream_error_hint_from_body(
+                status.as_u16(),
+                body.as_bytes(),
+            )
+        };
+        summarized
+            .or_else(|| {
+                let trimmed = body.trim();
+                (!trimmed.is_empty()).then(|| trimmed.to_string())
+            })
+            .unwrap_or_else(|| "unknown error".to_string())
+    };
 
     let mut details = Vec::new();
     if let Some(request_id) = request_id {
@@ -753,11 +772,18 @@ fn summarize_endpoint_error_response(
     if let Some(cf_ray) = cf_ray {
         details.push(format!("cf-ray: {cf_ray}"));
     }
-    if let Some(auth_error) = auth_error {
-        details.push(format!("auth error: {auth_error}"));
+    if !invalid_agent_task {
+        if let Some(auth_error) = auth_error {
+            details.push(format!("auth error: {auth_error}"));
+        }
     }
-    if let Some(identity_error_code) = identity_error_code {
-        details.push(format!("identity error code: {identity_error_code}"));
+    if !invalid_agent_task {
+        if let Some(identity_error_code) = identity_error_code {
+            details.push(format!("identity error code: {identity_error_code}"));
+        }
+    }
+    if invalid_agent_task {
+        details.push("agent identity task error: invalid_task_id".to_string());
     }
 
     if details.is_empty() {
@@ -1024,10 +1050,20 @@ pub(crate) fn fetch_usage_snapshot(
     bearer: &str,
     workspace_id: Option<&str>,
 ) -> Result<serde_json::Value, String> {
+    fetch_usage_snapshot_with_auth_context(base_url, bearer, workspace_id, false)
+}
+
+pub(crate) fn fetch_usage_snapshot_with_auth_context(
+    base_url: &str,
+    auth_token: &str,
+    workspace_id: Option<&str>,
+    is_fedramp: bool,
+) -> Result<serde_json::Value, String> {
     run_usage_future(fetch_usage_snapshot_async(
         base_url,
-        bearer,
+        auth_token,
         workspace_id,
+        is_fedramp,
         None,
     ))
 }
@@ -1038,11 +1074,28 @@ pub(crate) fn fetch_usage_snapshot_with_explicit_proxy(
     workspace_id: Option<&str>,
     proxy_url: &str,
 ) -> Result<serde_json::Value, String> {
-    let proxy_url = normalize_explicit_proxy_url(proxy_url)?;
-    run_usage_future(fetch_usage_snapshot_async(
+    fetch_usage_snapshot_with_auth_context_and_explicit_proxy(
         base_url,
         bearer,
         workspace_id,
+        false,
+        proxy_url,
+    )
+}
+
+pub(crate) fn fetch_usage_snapshot_with_auth_context_and_explicit_proxy(
+    base_url: &str,
+    auth_token: &str,
+    workspace_id: Option<&str>,
+    is_fedramp: bool,
+    proxy_url: &str,
+) -> Result<serde_json::Value, String> {
+    let proxy_url = normalize_explicit_proxy_url(proxy_url)?;
+    run_usage_future(fetch_usage_snapshot_async(
+        base_url,
+        auth_token,
+        workspace_id,
+        is_fedramp,
         Some(proxy_url.as_str()),
     ))
 }
@@ -1132,7 +1185,7 @@ fn reset_credit_request_headers(
     }
     let origin = url.origin().ascii_serialization();
     let referer = format!("{origin}/");
-    let mut headers = build_usage_request_headers(workspace_id);
+    let mut headers = build_usage_request_headers(workspace_id, false);
     headers.insert(
         reqwest::header::ACCEPT,
         HeaderValue::from_static("application/json"),
@@ -1346,17 +1399,17 @@ pub(crate) fn fetch_account_subscription_with_explicit_proxy(
 /// 返回函数执行结果
 async fn fetch_usage_snapshot_async(
     base_url: &str,
-    bearer: &str,
+    auth_token: &str,
     workspace_id: Option<&str>,
+    is_fedramp: bool,
     explicit_proxy_url: Option<&str>,
 ) -> Result<serde_json::Value, String> {
     // 调用上游用量接口
     let url = usage_endpoint(base_url);
-    let request_headers = build_usage_request_headers(workspace_id);
+    let request_headers = build_usage_request_headers(workspace_id, is_fedramp);
+    let authorization = crate::agent_identity::format_upstream_authorization(auth_token);
     let build_request = |client: Client| {
-        let mut req = client
-            .get(&url)
-            .header("Authorization", format!("Bearer {bearer}"));
+        let mut req = client.get(&url).header("Authorization", &authorization);
         if !request_headers.is_empty() {
             req = req.headers(request_headers.clone());
         }

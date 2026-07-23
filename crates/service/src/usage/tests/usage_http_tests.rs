@@ -796,7 +796,7 @@ fn usage_http_default_headers_follow_gateway_runtime_profile() {
 /// 无
 #[test]
 fn usage_request_headers_use_official_chatgpt_account_header_name() {
-    let headers = build_usage_request_headers(Some("workspace_123"));
+    let headers = build_usage_request_headers(Some("workspace_123"), false);
 
     assert_eq!(
         headers
@@ -805,6 +805,19 @@ fn usage_request_headers_use_official_chatgpt_account_header_name() {
         Some("workspace_123")
     );
     assert_eq!(headers.len(), 1);
+}
+
+#[test]
+fn usage_request_headers_include_fedramp_context_when_enabled() {
+    let headers = build_usage_request_headers(Some("workspace_123"), true);
+
+    assert_eq!(
+        headers
+            .get("x-openai-fedramp")
+            .and_then(|value| value.to_str().ok()),
+        Some("true")
+    );
+    assert_eq!(headers.len(), 2);
 }
 
 #[test]
@@ -1118,6 +1131,38 @@ fn fetch_usage_snapshot_with_explicit_proxy_uses_explicit_proxy_before_global_pr
     assert!(request.contains("authorization: bearer token_123"));
     assert!(request.contains("chatgpt-account-id: workspace_123"));
     assert_eq!(snapshot["gpt4"]["usedPercent"], 12.5);
+}
+
+#[test]
+fn fetch_usage_snapshot_preserves_agent_assertion_authorization() {
+    let _guard = crate::test_env_guard();
+    let _global_proxy = EnvVarRestore::set("CODEXMANAGER_UPSTREAM_PROXY_URL", "");
+    super::reload_usage_http_client_from_env();
+    let (proxy_url, request_rx, proxy_handle) = spawn_recording_http_proxy(
+        r#"{"gpt4":{"usedPercent":8.0,"windowMinutes":180}}"#,
+        "application/json",
+    );
+
+    let snapshot = super::fetch_usage_snapshot_with_auth_context_and_explicit_proxy(
+        "http://chatgpt.test",
+        "AgentAssertion encoded-value",
+        Some("workspace-agent"),
+        true,
+        proxy_url.as_str(),
+    )
+    .expect("fetch agent identity usage snapshot");
+    let request = request_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("capture agent identity usage request");
+    proxy_handle
+        .join()
+        .expect("join agent identity usage proxy");
+    let request = request.to_ascii_lowercase();
+
+    assert!(request.contains("authorization: agentassertion encoded-value"));
+    assert!(request.contains("chatgpt-account-id: workspace-agent"));
+    assert!(request.contains("x-openai-fedramp: true"));
+    assert_eq!(snapshot["gpt4"]["usedPercent"], 8.0);
 }
 
 #[test]
@@ -1454,6 +1499,36 @@ fn summarize_usage_error_response_stabilizes_html_and_debug_headers() {
     assert!(summary.contains("cf-ray: cf_usage_123"));
     assert!(summary.contains("auth error: missing_authorization_header"));
     assert!(summary.contains("identity error code: token_expired"));
+}
+
+#[test]
+fn summarize_usage_error_response_redacts_invalid_agent_task_details() {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-openai-authorization-error",
+        HeaderValue::from_static("task-secret-from-header"),
+    );
+    headers.insert(
+        "x-error-json",
+        HeaderValue::from_static(
+            "{\"details\":{\"identity_error_code\":\"task-secret-from-identity-header\"}}",
+        ),
+    );
+
+    let summary = summarize_usage_error_response(
+        StatusCode::UNAUTHORIZED,
+        &headers,
+        r#"{"error":{"code":"task_expired","message":"task-secret-from-body"}}"#,
+        false,
+    );
+
+    assert!(summary.contains("invalid_task_id"));
+    assert!(crate::agent_identity::is_agent_identity_task_invalid_error(
+        &summary
+    ));
+    assert!(!summary.contains("task-secret-from-body"));
+    assert!(!summary.contains("task-secret-from-header"));
+    assert!(!summary.contains("task-secret-from-identity-header"));
 }
 
 /// 函数 `summarize_usage_error_response_accepts_raw_error_json_header`

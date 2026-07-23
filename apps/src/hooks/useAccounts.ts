@@ -758,6 +758,7 @@ export function useAccounts() {
     mutationFn: ({
       accountId,
       label,
+      groupName,
       note,
       tags,
       sort,
@@ -766,6 +767,7 @@ export function useAccounts() {
     }: {
       accountId: string;
       label?: string | null;
+      groupName?: string | null;
       note?: string | null;
       tags?: string[] | string | null;
       sort?: number | null;
@@ -774,6 +776,7 @@ export function useAccounts() {
     }) =>
       accountClient.updateProfile(accountId, {
         label,
+        groupName,
         note,
         tags,
         sort,
@@ -846,7 +849,9 @@ export function useAccounts() {
         toast.info(t("已取消导入"));
         return;
       }
-      queueImportedUsageRefresh(result.importedAccountIds);
+      queueImportedUsageRefresh(
+        result.usageRefreshAccountIds ?? result.importedAccountIds
+      );
       await invalidateAccountData();
       toast.success(buildImportSummaryMessage(result, t));
     },
@@ -862,7 +867,9 @@ export function useAccounts() {
         toast.info(t("已取消导入"));
         return;
       }
-      queueImportedUsageRefresh(result.importedAccountIds);
+      queueImportedUsageRefresh(
+        result.usageRefreshAccountIds ?? result.importedAccountIds
+      );
       await invalidateAccountData();
       toast.success(buildImportSummaryMessage(result, t));
     },
@@ -1122,6 +1129,7 @@ export function useAccounts() {
       accountId: string,
       params: {
         label?: string | null;
+        groupName?: string | null;
         note?: string | null;
         tags?: string[] | string | null;
         sort?: number | null;
