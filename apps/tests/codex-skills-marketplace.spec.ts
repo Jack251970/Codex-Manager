@@ -301,7 +301,7 @@ test("Skills and plugins are split while the inline plugin marketplace stays usa
   });
   const captureDirectory = process.env.CODEX_SKILLS_CAPTURE_DIR?.trim();
   await page.setViewportSize(
-    captureDirectory ? { width: 2048, height: 1189 } : { width: 1440, height: 900 },
+    captureDirectory ? { width: 2048, height: 1189 } : { width: 1280, height: 800 },
   );
   await mockRuntimeAndSkillsRpc(page);
 
@@ -320,6 +320,37 @@ test("Skills and plugins are split while the inline plugin marketplace stays usa
   await expect(skillsPanel.getByText("128 次安装")).toBeVisible();
   await expect(skillsPanel.getByText("全部仓库", { exact: true })).toBeVisible();
   await expect(skillsPanel.getByText("全部状态", { exact: true })).toBeVisible();
+  const repositorySearch = skillsPanel.getByRole("textbox", {
+    name: "搜索 Skill、描述或作者",
+  });
+  const repositoryFilter = skillsPanel
+    .getByRole("combobox")
+    .filter({ hasText: "全部仓库" });
+  const installFilter = skillsPanel
+    .getByRole("combobox")
+    .filter({ hasText: "全部状态" });
+  const refreshButton = skillsPanel.getByRole("button", { name: "刷新" });
+  const [searchBounds, repositoryBounds, installBounds, refreshBounds] =
+    await Promise.all([
+      repositorySearch.boundingBox(),
+      repositoryFilter.boundingBox(),
+      installFilter.boundingBox(),
+      refreshButton.boundingBox(),
+    ]);
+  expect(searchBounds).not.toBeNull();
+  expect(repositoryBounds).not.toBeNull();
+  expect(installBounds).not.toBeNull();
+  expect(refreshBounds).not.toBeNull();
+  expect(searchBounds!.width).toBeGreaterThan(240);
+  expect(repositoryBounds!.width).toBeGreaterThanOrEqual(200);
+  expect(repositoryBounds!.width).toBeLessThanOrEqual(240);
+  expect(installBounds!.width).toBeGreaterThanOrEqual(140);
+  expect(installBounds!.width).toBeLessThanOrEqual(180);
+  expect(searchBounds!.x + searchBounds!.width).toBeLessThan(repositoryBounds!.x);
+  expect(repositoryBounds!.x + repositoryBounds!.width).toBeLessThan(
+    installBounds!.x,
+  );
+  expect(installBounds!.x + installBounds!.width).toBeLessThan(refreshBounds!.x);
   if (captureDirectory) {
     await page.screenshot({
       path: `${captureDirectory}/skills-repository-catalog.png`,

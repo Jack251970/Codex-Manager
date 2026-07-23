@@ -622,7 +622,7 @@ export function SkillsCatalogPanel({
         <TabsContent value="repositories">
           <WorkPanel>
             <CardContent className="space-y-3 border-b border-border/60 px-4 py-3">
-              <div className="flex flex-col gap-3 lg:flex-row">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_14rem_10rem_auto] lg:items-center">
                 <div className="relative min-w-0 flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -637,7 +637,7 @@ export function SkillsCatalogPanel({
                   value={repositoryFilter}
                   onValueChange={(value) => setRepositoryFilter(value || "all")}
                 >
-                  <SelectTrigger className="w-full lg:w-56">
+                  <SelectTrigger className="w-full min-w-0">
                     <SelectValue>
                       {(value) => {
                         const selected = String(value || "all");
@@ -667,7 +667,7 @@ export function SkillsCatalogPanel({
                     setInstallFilter((value || "all") as InstallFilter)
                   }
                 >
-                  <SelectTrigger className="w-full lg:w-40">
+                  <SelectTrigger className="w-full min-w-0">
                     <SelectValue>
                       {(value) => {
                         const selected = String(value || "all");
@@ -689,6 +689,7 @@ export function SkillsCatalogPanel({
                   type="button"
                   variant="ghost"
                   size="icon"
+                  className="justify-self-end"
                   title={t("刷新")}
                   aria-label={t("刷新")}
                   disabled={!enabled || repositoriesQuery.isFetching}
