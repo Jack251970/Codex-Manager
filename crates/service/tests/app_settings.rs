@@ -1059,7 +1059,7 @@ fn app_settings_set_persists_snapshot_and_password_hash() {
             snapshot
                 .get("freeAccountMaxModel")
                 .and_then(|value| value.as_str()),
-            Some("gpt-5.3-codex")
+            Some("auto")
         );
         assert_eq!(
             snapshot
@@ -1144,7 +1144,7 @@ fn app_settings_set_persists_snapshot_and_password_hash() {
                     codexmanager_service::APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY
                 )
                 .expect("read free account max model"),
-            Some("gpt-5.3-codex".to_string())
+            Some("auto".to_string())
         );
         assert_eq!(
             storage
@@ -1509,7 +1509,7 @@ fn sync_runtime_settings_from_storage_applies_saved_runtime_values() {
             snapshot
                 .get("freeAccountMaxModel")
                 .and_then(|value| value.as_str()),
-            Some("gpt-5.1-codex")
+            Some("auto")
         );
         assert_eq!(
             snapshot
@@ -1725,7 +1725,7 @@ fn app_settings_get_loads_env_backed_dedicated_settings_when_storage_missing() {
             snapshot
                 .get("freeAccountMaxModel")
                 .and_then(|value| value.as_str()),
-            Some("gpt-5.2-codex")
+            Some("auto")
         );
         assert_eq!(
             snapshot
@@ -1849,7 +1849,7 @@ fn app_settings_get_loads_env_backed_dedicated_settings_when_storage_missing() {
                     codexmanager_service::APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY
                 )
                 .expect("read free account max model"),
-            Some("gpt-5.2-codex".to_string())
+            Some("auto".to_string())
         );
         assert_eq!(
             storage

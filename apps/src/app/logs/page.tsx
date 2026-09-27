@@ -188,6 +188,7 @@ function LogsPageContent() {
     },
     refetchIntervalInBackground: false,
     retry: 1,
+    gcTime: 60_000,
     placeholderData: (
       previousData,
       previousQuery,

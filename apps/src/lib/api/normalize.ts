@@ -463,6 +463,8 @@ export function normalizeAccount(item: unknown, usage?: AccountUsage | null): Ac
     group: groupName,
     priority: asInteger(source.sort ?? source.priority, 0, 0),
     preferred: Boolean(source.preferred),
+    resetWarmupEnabled:
+      (source.resetWarmupEnabled ?? source.reset_warmup_enabled) !== false,
     label: name,
     groupName,
     sort: asInteger(source.sort ?? source.priority, 0, 0),
@@ -846,7 +848,11 @@ export function normalizeAggregateApi(item: unknown): AggregateApi | null {
     id,
     providerType: asString(source.providerType ?? source.provider_type) || "codex",
     supplierName: asString(source.supplierName ?? source.supplier_name) || null,
-    sort: asInteger(source.sort ?? source.priority, 0, 0),
+    sort: asInteger(
+      source.sort ?? source.priority,
+      0,
+      Number.NEGATIVE_INFINITY,
+    ),
     url: asString(source.url),
     userAgent: asString(source.userAgent ?? source.user_agent) || null,
     authType: asString(source.authType ?? source.auth_type) || "apikey",

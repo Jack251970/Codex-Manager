@@ -14,6 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { appClient } from "@/lib/api/app-client";
 import { useRuntimeCapabilities } from "@/hooks/useRuntimeCapabilities";
+import { useDesktopPageActive } from "@/hooks/useDesktopPageActive";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   normalizeSponsorLinkItems,
@@ -258,6 +259,7 @@ function EmptyAuthorContent({ translate }: { translate: (message: string) => str
 export default function AuthorPage() {
   const { t } = useI18n();
   const { authorContentUrl } = useRuntimeCapabilities();
+  const isPageActive = useDesktopPageActive("/author/");
   const contentUrl = authorContentUrl || FALLBACK_AUTHOR_CONTENT_API;
   const [authorContent, setAuthorContent] = useState<AuthorContentState>({
     authorSponsors: [],
@@ -265,14 +267,16 @@ export default function AuthorPage() {
   });
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !isPageActive) return;
 
     let cancelled = false;
+    const controller = new AbortController();
 
     const loadContent = () => {
       void fetch(contentUrl, {
         cache: "no-store",
         headers: { Accept: "application/json" },
+        signal: controller.signal,
       })
         .then(async (response) => {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -285,8 +289,8 @@ export default function AuthorPage() {
             ),
           });
         })
-        .catch(() => {
-          if (cancelled) return;
+        .catch((error: unknown) => {
+          if (cancelled || (error instanceof DOMException && error.name === "AbortError")) return;
           setAuthorContent({
             authorSponsors: [],
             authorServerRecommendations: [],
@@ -299,9 +303,10 @@ export default function AuthorPage() {
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearInterval(timer);
     };
-  }, [contentUrl]);
+  }, [contentUrl, isPageActive]);
 
   const visibleSponsors = authorContent.authorSponsors;
   const visibleServerRecommendations =

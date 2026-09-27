@@ -649,7 +649,7 @@ pub(super) fn convert_responses_body_to_chat_completions(body: &[u8]) -> Option<
         .get("model")
         .or_else(|| value.get("model"))
         .and_then(Value::as_str)
-        .unwrap_or("gpt-5.4");
+        .unwrap_or(super::DEFAULT_BRIDGE_MODEL);
     let created = response
         .get("created_at")
         .or_else(|| response.get("created"))
@@ -745,6 +745,8 @@ pub(super) fn convert_responses_body_to_images(
     serde_json::to_vec(&build_images_api_response(response, response_format)).ok()
 }
 
+// Keep response-to-SSE converters for the streaming compatibility adapter surface.
+#[allow(dead_code)]
 pub(super) fn images_response_body_to_sse(
     body: &[u8],
     response_format: ImagesResponseFormat,
@@ -777,6 +779,7 @@ pub(super) fn images_response_body_to_sse(
     out
 }
 
+#[allow(dead_code)]
 pub(super) fn chat_completion_body_to_single_sse(body: &[u8]) -> Vec<u8> {
     let value = serde_json::from_slice::<Value>(body).unwrap_or_else(|_| json!({}));
     let id = value
@@ -786,7 +789,7 @@ pub(super) fn chat_completion_body_to_single_sse(body: &[u8]) -> Vec<u8> {
     let model = value
         .get("model")
         .and_then(Value::as_str)
-        .unwrap_or("gpt-5.4");
+        .unwrap_or(super::DEFAULT_BRIDGE_MODEL);
     let created = value.get("created").and_then(Value::as_i64).unwrap_or(0);
     let content = value
         .get("choices")

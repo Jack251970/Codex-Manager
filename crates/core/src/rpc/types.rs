@@ -179,6 +179,8 @@ pub struct AccountSummary {
     pub label: String,
     pub group_name: Option<String>,
     pub preferred: bool,
+    #[serde(default = "default_reset_warmup_enabled")]
+    pub reset_warmup_enabled: bool,
     pub sort: i64,
     pub status: String,
     pub status_reason: Option<String>,
@@ -216,6 +218,10 @@ pub struct AccountSummary {
     pub proxy_timezone_utc: Option<String>,
     pub proxy_flag_img_url: Option<String>,
     pub proxy_flag_emoji: Option<String>,
+}
+
+fn default_reset_warmup_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize)]

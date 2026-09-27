@@ -231,38 +231,38 @@ fn http_block_policy_rejects_client_accelerated_tiers_and_filters_unsupported_ti
     let storage = Storage::open_in_memory().expect("open storage");
     storage.init().expect("init storage");
     let mut model = storage
-        .get_managed_model_v2("gpt-5.4-mini")
+        .get_managed_model_v2("gpt-6-luna")
         .expect("read managed model")
         .expect("managed model");
     model.fast_policy = codexmanager_core::storage::ModelFastPolicyV2::Block;
     storage
         .upsert_managed_model_v2(&ManagedModelV2Upsert {
-            previous_slug: Some("gpt-5.4-mini".to_string()),
+            previous_slug: Some("gpt-6-luna".to_string()),
             model,
         })
         .expect("update block policy");
 
     for tier in ["fast", "priority", "ultrafast"] {
         let body = serde_json::to_vec(&serde_json::json!({
-            "model": "gpt-5.4-mini",
+            "model": "gpt-6-luna",
             "input": "hello",
             "service_tier": tier
         }))
         .expect("serialize request");
-        let err = apply_model_fast_policy(&storage, Some("gpt-5.4-mini"), body, Some(tier))
+        let err = apply_model_fast_policy(&storage, Some("gpt-6-luna"), body, Some(tier))
             .expect_err("accelerated request tier must be blocked");
         assert_eq!(err.status_code, 400, "unexpected status for tier {tier}");
     }
 
     for tier in ["auto", "default"] {
         let body = serde_json::to_vec(&serde_json::json!({
-            "model": "gpt-5.4-mini",
+            "model": "gpt-6-luna",
             "input": "hello",
             "service_tier": tier
         }))
         .expect("serialize request");
         let (body, applied) =
-            match apply_model_fast_policy(&storage, Some("gpt-5.4-mini"), body, Some(tier)) {
+            match apply_model_fast_policy(&storage, Some("gpt-6-luna"), body, Some(tier)) {
                 Ok(result) => result,
                 Err(err) => panic!("non-accelerated tier {tier} was rejected: {}", err.message),
             };
@@ -275,14 +275,13 @@ fn http_block_policy_rejects_client_accelerated_tiers_and_filters_unsupported_ti
     }
 
     let body = serde_json::to_vec(&serde_json::json!({
-        "model": "gpt-5.4-mini",
+        "model": "gpt-6-luna",
         "input": "hello",
         "service_tier": "flex"
     }))
     .expect("serialize request");
-    let (body, applied) =
-        apply_model_fast_policy(&storage, Some("gpt-5.4-mini"), body, Some("flex"))
-            .unwrap_or_else(|err| panic!("Flex tier was rejected: {}", err.message));
+    let (body, applied) = apply_model_fast_policy(&storage, Some("gpt-6-luna"), body, Some("flex"))
+        .unwrap_or_else(|err| panic!("Flex tier was rejected: {}", err.message));
     let payload: Value = serde_json::from_slice(&body).expect("parse request");
     assert!(applied, "unadvertised Flex tier must be omitted");
     assert!(payload.get("service_tier").is_none());
@@ -1738,7 +1737,7 @@ fn anthropic_model_must_exist_in_v2_catalog() {
     let storage = Storage::open_in_memory().expect("open storage");
     storage.init().expect("init storage");
     let mut model = storage
-        .get_managed_model_v2("gpt-5.4-mini")
+        .get_managed_model_v2("gpt-6-luna")
         .expect("read template model")
         .expect("template model");
     model.id.clear();

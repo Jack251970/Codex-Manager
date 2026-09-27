@@ -102,7 +102,7 @@
 ### Codex image generation
 
 - `CODEXMANAGER_CODEX_IMAGE_GENERATION_ENABLED`: enables the image-generation compatibility path. Default `1`.
-- `CODEXMANAGER_CODEX_IMAGE_MAIN_MODEL`: main conversation model used internally by Images API compatibility endpoints. Default `gpt-5.4-mini`.
+- `CODEXMANAGER_CODEX_IMAGE_MAIN_MODEL`: main conversation model used internally by Images API compatibility endpoints. Default `gpt-6-luna`.
 - `CODEXMANAGER_CODEX_IMAGE_TOOL_MODEL`: image tool model. Default `gpt-image-2`.
 
 Notes:

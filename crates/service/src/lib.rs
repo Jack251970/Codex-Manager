@@ -16,6 +16,7 @@ mod codex_skill_repositories;
 mod codex_skills;
 mod codex_skills_marketplace;
 mod dashboard;
+mod dashboard_storage;
 mod errors;
 mod gateway;
 mod http;
@@ -66,7 +67,10 @@ pub(crate) use apikey::read_secret as apikey_read_secret;
 pub(crate) use apikey::update_model as apikey_update_model;
 pub(crate) use apikey::usage_stats as apikey_usage_stats;
 pub(crate) use auth::account as auth_account;
-pub(crate) use auth::app_manager::distribution_enabled_for_storage;
+pub(crate) use auth::app_manager::{
+    distribution_enabled_for_storage, generate_id, hash_password, normalize_role,
+    normalize_username, public_user, validate_password, verify_password_hash,
+};
 pub(crate) use auth::callback as auth_callback;
 pub(crate) use auth::login as auth_login;
 pub(crate) use auth::tokens as auth_tokens;
@@ -91,6 +95,7 @@ pub(crate) use requestlog::today_summary as requestlog_today_summary;
 pub(crate) use runtime::lock_utils;
 pub use runtime::process_env;
 pub(crate) use runtime::reasoning_effort;
+pub use runtime::service_runtime::process_runtime;
 pub(crate) use storage::helpers as storage_helpers;
 pub(crate) use usage::account_meta as usage_account_meta;
 pub(crate) use usage::aggregate as usage_aggregate;
@@ -173,6 +178,10 @@ pub use auth::{
     AppUserUpdateInput, AppWalletResult, BillingModeLockResult,
 };
 pub use auth::{rpc_auth_token, rpc_auth_token_matches};
+pub use codexmanager_storage_seaorm::{
+    SeaOrmStorage, StorageConfig, StorageError as SeaOrmStorageError,
+};
+pub use http::router::{build_router, serve, AppState};
 pub use lifecycle::bootstrap::{initialize_storage_if_needed, portable};
 pub use lifecycle::shutdown::{clear_shutdown_flag, request_shutdown, shutdown_requested};
 pub use lifecycle::startup::{start_one_shot_server, start_server, ServerHandle};

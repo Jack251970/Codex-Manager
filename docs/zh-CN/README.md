@@ -10,7 +10,7 @@
 - 根目录 `CHANGELOG.md`：版本历史与未发版更新的唯一事实源。
 - `report/*`：运行、排障、兼容性、FAQ 类手册。
 - `release/*`：构建、发版、产物和发布流程说明。
-- `docs/plan/*` / `docs/decision/*`：长期治理、实施计划与决策记录。
+- `docs/superpowers/plans/` / `docs/superpowers/specs/`：长期治理、实施计划与设计决策记录。
 
 ## 赞助商
 
@@ -66,11 +66,13 @@
 
 ## 目录分工
 
-### `docs/plan/`
-用于保存实施计划、治理清单、阶段性 TODO。
+### `docs/superpowers/plans/`
+用于保存仍在维护的实施计划与阶段性任务说明。已结束的计划不再恢复到旧的
+`docs/plan/` 路径。
 
-### `docs/decision/`
-用于保存决策记录和 ADR。
+### `docs/superpowers/specs/`
+用于保存对应的设计说明与决策材料。旧的 `docs/decision/` 目录已清理，历史材料
+以现有报告或规格文件为准。
 
 ### `release/`
 用于保存发布说明、回滚方案、发版验收记录，以及构建发布手册。

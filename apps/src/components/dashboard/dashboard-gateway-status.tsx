@@ -89,18 +89,14 @@ export function DashboardGatewayStatus({
     return <Skeleton className="h-[148px] rounded-xl xl:h-[176px] xl:rounded-2xl" />;
   }
 
-  const title = directMode
-    ? t("当前为账号直连模式")
-    : connected
-      ? t("网关运行正常")
-      : t("正在等待网关连接");
+  const title = connected ? t("网关运行正常") : t("正在等待网关连接");
   const description = directMode
-    ? t("CodexManager 无法统计 CLI 请求日志和用量。")
+    ? t("本机 Codex 的直连请求不会经过网关；下方仍展示 CodexManager 已记录的网关流量。")
     : connected
       ? t("近期请求路由稳定，账号池可正常参与调度。")
       : t("正在等待服务连接。");
-  const actionHref = directMode ? "/platform-mode" : "/logs";
-  const actionLabel = directMode ? t("去切换为本地网关") : t("查看异常请求");
+  const actionHref = "/logs";
+  const actionLabel = directMode ? t("打开请求日志") : t("查看异常请求");
 
   return (
     <Card className="dashboard-primary-panel routing-command-card glass-card overflow-hidden rounded-xl border-border/60 py-0 xl:rounded-2xl">
@@ -110,12 +106,12 @@ export function DashboardGatewayStatus({
             <div
               className={cn(
                 "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 bg-background/75 shadow-[0_8px_24px_-18px_currentColor] xl:h-10 xl:w-10",
-                connected && !directMode
+                connected
                   ? "border-emerald-500 text-emerald-600"
                   : "border-amber-500/45 text-amber-600",
               )}
             >
-              {connected && !directMode ? (
+              {connected ? (
                 <Check className="h-[18px] w-[18px] stroke-[2.5] xl:h-5 xl:w-5" />
               ) : (
                 <AlertTriangle className="h-[18px] w-[18px] xl:h-5 xl:w-5" />

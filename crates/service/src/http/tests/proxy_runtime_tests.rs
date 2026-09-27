@@ -38,6 +38,63 @@ const TEST_ZSTD_MAX_BODY_BYTES: usize = 256 * 1024 * 1024;
 const TEST_LARGE_RESPONSES_WS_FRAME_BYTES: usize = 17 * 1024 * 1024;
 const TEST_IMAGE_CONTEXT_RESPONSES_WS_FRAME_BYTES: usize = 34 * 1024 * 1024;
 
+async fn assert_normal_client_close(
+    socket: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+) {
+    use tokio_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFrame};
+    socket
+        .close(Some(CloseFrame {
+            code: CloseCode::Normal,
+            reason: "fixture complete".into(),
+        }))
+        .await
+        .expect("send normal close");
+    let reply = tokio::time::timeout(Duration::from_secs(3), socket.next())
+        .await
+        .expect("close acknowledgement timeout")
+        .expect("close acknowledgement frame")
+        .expect("normal close must not reset the TCP connection");
+    let Message::Close(Some(frame)) = reply else {
+        panic!("expected close acknowledgement, got {reply:?}");
+    };
+    assert_eq!(frame.code, CloseCode::Normal);
+    assert_eq!(frame.reason, "fixture complete");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn responses_websocket_acknowledges_close_before_initial_request() {
+    let _guard = crate::test_env_guard();
+    let db_path = new_test_db_path("codexmanager-ws-close-initial");
+    let storage = init_test_storage(&db_path);
+    let _db_guard = EnvGuard::set("CODEXMANAGER_DB_PATH", db_path.to_string_lossy().as_ref());
+    insert_api_key_record(
+        &storage,
+        "platform_key_ws_close_initial",
+        crate::apikey_profile::ROTATION_ACCOUNT,
+        Some("http://127.0.0.1:1/chatgpt.com/backend-api/codex".into()),
+    );
+    let (addr, shutdown, server) = start_front_proxy_test_server(ProxyState {
+        backend_base_url: "http://127.0.0.1:1".into(),
+        client: Client::new(),
+    })
+    .await;
+    let (mut socket, _) = connect_async(build_ws_request(
+        &format!("ws://{addr}/v1/responses"),
+        "platform_key_ws_close_initial",
+        &[],
+    ))
+    .await
+    .expect("websocket upgrade");
+    assert_normal_client_close(&mut socket).await;
+    shutdown.send(()).unwrap();
+    tokio::time::timeout(Duration::from_secs(5), server)
+        .await
+        .unwrap()
+        .unwrap();
+}
+
 fn test_upstream_ws_config() -> WebSocketConfig {
     let mut config = WebSocketConfig::default()
         .max_message_size(Some(
@@ -539,7 +596,7 @@ fn insert_api_key_record(
         .insert_api_key(&ApiKey {
             id: "gk_proxy_runtime_ws".to_string(),
             name: Some("proxy-runtime-ws".to_string()),
-            model_slug: Some("gpt-5.4-mini".to_string()),
+            model_slug: Some("gpt-6-luna".to_string()),
             reasoning_effort: Some("high".to_string()),
             service_tier: Some("fast".to_string()),
             rotation_strategy: rotation_strategy.to_string(),
@@ -2454,11 +2511,11 @@ async fn official_responses_websocket_proxies_frames_and_headers() {
     let first_payload: serde_json::Value =
         serde_json::from_str(&first_upstream_frame).expect("parse first upstream frame");
     assert_eq!(first_payload["type"], "response.create");
-    assert_eq!(first_payload["model"], "gpt-5.4-mini");
+    assert_eq!(first_payload["model"], "gpt-6-luna");
     assert!(first_payload.get("stream").is_none());
     assert!(first_payload.get("background").is_none());
     assert_eq!(first_payload["store"], true);
-    assert!(first_payload.get("service_tier").is_none());
+    assert_eq!(first_payload["service_tier"], "priority");
     assert_eq!(first_payload["generate"], false);
     assert_eq!(first_payload["prompt_cache_key"], "session_ws_1");
 
@@ -2492,13 +2549,13 @@ async fn official_responses_websocket_proxies_frames_and_headers() {
     }
 
     let mut model = storage
-        .get_managed_model_v2("gpt-5.4-mini")
+        .get_managed_model_v2("gpt-6-luna")
         .expect("read websocket model")
         .expect("websocket model");
     model.fast_policy = ModelFastPolicyV2::Filter;
     storage
         .upsert_managed_model_v2(&ManagedModelV2Upsert {
-            previous_slug: Some("gpt-5.4-mini".to_string()),
+            previous_slug: Some("gpt-6-luna".to_string()),
             model,
         })
         .expect("update websocket model fast policy");
@@ -2670,10 +2727,10 @@ async fn official_responses_websocket_proxies_frames_and_headers() {
     assert!(
         ws_logs.iter().any(|item| {
             item.service_tier.as_deref() == Some("fast")
-                && item.effective_service_tier.is_none()
-                && item.service_tier_source.as_deref() == Some("model_policy")
+                && item.effective_service_tier.as_deref() == Some("fast")
+                && item.service_tier_source.as_deref() == Some("client_request")
         }),
-        "expected websocket request log to record the unsupported fast tier as filtered"
+        "expected websocket request log to record the supported fast tier"
     );
     assert!(
         ws_logs.iter().any(|item| item.service_tier.is_none()),
@@ -2690,7 +2747,7 @@ async fn official_responses_websocket_proxies_frames_and_headers() {
         "expected follow-up websocket request to apply the model filter policy"
     );
 
-    client_ws.close(None).await.expect("close client websocket");
+    assert_normal_client_close(&mut client_ws).await;
     let _ = shutdown_tx.send(());
     tokio::time::timeout(Duration::from_secs(5), server_handle)
         .await
@@ -2820,13 +2877,13 @@ async fn official_responses_websocket_block_policy_rejects_initial_frame() {
         Some("http://127.0.0.1:1/chatgpt.com/backend-api/codex".to_string()),
     );
     let mut model = storage
-        .get_managed_model_v2("gpt-5.4-mini")
+        .get_managed_model_v2("gpt-6-luna")
         .expect("read websocket block model")
         .expect("websocket block model");
     model.fast_policy = ModelFastPolicyV2::Block;
     storage
         .upsert_managed_model_v2(&ManagedModelV2Upsert {
-            previous_slug: Some("gpt-5.4-mini".to_string()),
+            previous_slug: Some("gpt-6-luna".to_string()),
             model,
         })
         .expect("update websocket initial block policy");
@@ -2854,7 +2911,7 @@ async fn official_responses_websocket_block_policy_rejects_initial_frame() {
         .send(Message::Text(
             serde_json::json!({
                 "type": "response.create",
-                "model": "gpt-5.4-mini",
+                "model": "gpt-6-luna",
                 "input": "blocked initial request",
                 "service_tier": "fast"
             })
@@ -4333,7 +4390,7 @@ async fn official_responses_websocket_reconnects_upstream_without_closing_client
         "both response.create frames must stay on the client websocket"
     );
 
-    let _ = client_ws.close(None).await;
+    assert_normal_client_close(&mut client_ws).await;
     let _ = shutdown_tx.send(());
     tokio::time::timeout(Duration::from_secs(5), server_handle)
         .await

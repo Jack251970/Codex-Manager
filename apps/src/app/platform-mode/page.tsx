@@ -12,6 +12,7 @@ import {
   AdvancedRecoveryPanel,
   CurrentModeCard,
   DirectAccountCard,
+  DirectAggregateCard,
   GatewayModeCard,
   ReloadAfterSwitchOption,
 } from "./page-sections";
@@ -21,6 +22,7 @@ import {
 } from "./use-platform-mode-state";
 import type {
   CodexProfileAccountCandidate,
+  CodexProfileAggregateApiCandidate,
   CodexProfileApiKeyCandidate,
 } from "@/types";
 
@@ -50,6 +52,10 @@ function accountLabel(account: CodexProfileAccountCandidate): string {
   return account.groupName ? `${account.label} · ${account.groupName}` : account.label;
 }
 
+function aggregateApiLabel(api: CodexProfileAggregateApiCandidate): string {
+  return api.modelOverride ? `${api.label} · ${api.modelOverride}` : api.label;
+}
+
 export default function PlatformModePage() {
   const { t } = useI18n();
   const state = usePlatformModePageState(t);
@@ -59,6 +65,14 @@ export default function PlatformModePage() {
   const activeApiKey = state.status?.selectedApiKeyId
     ? state.candidates.apiKeys.find(
         (item) => item.id === state.status?.selectedApiKeyId,
+      )
+    : undefined;
+  const selectedAggregateApi = state.candidates.aggregateApis.find(
+    (item) => item.id === state.selectedAggregateApiId,
+  );
+  const activeAggregateApi = state.status?.selectedAggregateApiId
+    ? state.candidates.aggregateApis.find(
+        (item) => item.id === state.status?.selectedAggregateApiId,
       )
     : undefined;
 
@@ -74,7 +88,7 @@ export default function PlatformModePage() {
               {t("Codex 接入方式")}
             </h1>
             <p className="mt-1 text-sm leading-5 text-muted-foreground xl:leading-6">
-              {t("选择 Codex 直接连接 OpenAI，或通过 CodexManager 进行转发与管理。")}
+              {t("选择 Codex 直接连接 OpenAI、直连聚合 API，或通过 CodexManager 进行转发与管理。")}
             </p>
           </div>
         </CardContent>
@@ -123,7 +137,7 @@ export default function PlatformModePage() {
         onEnabledChange={state.setReloadAfterSwitch}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.05fr)_minmax(0,1.05fr)]">
+      <div className="grid gap-5 lg:grid-cols-2">
         <CurrentModeCard
           t={t}
           status={state.status}
@@ -134,7 +148,9 @@ export default function PlatformModePage() {
           codexHome={state.status?.codexHome || "-"}
           activeAccountValue={state.activeAccountValue}
           activeKeyValue={state.activeKeyValue}
+          activeAggregateApiValue={state.activeAggregateApiValue}
           activeApiKey={activeApiKey}
+          activeAggregateApi={activeAggregateApi}
           lastAppliedAtLabel={formatTime(state.status?.lastAppliedAt ?? null)}
           modeDescription={modeImpact(state.status?.mode ?? null, t)}
         />
@@ -152,6 +168,24 @@ export default function PlatformModePage() {
           isPending={state.applyDirectMutation.isPending}
           reloadAfterSwitch={state.reloadAfterSwitch}
           accountLabel={accountLabel}
+        />
+
+        <DirectAggregateCard
+          t={t}
+          candidates={state.candidates.aggregateApis}
+          isLoading={state.candidatesQuery.isLoading}
+          isServiceReady={state.isServiceReady}
+          isMutating={state.isMutating}
+          isDirectAggregateActive={state.isDirectAggregateActive}
+          selectedAggregateApiId={state.selectedAggregateApiId}
+          onSelectAggregateApi={(value) =>
+            state.setSelectedAggregateApiIdDraft(String(value || ""))
+          }
+          onApply={() => state.applyDirectAggregateMutation.mutate()}
+          isPending={state.applyDirectAggregateMutation.isPending}
+          selectedAggregateApi={selectedAggregateApi}
+          reloadAfterSwitch={state.reloadAfterSwitch}
+          aggregateApiLabel={aggregateApiLabel}
         />
 
         <GatewayModeCard

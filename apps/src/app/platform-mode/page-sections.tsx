@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ChevronDown, Loader2, Network, RefreshCw, RotateCcw, ShieldCheck, Trash2, UserRoundCheck, Wrench } from "lucide-react";
+import { ChevronDown, Database, Loader2, Network, RefreshCw, RotateCcw, ShieldCheck, Trash2, UserRoundCheck, Wrench } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { CODEX_PROFILE_MODE_LABELS } from "@/hooks/useCodexProfileModeStatus";
 import type {
   CodexProfileAccountCandidate,
+  CodexProfileAggregateApiCandidate,
   CodexProfileApiKeyCandidate,
   CodexProfileHistoryRepairSummary,
   CodexProfileMode,
@@ -203,6 +204,23 @@ function GatewayCandidateText({
   );
 }
 
+function AggregateCandidateText({
+  candidate,
+  label,
+}: {
+  candidate: CodexProfileAggregateApiCandidate;
+  label: string;
+}) {
+  return (
+    <span className="grid min-w-0 gap-0.5 text-left">
+      <PlatformSelectText value={label} />
+      <span className="min-w-0 whitespace-normal break-all text-[11px] leading-snug text-muted-foreground">
+        {candidate.providerType} · {candidate.baseUrl}
+      </span>
+    </span>
+  );
+}
+
 export function ReloadAfterSwitchOption({
   t,
   enabled,
@@ -247,7 +265,9 @@ export function CurrentModeCard({
   codexHome,
   activeAccountValue,
   activeKeyValue,
+  activeAggregateApiValue,
   activeApiKey,
+  activeAggregateApi,
   lastAppliedAtLabel,
   modeDescription,
 }: {
@@ -265,7 +285,9 @@ export function CurrentModeCard({
   codexHome: string;
   activeAccountValue: string;
   activeKeyValue: string;
+  activeAggregateApiValue: string;
   activeApiKey: CodexProfileApiKeyCandidate | undefined;
+  activeAggregateApi: CodexProfileAggregateApiCandidate | undefined;
   lastAppliedAtLabel: string;
   modeDescription: string;
 }) {
@@ -273,19 +295,23 @@ export function CurrentModeCard({
   const route =
     status?.mode === "direct_account"
       ? t("所选 OpenAI 账号")
+      : status?.mode === "direct_aggregate"
+        ? activeAggregateApi?.label || t("所选聚合 API")
       : status?.mode === "gateway"
         ? rotationStrategyLabel(activeApiKey?.rotationStrategy || "", t)
         : "-";
   const catalog =
     status?.mode === "direct_account"
       ? t("OpenAI 官方目录")
+      : status?.mode === "direct_aggregate"
+        ? t("由聚合 API 提供")
       : status?.mode === "gateway"
         ? catalogSourceLabel(activeApiKey?.catalogSource, t)
         : "-";
   const telemetry =
     status?.mode === "gateway"
       ? t("CodexManager 可记录")
-      : status?.mode === "direct_account"
+      : status?.mode === "direct_account" || status?.mode === "direct_aggregate"
         ? t("CodexManager 不记录")
         : "-";
   return (
@@ -318,10 +344,145 @@ export function CurrentModeCard({
         <ModeFact label={t("Codex profile")} value={codexHome || "-"} />
         <ModeFact label={t("当前账号")} value={activeAccountValue} />
         <ModeFact label={t("当前平台 Key")} value={activeKeyValue} />
+        <ModeFact label={t("当前聚合 API")} value={activeAggregateApiValue} />
         <ModeFact label={t("请求路由")} value={route} />
         <ModeFact label={t("模型来源")} value={catalog} />
         <ModeFact label={t("日志与统计")} value={telemetry} />
         <ModeFact label={t("最后应用")} value={lastAppliedAtLabel} />
+      </CardContent>
+    </Card>
+  );
+}
+
+export function DirectAggregateCard({
+  t,
+  candidates,
+  isLoading,
+  isServiceReady,
+  isMutating,
+  isDirectAggregateActive,
+  selectedAggregateApiId,
+  onSelectAggregateApi,
+  onApply,
+  isPending,
+  selectedAggregateApi,
+  reloadAfterSwitch,
+  aggregateApiLabel,
+}: {
+  t: Translate;
+  candidates: CodexProfileAggregateApiCandidate[];
+  isLoading: boolean;
+  isServiceReady: boolean;
+  isMutating: boolean;
+  isDirectAggregateActive: boolean;
+  selectedAggregateApiId: string;
+  onSelectAggregateApi: (value: string | null) => void;
+  onApply: () => void;
+  isPending: boolean;
+  selectedAggregateApi: CodexProfileAggregateApiCandidate | undefined;
+  reloadAfterSwitch: boolean;
+  aggregateApiLabel: (api: CodexProfileAggregateApiCandidate) => string;
+}) {
+  return (
+    <Card
+      className={cn(
+        "h-full border-border/70 transition-colors",
+        isDirectAggregateActive && "border-primary/50 bg-primary/5",
+      )}
+    >
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Database className="size-4 text-primary" />
+          <CardTitle>{t("直连聚合 API")}</CardTitle>
+          {isDirectAggregateActive ? <Badge>{t("正在使用")}</Badge> : null}
+        </div>
+        <CardDescription>
+          {t(
+            "Codex 直接请求所选聚合 API，不经过 CodexManager 网关；切换时会自动写入对应的 Responses base_url 与认证配置。",
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {candidates.length === 0 && !isLoading ? (
+          <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-muted/25 p-4 text-sm text-muted-foreground">
+            <p>
+              {t(
+                "没有可直连的聚合 API；仅支持 active 的 Codex / Compatible Responses API-key 条目。",
+              )}
+            </p>
+            <ActionLink href="/aggregate-api">{t("去配置聚合 API")}</ActionLink>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <Label>{t("聚合 API")}</Label>
+            <Select
+              value={selectedAggregateApiId}
+              onValueChange={onSelectAggregateApi}
+              disabled={!isServiceReady || isMutating || candidates.length === 0}
+            >
+              <SelectTrigger className="h-auto min-h-12 w-full whitespace-normal py-2 data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none *:data-[slot=select-value]:min-w-0">
+                <SelectValue placeholder={t("选择聚合 API")}>
+                  {(value) => {
+                    const candidate = candidates.find((item) => item.id === value);
+                    return candidate ? (
+                      <AggregateCandidateText
+                        candidate={candidate}
+                        label={aggregateApiLabel(candidate)}
+                      />
+                    ) : (
+                      <PlatformSelectText value={t("选择聚合 API")} />
+                    );
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent
+                align="start"
+                className="w-[min(32rem,calc(100vw-2rem))] min-w-[min(32rem,calc(100vw-2rem))]"
+              >
+                <SelectGroup className="pb-0">
+                  {candidates.map((candidate) => (
+                    <SelectItem
+                      key={candidate.id}
+                      value={candidate.id}
+                      className="items-start py-2"
+                    >
+                      <AggregateCandidateText
+                        candidate={candidate}
+                        label={aggregateApiLabel(candidate)}
+                      />
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {selectedAggregateApi?.modelOverride
+                ? t("该条目的模型覆盖仅在 CodexManager 网关中生效；直连时 Codex 会发送当前选择的模型。")
+                : t("直连 base_url：{baseUrl}", {
+                    baseUrl: selectedAggregateApi?.baseUrl || "-",
+                  })}
+            </p>
+          </div>
+        )}
+        <ConnectionPreview
+          t={t}
+          connection={t("直连聚合 API")}
+          route={selectedAggregateApi?.label || t("请选择聚合 API")}
+          catalog={t("由聚合 API 提供")}
+          telemetry={t("CodexManager 不记录")}
+          reloadAfterSwitch={reloadAfterSwitch}
+        />
+        <Button
+          type="button"
+          onClick={onApply}
+          disabled={!isServiceReady || isMutating || !selectedAggregateApiId}
+          className="w-fit"
+        >
+          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Database className="size-4" />}
+          {isDirectAggregateActive
+            ? t("重新应用直连聚合 API")
+            : t("切换为直连聚合 API")}
+        </Button>
       </CardContent>
     </Card>
   );
@@ -369,7 +530,7 @@ export function DirectAccountCard({
         </div>
         <CardDescription>
           {t(
-            "直连 OpenAI 官方后端，不经过 CodexManager 网关；不会产生 CodexManager 请求日志，仪表盘用量统计不可用。",
+            "直连 OpenAI 官方后端，不经过 CodexManager 网关；本机 Codex 的直连请求不会写入网关日志，但仪表盘仍会展示已记录的其他网关流量。",
           )}
         </CardDescription>
       </CardHeader>

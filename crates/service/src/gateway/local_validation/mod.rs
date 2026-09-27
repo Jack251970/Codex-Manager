@@ -1,7 +1,7 @@
+use crate::http::gateway_request::GatewayRequest as Request;
 use bytes::Bytes;
 use codexmanager_core::storage::ConversationBinding;
 use reqwest::Method;
-use tiny_http::Request;
 
 use super::conversation_binding::RouteConversationSource;
 

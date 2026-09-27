@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Clock3,
   Database,
+  Info,
   RefreshCw,
   Search,
   SlidersHorizontal,
@@ -33,7 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { buildStaticRouteUrl } from "@/lib/utils/static-routes";
 import { formatTsFromSeconds } from "@/lib/utils/usage";
 import { cn } from "@/lib/utils";
 import {
@@ -148,24 +148,18 @@ export function RequestLogsTabContent({
   return (
     <div className="space-y-4">
       {isDirectAccountMode ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-3 rounded-xl border border-primary/25 bg-primary/8 px-4 py-3 text-sm">
           <div className="flex min-w-0 items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-300" />
+            <Info className="mt-0.5 size-4 shrink-0 text-primary" />
             <div>
-              <div className="font-semibold text-amber-700 dark:text-amber-200">
-                {t("账号直连模式不会产生新的 CodexManager 请求日志")}
+              <div className="font-semibold text-foreground">
+                {t("本机 Codex 的账号直连请求不会写入此日志")}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {t("这里仅展示历史网关请求；如需记录请求，请切换到本地网关模式。")}
+                {t("下方仍展示 CodexManager 已记录的网关请求，包括其他客户端通过平台密钥产生的流量。")}
               </div>
             </div>
           </div>
-          <a
-            href={buildStaticRouteUrl("/platform-mode")}
-            className="inline-flex h-8 w-fit items-center justify-center rounded-lg border border-amber-500/40 bg-background/70 px-3 text-xs font-medium text-foreground transition-colors hover:bg-background"
-          >
-            {t("去切换为本地网关")}
-          </a>
         </div>
       ) : null}
 
@@ -480,7 +474,7 @@ export function RequestLogsTabContent({
                       {!serviceConnected
                         ? t("服务未连接，无法获取日志")
                         : isDirectAccountMode
-                          ? t("账号直连模式下不会产生请求日志，如需记录请求请切换到本地网关模式。")
+                          ? t("当前筛选下暂无已记录的网关请求；本机 Codex 的账号直连请求不会写入此日志。")
                           : t("暂无请求日志")}
                     </TableCell>
                   </TableRow>

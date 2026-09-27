@@ -1416,7 +1416,9 @@ function AdminSettingsPage() {
             canCloseToTray={canCloseToTray}
             updateSettings={updateSettings}
           />
-          {isDesktopRuntime ? <DesktopDiagnosticsCard t={t} /> : null}
+          {isDesktopRuntime ? (
+            <DesktopDiagnosticsCard t={t} active={isPageActive} />
+          ) : null}
           <ServiceListenCard
             t={t}
             snapshot={snapshot}

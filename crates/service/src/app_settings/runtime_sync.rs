@@ -149,8 +149,18 @@ pub fn sync_runtime_settings_from_storage() {
     if !process_env_has_value("CODEXMANAGER_FREE_ACCOUNT_MAX_MODEL") {
         if let Some(model) = settings.get(APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY) {
             if let Some(model) = normalize_optional_text(Some(model)) {
-                if let Err(err) = gateway::set_free_account_max_model(&model) {
-                    log::warn!("sync persisted free account max model failed: {err}");
+                match gateway::set_free_account_max_model(&model) {
+                    Ok(applied) => {
+                        if !applied.eq_ignore_ascii_case(&model) {
+                            let _ = save_persisted_app_setting(
+                                APP_SETTING_GATEWAY_FREE_ACCOUNT_MAX_MODEL_KEY,
+                                Some(&applied),
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        log::warn!("sync persisted free account max model failed: {err}");
+                    }
                 }
             }
         }

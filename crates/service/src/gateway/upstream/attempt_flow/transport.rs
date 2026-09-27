@@ -1,20 +1,20 @@
+use crate::http::gateway_request::GatewayRequest as Request;
 use bytes::Bytes;
 use codexmanager_core::storage::Account;
 use futures_util::StreamExt;
 use rand::Rng;
 use std::collections::HashMap;
-use std::sync::mpsc;
 use std::sync::{Mutex, OnceLock};
-use std::thread;
 use std::time::{Duration, Instant};
-use tiny_http::Request;
-use tokio::runtime::Builder;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::header::{
     HeaderMap as WsHeaderMap, HeaderName as WsHeaderName, HeaderValue as WsHeaderValue,
 };
 
 use super::super::GatewayUpstreamResponse;
+
+#[path = "transport_runtime.rs"]
+pub(in crate::gateway) mod runtime;
 
 const WEBSOCKET_UPSTREAM_RECOVERY_COOLDOWN: Duration = Duration::from_secs(30);
 const WEBSOCKET_UPSTREAM_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
@@ -412,7 +412,15 @@ fn resolve_chatgpt_account_header<'a>(account: &'a Account, target_url: &str) ->
     account
         .chatgpt_account_id
         .as_deref()
-        .or(account.workspace_id.as_deref())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            account
+                .workspace_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        })
 }
 
 /// 函数 `resolve_request_compression_with_flag`
@@ -501,6 +509,16 @@ fn should_retry_transport_without_compression(
 
 fn should_wrap_upstream_as_stream_response(request_path: &str, is_stream: bool) -> bool {
     is_stream && request_path.starts_with("/v1/responses") && !is_compact_request_path(request_path)
+}
+
+/// Returns whether the async reqwest bridge should be used for this request.
+///
+/// Non-streaming calls are included deliberately: the synchronous gateway
+/// layers consume the returned stream through `read_all_bytes`, while network
+/// I/O runs on a bounded worker with Tokio.
+#[cfg(test)]
+fn should_use_async_http_transport(_request_path: &str, _is_stream: bool) -> bool {
+    true
 }
 
 const STREAM_ERROR_PREVIEW_MAX_BYTES: usize = 64 * 1024;
@@ -593,7 +611,7 @@ async fn fast_close_non_sse_error_stream(
     status: reqwest::StatusCode,
     headers: &reqwest::header::HeaderMap,
     response: reqwest::Response,
-    body_tx: mpsc::SyncSender<super::super::GatewayByteStreamItem>,
+    body_tx: tokio::sync::mpsc::Sender<super::super::GatewayByteStreamItem>,
 ) {
     let content_type =
         first_header_value(headers, reqwest::header::CONTENT_TYPE.as_str()).unwrap_or("-");
@@ -613,17 +631,20 @@ async fn fast_close_non_sse_error_stream(
     if !preview.is_empty()
         && body_tx
             .send(super::super::GatewayByteStreamItem::Chunk(preview))
+            .await
             .is_err()
     {
         return;
     }
-    let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof);
+    let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof).await;
 }
 
 #[derive(Debug)]
 pub(in crate::gateway) enum AsyncStreamRequestError {
     Request(reqwest::Error),
     ResponseHeadersTimeout(Duration),
+    WorkerLimit,
+    WorkerUnavailable(String),
 }
 
 impl std::fmt::Display for AsyncStreamRequestError {
@@ -635,6 +656,13 @@ impl std::fmt::Display for AsyncStreamRequestError {
                 "upstream response headers timed out after {} ms",
                 timeout.as_millis()
             ),
+            Self::WorkerLimit => write!(
+                formatter,
+                "async upstream stream worker limit reached; retry later"
+            ),
+            Self::WorkerUnavailable(error) => {
+                write!(formatter, "async upstream worker unavailable: {error}")
+            }
         }
     }
 }
@@ -643,7 +671,9 @@ impl std::error::Error for AsyncStreamRequestError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Request(err) => Some(err),
-            Self::ResponseHeadersTimeout(_) => None,
+            Self::ResponseHeadersTimeout(_) | Self::WorkerLimit | Self::WorkerUnavailable(_) => {
+                None
+            }
         }
     }
 }
@@ -664,7 +694,30 @@ async fn send_request_for_response_headers(
     }
 }
 
+#[cfg(test)]
 pub(in crate::gateway) fn send_async_stream_request(
+    client: &reqwest::Client,
+    method: &reqwest::Method,
+    target_url: &str,
+    request_path: &str,
+    request_deadline: Option<Instant>,
+    request_headers: &[(String, String)],
+    request_body: &Bytes,
+    is_stream: bool,
+) -> Result<super::super::GatewayStreamResponse, AsyncStreamRequestError> {
+    runtime::upstream_runtime()?.block_on(send_stream_request(
+        client,
+        method,
+        target_url,
+        request_path,
+        request_deadline,
+        request_headers,
+        request_body,
+        is_stream,
+    ))
+}
+
+pub(in crate::gateway) async fn send_stream_request(
     client: &reqwest::Client,
     method: &reqwest::Method,
     target_url: &str,
@@ -680,87 +733,88 @@ pub(in crate::gateway) fn send_async_stream_request(
     let request_path = request_path.to_string();
     let request_headers = request_headers.to_vec();
     let request_body = request_body.clone();
-    let send_timeout = super::super::support::deadline::send_timeout(request_deadline, is_stream);
-    let (meta_tx, meta_rx) = mpsc::sync_channel::<
-        Result<(reqwest::StatusCode, reqwest::header::HeaderMap), AsyncStreamRequestError>,
-    >(1);
-    let (body_tx, body_rx) = mpsc::sync_channel::<super::super::GatewayByteStreamItem>(128);
+    let (meta_tx, meta_rx) = tokio::sync::oneshot::channel();
+    let (body_tx, body_rx) = tokio::sync::mpsc::channel(128);
     let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
-    thread::spawn(move || {
-        let runtime = Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap_or_else(|err| panic!("build gateway upstream runtime failed: {err}"));
-        runtime.block_on(async move {
-            let mut builder = client.request(method, target_url);
-            for (name, value) in request_headers.iter() {
-                builder = builder.header(name, value);
+    // Construct this before awaiting headers so aborting during connect/send
+    // drops the cancellation sender and cancels the network task too.
+    let body = super::super::GatewayByteStream::from_receiver_with_cancel(body_rx, Some(cancel_tx));
+    runtime::spawn_http_worker(async move {
+        let mut builder = client.request(method, target_url);
+        let send_timeout =
+            super::super::support::deadline::send_timeout(request_deadline, is_stream);
+        if !is_stream {
+            if let Some(timeout) = send_timeout {
+                builder = builder.timeout(timeout);
             }
-            if !request_body.is_empty() {
-                builder = builder.body(request_body);
-            }
-            match send_request_for_response_headers(builder, send_timeout).await {
-                Ok(response) => {
-                    let status = response.status();
-                    let headers = response.headers().clone();
-                    let should_fast_close =
-                        should_fast_close_non_sse_error_stream(&request_path, status, &headers);
-                    if meta_tx.send(Ok((status, headers.clone()))).is_err() {
-                        return;
+        }
+        for (name, value) in &request_headers {
+            builder = builder.header(name, value);
+        }
+        if !request_body.is_empty() {
+            builder = builder.body(request_body);
+        }
+        let response = tokio::select! {
+            _ = &mut cancel_rx => return,
+            result = send_request_for_response_headers(builder, send_timeout) => result,
+        };
+        match response {
+            Ok(response) => {
+                let status = response.status();
+                let headers = response.headers().clone();
+                let should_fast_close = is_stream
+                    && should_fast_close_non_sse_error_stream(&request_path, status, &headers);
+                if meta_tx.send(Ok((status, headers.clone()))).is_err() {
+                    return;
+                }
+                if should_fast_close {
+                    tokio::select! {
+                        _ = &mut cancel_rx => {},
+                        _ = fast_close_non_sse_error_stream(&request_path, status, &headers, response, body_tx) => {},
                     }
-                    if should_fast_close {
-                        fast_close_non_sse_error_stream(
-                            &request_path,
-                            status,
-                            &headers,
-                            response,
-                            body_tx,
-                        )
-                        .await;
-                        return;
-                    }
-                    let mut stream = response.bytes_stream();
-                    loop {
-                        let item = tokio::select! {
-                            _ = &mut cancel_rx => return,
-                            item = stream.next() => item,
-                        };
-                        let Some(item) = item else {
-                            break;
-                        };
-                        match item {
-                            Ok(bytes) => {
-                                if body_tx
-                                    .send(super::super::GatewayByteStreamItem::Chunk(bytes))
-                                    .is_err()
-                                {
-                                    return;
-                                }
-                            }
-                            Err(err) => {
-                                let _ = body_tx.send(super::super::GatewayByteStreamItem::Error(
-                                    err.to_string(),
-                                ));
-                                return;
-                            }
+                    return;
+                }
+                let mut stream = response.bytes_stream();
+                loop {
+                    let item = tokio::select! {
+                        _ = &mut cancel_rx => return,
+                        item = stream.next() => item,
+                    };
+                    let (item, terminal) = match item {
+                        Some(Ok(bytes)) => {
+                            (super::super::GatewayByteStreamItem::Chunk(bytes), false)
                         }
+                        Some(Err(err)) => (
+                            super::super::GatewayByteStreamItem::Error(err.to_string()),
+                            true,
+                        ),
+                        None => (super::super::GatewayByteStreamItem::Eof, true),
+                    };
+                    // Awaiting channel capacity propagates backpressure without
+                    // occupying a runtime thread. Receiver drop unblocks send.
+                    if body_tx.send(item).await.is_err() || terminal {
+                        return;
                     }
-                    let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof);
-                }
-                Err(err) => {
-                    let _ = meta_tx.send(Err(err));
                 }
             }
-        });
-    });
-    match meta_rx.recv() {
+            Err(err) => {
+                let _ = meta_tx.send(Err(err));
+            }
+        }
+    })?;
+    let metadata = crate::http::gateway_request::with_response_cancellation(meta_rx)
+        .await
+        .map_err(|()| {
+            AsyncStreamRequestError::WorkerUnavailable("downstream request cancelled".to_owned())
+        })?;
+    match metadata {
         Ok(Ok((status, headers))) => Ok(super::super::GatewayStreamResponse::new(
-            status,
-            headers,
-            super::super::GatewayByteStream::from_receiver_with_cancel(body_rx, Some(cancel_tx)),
+            status, headers, body,
         )),
         Ok(Err(err)) => Err(err),
-        Err(_) => panic!("receive gateway async upstream response metadata failed"),
+        Err(_) => Err(AsyncStreamRequestError::WorkerUnavailable(
+            "response metadata channel closed".to_owned(),
+        )),
     }
 }
 
@@ -833,8 +887,8 @@ fn encode_request_body(
 ///
 /// # 返回
 /// 返回函数执行结果
-pub(in super::super) fn send_upstream_request(
-    client: &reqwest::blocking::Client,
+pub(in super::super) async fn send_upstream_request(
+    client: &reqwest::Client,
     method: &reqwest::Method,
     target_url: &str,
     request_deadline: Option<Instant>,
@@ -861,11 +915,12 @@ pub(in super::super) fn send_upstream_request(
         false,
         None,
     )
+    .await
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(in super::super) fn send_upstream_request_without_session_headers(
-    client: &reqwest::blocking::Client,
+pub(in super::super) async fn send_upstream_request_without_session_headers(
+    client: &reqwest::Client,
     method: &reqwest::Method,
     target_url: &str,
     request_deadline: Option<Instant>,
@@ -891,6 +946,7 @@ pub(in super::super) fn send_upstream_request_without_session_headers(
         true,
         None,
     )
+    .await
 }
 
 /// 函数 `send_upstream_request_without_compression`
@@ -904,8 +960,8 @@ pub(in super::super) fn send_upstream_request_without_session_headers(
 ///
 /// # 返回
 /// 返回函数执行结果
-pub(in super::super) fn send_upstream_request_without_compression(
-    client: &reqwest::blocking::Client,
+pub(in super::super) async fn send_upstream_request_without_compression(
+    client: &reqwest::Client,
     method: &reqwest::Method,
     target_url: &str,
     request_deadline: Option<Instant>,
@@ -932,6 +988,7 @@ pub(in super::super) fn send_upstream_request_without_compression(
         false,
         Some(RequestCompression::None),
     )
+    .await
 }
 
 /// 函数 `send_upstream_request_with_compression_override`
@@ -945,8 +1002,8 @@ pub(in super::super) fn send_upstream_request_without_compression(
 ///
 /// # 返回
 /// 返回函数执行结果
-fn send_upstream_request_with_compression_override(
-    client: &reqwest::blocking::Client,
+async fn send_upstream_request_with_compression_override(
+    client: &reqwest::Client,
     method: &reqwest::Method,
     target_url: &str,
     request_deadline: Option<Instant>,
@@ -978,7 +1035,15 @@ fn send_upstream_request_with_compression_override(
     let account_id = account
         .chatgpt_account_id
         .as_deref()
-        .or_else(|| account.workspace_id.as_deref());
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            account
+                .workspace_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+        });
     let gemini_codex_compat = is_gemini_codex_compat(
         request_ctx.protocol_type,
         request_ctx.request_path,
@@ -1133,28 +1198,11 @@ fn send_upstream_request_with_compression_override(
         request_compression,
         &mut upstream_headers,
     );
-    let build_request = |http: &reqwest::blocking::Client,
-                         request_headers: &[(String, String)],
-                         request_body: &Bytes| {
-        let mut builder = http.request(method.clone(), target_url);
-        if let Some(timeout) =
-            super::super::support::deadline::send_timeout(request_deadline, is_stream)
-        {
-            builder = builder.timeout(timeout);
-        }
-        for (name, value) in request_headers.iter() {
-            builder = builder.header(name, value);
-        }
-        if !request_body.is_empty() {
-            builder = builder.body(request_body.clone());
-        }
-        builder
-    };
-
-    let use_async_stream_transport =
-        should_wrap_upstream_as_stream_response(request_ctx.request_path, is_stream);
-    let use_websocket_upstream =
-        use_async_stream_transport && should_use_websocket_upstream(target_url);
+    // HTTP headers, body delivery and retries are asynchronous for both JSON
+    // and SSE. Only streaming requests may opt in to the WebSocket transport.
+    let use_websocket_upstream = is_stream
+        && should_wrap_upstream_as_stream_response(request_ctx.request_path, is_stream)
+        && should_use_websocket_upstream(target_url);
 
     // Try WebSocket path first (when enabled). On handshake failure return None so
     // the caller falls through to the full HTTP async-stream retry logic below.
@@ -1168,7 +1216,9 @@ fn send_upstream_request_with_compression_override(
             request_deadline,
             upstream_headers_uncompressed.as_slice(),
             &body_for_transport,
-        ) {
+        )
+        .await
+        {
             Ok(resp) => Some(GatewayUpstreamResponse::Stream(resp)),
             Err(ws_err) => {
                 // Redact query/fragment from the URL to avoid leaking sensitive
@@ -1205,14 +1255,9 @@ fn send_upstream_request_with_compression_override(
 
     let result = if let Some(r) = ws_early_result {
         Ok(r)
-    } else if use_async_stream_transport {
-        let async_client =
-            match super::super::super::async_upstream_client_for_account(account.id.as_str()) {
-                Ok(client) => client,
-                Err(err) => return Err(err),
-            };
-        match send_async_stream_request(
-            &async_client,
+    } else {
+        match send_stream_request(
+            client,
             method,
             target_url,
             request_ctx.request_path,
@@ -1220,7 +1265,9 @@ fn send_upstream_request_with_compression_override(
             upstream_headers.as_slice(),
             &body_for_request,
             is_stream,
-        ) {
+        )
+        .await
+        {
             Ok(resp) => Ok(GatewayUpstreamResponse::Stream(resp)),
             Err(first_err) => {
                 let fresh_async = match super::super::super::fresh_async_upstream_client_for_account(
@@ -1242,7 +1289,7 @@ fn send_upstream_request_with_compression_override(
                         target_url,
                         first_err
                     );
-                    match send_async_stream_request(
+                    match send_stream_request(
                         &fresh_async,
                         method,
                         target_url,
@@ -1251,7 +1298,9 @@ fn send_upstream_request_with_compression_override(
                         upstream_headers_uncompressed.as_slice(),
                         &body_for_transport,
                         is_stream,
-                    ) {
+                    )
+                    .await
+                    {
                         Ok(resp) => {
                             log::warn!(
                                 "event=gateway_transport_retry_without_compression_succeeded path={} account_id={} target_url={}",
@@ -1274,7 +1323,7 @@ fn send_upstream_request_with_compression_override(
                         }
                     }
                 } else {
-                    match send_async_stream_request(
+                    match send_stream_request(
                         &fresh_async,
                         method,
                         target_url,
@@ -1283,7 +1332,9 @@ fn send_upstream_request_with_compression_override(
                         upstream_headers.as_slice(),
                         &body_for_request,
                         is_stream,
-                    ) {
+                    )
+                    .await
+                    {
                         Ok(resp) => {
                             log::info!(
                                 "event=gateway_transport_retry_with_fresh_client_succeeded path={} account_id={} target_url={}",
@@ -1292,81 +1343,6 @@ fn send_upstream_request_with_compression_override(
                                 target_url
                             );
                             Ok(GatewayUpstreamResponse::Stream(resp))
-                        }
-                        Err(second_err) => {
-                            log::warn!(
-                                "event=gateway_transport_retry_with_fresh_client_failed path={} account_id={} target_url={} first_err={} retry_err={}",
-                                request_ctx.request_path,
-                                account.id,
-                                target_url,
-                                first_err,
-                                second_err
-                            );
-                            Err(second_err.to_string())
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        match build_request(client, upstream_headers.as_slice(), &body_for_request).send() {
-            Ok(resp) => Ok(resp.into()),
-            Err(first_err) => {
-                let fresh = match super::super::super::fresh_upstream_client_for_account(
-                    account.id.as_str(),
-                ) {
-                    Ok(client) => client,
-                    Err(err) => return Err(err),
-                };
-                if should_retry_transport_without_compression(
-                    target_url,
-                    request_ctx.request_path,
-                    is_stream,
-                    request_compression,
-                ) {
-                    log::warn!(
-                        "event=gateway_transport_retry_without_compression path={} account_id={} target_url={} first_err={}",
-                        request_ctx.request_path,
-                        account.id,
-                        target_url,
-                        first_err
-                    );
-                    match build_request(&fresh, upstream_headers_uncompressed.as_slice(), body)
-                        .send()
-                    {
-                        Ok(resp) => {
-                            log::warn!(
-                                "event=gateway_transport_retry_without_compression_succeeded path={} account_id={} target_url={}",
-                                request_ctx.request_path,
-                                account.id,
-                                target_url
-                            );
-                            Ok(resp.into())
-                        }
-                        Err(second_err) => {
-                            log::warn!(
-                                "event=gateway_transport_retry_without_compression_failed path={} account_id={} target_url={} first_err={} retry_err={}",
-                                request_ctx.request_path,
-                                account.id,
-                                target_url,
-                                first_err,
-                                second_err
-                            );
-                            Err(second_err.to_string())
-                        }
-                    }
-                } else {
-                    match build_request(&fresh, upstream_headers.as_slice(), &body_for_request)
-                        .send()
-                    {
-                        Ok(resp) => {
-                            log::info!(
-                                "event=gateway_transport_retry_with_fresh_client_succeeded path={} account_id={} target_url={}",
-                                request_ctx.request_path,
-                                account.id,
-                                target_url
-                            );
-                            Ok(resp.into())
                         }
                         Err(second_err) => {
                             log::warn!(
@@ -1557,7 +1533,7 @@ fn websocket_upstream_request_text_from_http_body(
         .map_err(|err| format!("serialize WebSocket response.create payload failed: {err}"))
 }
 
-fn send_websocket_upstream_request(
+async fn send_websocket_upstream_request(
     target_url: &str,
     account_id: &str,
     request_deadline: Option<Instant>,
@@ -1583,17 +1559,12 @@ fn send_websocket_upstream_request(
         super::super::super::current_websocket_proxy_url_for_account(account_id, ws_url.as_str())?;
     let handshake_timeout = websocket_handshake_timeout(request_deadline);
 
-    let (meta_tx, meta_rx) = mpsc::sync_channel::<Result<(), String>>(1);
-    let (body_tx, body_rx) = mpsc::sync_channel::<super::super::GatewayByteStreamItem>(128);
+    let (meta_tx, meta_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
+    let (body_tx, body_rx) = tokio::sync::mpsc::channel::<super::super::GatewayByteStreamItem>(128);
     let (cancel_tx, mut cancel_rx) = tokio::sync::oneshot::channel::<()>();
 
-    thread::spawn(move || {
+    runtime::spawn_http_worker(async move {
         let mut recovery_lease = recovery_lease;
-        let runtime = Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap_or_else(|err| panic!("build websocket upstream runtime failed: {err}"));
-        runtime.block_on(async move {
             use futures_util::SinkExt;
             use tokio_tungstenite::tungstenite::Message;
 
@@ -1605,16 +1576,18 @@ fn send_websocket_upstream_request(
                 }
             };
 
-            let connect_result = tokio::time::timeout(
+            let connect_result = tokio::select! {
+            _ = &mut cancel_rx => return,
+            result = tokio::time::timeout(
                 handshake_timeout,
                 crate::http::responses_websocket::connect_upstream_websocket_request(
                     req,
                     ws_url.as_str(),
                     proxy_url.as_deref(),
                 ),
-            )
-            .await;
-            match connect_result {
+            ) => result,
+        };
+        match connect_result {
                 Err(_) => {
                     let _ = meta_tx.send(Err("WebSocket connect timed out".to_string()));
                 }
@@ -1629,7 +1602,7 @@ fn send_websocket_upstream_request(
                         tokio::time::Instant::now() + WEBSOCKET_UPSTREAM_HEARTBEAT_INTERVAL,
                         WEBSOCKET_UPSTREAM_HEARTBEAT_INTERVAL,
                     );
-                    // body_text was pre-validated as UTF-8 before this thread was spawned.
+                    // body_text was pre-validated as UTF-8 before this task was spawned.
                     if let Some(text) = body_text {
                         let send_result = tokio::select! {
                             _ = &mut cancel_rx => return,
@@ -1638,13 +1611,13 @@ fn send_websocket_upstream_request(
                         if let Err(e) = send_result {
                             let _ = body_tx.send(super::super::GatewayByteStreamItem::Error(
                                 format!("WebSocket send error: {e}"),
-                            ));
+                            )).await;
                             return;
                         }
                     }
                     loop {
                         // Apply the remaining deadline to each WebSocket read so the
-                        // spawned thread cannot outlive the request deadline and leak.
+                        // asynchronous task cannot outlive the request deadline and leak.
                         let next_msg = match request_deadline {
                             Some(d) => {
                                 let remaining = d
@@ -1661,7 +1634,7 @@ fn send_websocket_upstream_request(
                                                 super::super::GatewayByteStreamItem::Error(
                                                     format!("WebSocket heartbeat send error: {err}"),
                                                 ),
-                                            );
+                                            ).await;
                                             return;
                                         }
                                         continue;
@@ -1675,7 +1648,7 @@ fn send_websocket_upstream_request(
                                             super::super::GatewayByteStreamItem::Error(
                                                 "WebSocket read deadline exceeded".to_string(),
                                             ),
-                                        );
+                                        ).await;
                                         return;
                                     }
                                 }
@@ -1691,7 +1664,7 @@ fn send_websocket_upstream_request(
                                             super::super::GatewayByteStreamItem::Error(
                                                 format!("WebSocket heartbeat send error: {err}"),
                                             ),
-                                        );
+                                        ).await;
                                         return;
                                     }
                                     continue;
@@ -1701,13 +1674,13 @@ fn send_websocket_upstream_request(
                         };
                         match next_msg {
                             None => {
-                                let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof);
+                                let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof).await;
                                 return;
                             }
                             Some(Err(e)) => {
                                 let _ = body_tx.send(super::super::GatewayByteStreamItem::Error(
                                     format!("WebSocket receive error: {e}"),
-                                ));
+                                )).await;
                                 return;
                             }
                             Some(Ok(Message::Text(text))) => {
@@ -1715,7 +1688,7 @@ fn send_websocket_upstream_request(
                                 if body_tx
                                     .send(super::super::GatewayByteStreamItem::Chunk(Bytes::from(
                                         sse.into_bytes(),
-                                    )))
+                                    ))).await
                                     .is_err()
                                 {
                                     return;
@@ -1724,7 +1697,7 @@ fn send_websocket_upstream_request(
                                     recovery_lease.mark_completed();
                                 }
                                 if is_websocket_upstream_terminal_text(text.as_ref()) {
-                                    let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof);
+                                    let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof).await;
                                     return;
                                 }
                             }
@@ -1732,7 +1705,7 @@ fn send_websocket_upstream_request(
                                 let _ = ws_stream.send(Message::Pong(payload)).await;
                             }
                             Some(Ok(Message::Close(_))) => {
-                                let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof);
+                                let _ = body_tx.send(super::super::GatewayByteStreamItem::Eof).await;
                                 return;
                             }
                             Some(Ok(_)) => {}
@@ -1740,13 +1713,17 @@ fn send_websocket_upstream_request(
                     }
                 }
             }
-        });
-    });
+    }).map_err(|err| err.to_string())?;
 
-    // recv_timeout gives the thread a small grace window beyond handshake_timeout to
+    // recv_timeout gives the task a small grace window beyond handshake_timeout to
     // deliver its meta result before we declare the operation hung.
-    match meta_rx.recv_timeout(handshake_timeout + Duration::from_secs(5)) {
-        Ok(Ok(())) => {
+    let metadata = crate::http::gateway_request::with_response_cancellation(tokio::time::timeout(
+        handshake_timeout + Duration::from_secs(5),
+        meta_rx,
+    ))
+    .await;
+    match metadata {
+        Ok(Ok(Ok(Ok(())))) => {
             let mut headers = reqwest::header::HeaderMap::new();
             headers.insert(
                 reqwest::header::CONTENT_TYPE,
@@ -1761,8 +1738,8 @@ fn send_websocket_upstream_request(
                 ),
             ))
         }
-        Ok(Err(err)) => Err(err),
-        Err(_) => Err("WebSocket upstream handshake timed out or thread terminated".to_string()),
+        Ok(Ok(Ok(Err(err)))) => Err(err),
+        _ => Err("WebSocket upstream handshake timed out or task terminated".to_string()),
     }
 }
 

@@ -50,6 +50,20 @@ fn catalog_marks_request_semantic_env_overrides_as_high_risk() {
         Some(ENV_OVERRIDE_EFFECT_SCOPE_REQUEST_SEMANTIC)
     );
 
+    let image_main_model = catalog
+        .iter()
+        .find(|item| {
+            item.get("key").and_then(|value| value.as_str())
+                == Some("CODEXMANAGER_CODEX_IMAGE_MAIN_MODEL")
+        })
+        .expect("image main model catalog item");
+    assert_eq!(
+        image_main_model
+            .get("defaultValue")
+            .and_then(|value| value.as_str()),
+        Some("gpt-6-luna")
+    );
+
     let zstd_limit = catalog
         .iter()
         .find(|item| {

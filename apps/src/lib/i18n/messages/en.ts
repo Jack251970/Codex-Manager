@@ -1061,8 +1061,7 @@ export const EN_MESSAGES: MessageCatalog = {
   目标模型: "Target model",
   新增规则: "Add rule",
   "例如：spark*": "e.g. spark*",
-  "例如：gpt-5.4": "e.g. gpt-5.4",
-  "例如：gpt-5.4-openai-compact": "e.g. gpt-5.4-openai-compact",
+  "例如：gpt-6-sol": "e.g. gpt-6-sol",
   "左边匹配请求模型，右边填写转发目标；支持":
     "Match the request model on the left and enter the forwarding target on the right. Supports",
   "通配。平台 Key 没有强绑模型时，会先按这里把请求模型改写，再进入账号路由。":
@@ -1478,8 +1477,8 @@ export const EN_MESSAGES: MessageCatalog = {
   "重新打开 Codex CLI 引导": "Reopen the Codex CLI guide",
   后续将不再显示这份引导: "This guide will no longer be shown",
   "保存引导状态失败: {message}": "Failed to save guide state: {message}",
-  "主对话模型，推荐直接使用 gpt-5.4 作为默认工作模型":
-    "Primary chat model. It is recommended to use gpt-5.4 as the default working model.",
+  "主对话模型，推荐直接使用 gpt-6-sol 作为默认工作模型":
+    "Primary chat model. It is recommended to use gpt-6-sol as the default working model.",
   "默认模型提供方，填写 cm 代表走下面定义的本地 provider":
     "Default model provider. Setting it to cm means using the local provider defined below.",
   "代码审查或 review 场景使用的模型，这里也保持与主模型一致":
@@ -1753,14 +1752,14 @@ export const EN_MESSAGES: MessageCatalog = {
   转发路径: "Forwarded path",
   上游模型: "Upstream model",
   实际来源: "Actual source",
-  "账号直连模式不会产生新的 CodexManager 请求日志":
-    "Direct account mode does not create new CodexManager request logs",
-  "这里仅展示历史网关请求；如需记录请求，请切换到本地网关模式。":
-    "Only historical gateway requests are shown here; switch to local gateway mode if you need request logging.",
+  "本机 Codex 的账号直连请求不会写入此日志":
+    "Direct-account requests from Codex on this machine are not written to this log",
+  "下方仍展示 CodexManager 已记录的网关请求，包括其他客户端通过平台密钥产生的流量。":
+    "The list below still shows gateway requests recorded by CodexManager, including traffic from other clients using platform keys.",
   去切换为本地网关: "Switch to local gateway",
   仅网关流量: "Gateway traffic only",
-  "账号直连模式下不会产生请求日志，如需记录请求请切换到本地网关模式。":
-    "Direct account mode does not generate request logs. Switch to local gateway mode if you need logging.",
+  "当前筛选下暂无已记录的网关请求；本机 Codex 的账号直连请求不会写入此日志。":
+    "No recorded gateway requests match the current filters. Direct-account requests from Codex on this machine are not written to this log.",
   未分配: "Unassigned",
   按我的平台密钥累计: "Accumulated by my platform keys",
   归属成员: "Owner member",

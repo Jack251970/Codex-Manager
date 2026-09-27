@@ -2,6 +2,7 @@
 pub(crate) mod clear;
 #[path = "requestlog_list.rs"]
 pub(crate) mod list;
+pub(crate) mod seaorm;
 #[path = "requestlog_summary.rs"]
 pub(crate) mod summary;
 #[path = "requestlog_today_summary.rs"]

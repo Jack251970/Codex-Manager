@@ -246,6 +246,117 @@ fn hybrid_aggregate_first_aggregate_only_skips_active_account_and_uses_aggregate
 }
 
 #[test]
+fn hybrid_aggregate_only_streaming_responses_forces_identity_and_logs_success() {
+    let _lock = test_env_guard();
+    let dir = new_test_dir("codexmanager-hybrid-aggregate-stream-identity");
+    let db_path: PathBuf = dir.join("codexmanager.db");
+    let _db_guard = EnvGuard::set("CODEXMANAGER_DB_PATH", db_path.to_string_lossy().as_ref());
+
+    let (local_addr, local_rx, local_join) = start_mock_upstream_sequence_lenient(
+        vec![(200, response_json("resp_local_should_not_run"))],
+        Duration::from_secs(2),
+    );
+    let local_base = format!("http://{local_addr}/backend-api/codex");
+    let _upstream_guard = EnvGuard::set("CODEXMANAGER_UPSTREAM_BASE_URL", &local_base);
+    let aggregate_sse = concat!(
+        "data: {\"type\":\"response.output_text.delta\",\"delta\":\"aggregate ok\"}\n\n",
+        "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_aggregate_identity\",\"model\":\"gpt-hybrid-route-upstream\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":7,\"input_tokens_details\":{\"cached_tokens\":2},\"output_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":1},\"total_tokens\":12}}}\n\n",
+        "data: [DONE]\n\n"
+    );
+    let (aggregate_addr, aggregate_rx, aggregate_join) =
+        start_mock_upstream_sequence_lenient_with_content_types(
+            vec![(
+                200,
+                aggregate_sse.to_string(),
+                "text/event-stream".to_string(),
+            )],
+            Duration::from_secs(2),
+        );
+
+    let storage = Storage::open(&db_path).expect("open db");
+    storage.init().expect("init db");
+    let now = now_ts();
+    let aggregate_id = "agg_hybrid_stream_identity";
+    let key_id = "gk_hybrid_stream_identity";
+    let platform_key = "pk_hybrid_stream_identity";
+    insert_active_account(&storage, "acc_hybrid_stream_identity", now);
+    insert_aggregate_api(&storage, aggregate_id, &aggregate_addr, "/responses", now);
+    replace_with_aggregate_only_route(&storage, aggregate_id);
+    insert_hybrid_aggregate_first_key(&storage, key_id, platform_key, now);
+
+    let server = codexmanager_service::start_one_shot_server().expect("start server");
+    let request = serde_json::json!({
+        "model": MODEL,
+        "input": "hello",
+        "stream": true
+    });
+    let request = serde_json::to_string(&request).expect("serialize request");
+    let (status, response_body) = post_http_raw(
+        &server.addr,
+        "/v1/responses",
+        &request,
+        &[
+            ("Content-Type", "application/json"),
+            ("Authorization", &format!("Bearer {platform_key}")),
+            ("Accept-Encoding", "gzip, br, zstd"),
+        ],
+    );
+    server.join();
+    local_join.join().expect("join local upstream");
+    aggregate_join.join().expect("join aggregate upstream");
+
+    assert_eq!(status, 200, "gateway response: {response_body}");
+    assert!(response_body.contains("aggregate ok"));
+    assert!(response_body.contains("resp_aggregate_identity"));
+    assert!(response_body.contains("response.completed"));
+    assert!(response_body.contains("data: [DONE]"));
+    assert_eq!(
+        local_rx.try_iter().count(),
+        0,
+        "local account must be skipped"
+    );
+    let aggregate_requests = aggregate_rx.try_iter().collect::<Vec<_>>();
+    assert_eq!(aggregate_requests.len(), 1, "aggregate API request count");
+    assert_eq!(
+        aggregate_requests[0]
+            .headers
+            .get("accept-encoding")
+            .map(String::as_str),
+        Some("identity")
+    );
+    assert_eq!(
+        aggregate_requests[0]
+            .headers
+            .get("accept")
+            .map(String::as_str),
+        Some("text/event-stream")
+    );
+    let aggregate_body: serde_json::Value =
+        serde_json::from_slice(&decode_upstream_request_body(&aggregate_requests[0]))
+            .expect("parse aggregate request body");
+    assert_eq!(aggregate_body["model"], UPSTREAM_MODEL);
+    assert_eq!(aggregate_body["stream"], true);
+
+    let logs = storage
+        .list_request_logs(Some(&format!("key:={key_id}")), 10)
+        .expect("list request logs")
+        .into_iter()
+        .filter(|item| item.request_path == "/v1/responses")
+        .collect::<Vec<_>>();
+    assert_eq!(logs.len(), 1, "stream must persist one final request log");
+    let log = &logs[0];
+    assert_eq!(log.status_code, Some(200));
+    assert_eq!(log.error, None);
+    assert_eq!(log.input_tokens, Some(7));
+    assert_eq!(log.cached_input_tokens, Some(2));
+    assert_eq!(log.output_tokens, Some(5));
+    assert_eq!(log.total_tokens, Some(12));
+    assert_eq!(log.reasoning_output_tokens, Some(1));
+    assert_eq!(log.actual_source_kind.as_deref(), Some("aggregate_api"));
+    assert_eq!(log.actual_source_id.as_deref(), Some(aggregate_id));
+}
+
+#[test]
 fn hybrid_aggregate_first_aggregate_only_failure_never_uses_account_pool() {
     let _lock = test_env_guard();
     let dir = new_test_dir("codexmanager-hybrid-aggregate-first-aggregate-only-failure");

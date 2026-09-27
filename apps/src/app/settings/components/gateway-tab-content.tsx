@@ -302,7 +302,7 @@ export function GatewayTabContent({
           <ModelForwardRulesEditor
             rows={modelForwardRuleRows}
             sourcePlaceholder={t("例如：spark*")}
-            targetPlaceholder={t("例如：gpt-5.4-openai-compact")}
+            targetPlaceholder={t("例如：gpt-6-sol")}
             sourceLabel={t("源模型")}
             targetLabel={t("目标模型")}
             addButtonLabel={t("新增规则")}

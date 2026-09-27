@@ -318,8 +318,8 @@ fn summarize_fallback_non_success_headers_only(
 /// # 返回
 /// 返回函数执行结果
 #[allow(clippy::too_many_arguments)]
-pub(super) fn handle_openai_fallback_branch<F>(
-    client: &reqwest::blocking::Client,
+pub(super) async fn handle_openai_fallback_branch<F>(
+    client: &reqwest::Client,
     storage: &Storage,
     method: &reqwest::Method,
     incoming_headers: &super::super::super::IncomingHeaderSnapshot,
@@ -380,7 +380,9 @@ where
         token,
         strip_session_affinity,
         debug,
-    ) {
+    )
+    .await
+    {
         Ok(Some(resp)) => {
             if resp.status().is_success() {
                 super::super::super::clear_account_cooldown(&account.id);
@@ -394,7 +396,8 @@ where
             if should_failover_after_fallback_non_success(fallback_status, has_more_candidates) {
                 let headers = resp.headers().clone();
                 let body = resp
-                    .into_buffered()
+                    .into_buffered_async()
+                    .await
                     .map(|(body, _)| body)
                     .unwrap_or_default();
                 let fallback_error = summarize_fallback_non_success(

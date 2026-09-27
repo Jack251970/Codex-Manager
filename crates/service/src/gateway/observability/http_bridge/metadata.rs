@@ -1,6 +1,6 @@
 use super::super::ResponseAdapter;
 use super::{UpstreamResponseBridgeResult, UpstreamResponseUsage};
-use tiny_http::Header;
+use crate::http::gateway_response::Header;
 
 pub(super) const REQUEST_ID_HEADER_CANDIDATES: &[&str] = &["x-request-id", "x-oai-request-id"];
 pub(super) const CF_RAY_HEADER_NAME: &str = "cf-ray";

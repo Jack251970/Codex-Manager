@@ -1,8 +1,13 @@
 use super::{Arc, Mutex, UpstreamResponseUsage};
+use crate::gateway::upstream::attempt_flow::transport::runtime::upstream_runtime;
+use crate::gateway::upstream::{GatewayByteStream, GatewayByteStreamItem};
+#[cfg(test)]
 use std::io::{BufRead, BufReader, Read};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
+use std::sync::mpsc::RecvTimeoutError;
+#[cfg(test)]
 use std::thread;
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc::{channel, Receiver};
 
 const UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY: usize = 128;
 
@@ -83,12 +88,12 @@ pub(crate) struct UpstreamSseFramePump {
 }
 
 impl UpstreamSseFramePump {
+    #[cfg(test)]
     pub(crate) fn from_reader<R>(upstream: R) -> Self
     where
         R: Read + Send + 'static,
     {
-        let (tx, rx) =
-            mpsc::sync_channel::<UpstreamSseFramePumpItem>(UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY);
+        let (tx, rx) = channel::<UpstreamSseFramePumpItem>(UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY);
         thread::spawn(move || {
             let mut reader = BufReader::new(upstream);
             let mut pending_frame_lines = Vec::new();
@@ -98,12 +103,12 @@ impl UpstreamSseFramePump {
                     Ok(0) => {
                         if !pending_frame_lines.is_empty()
                             && tx
-                                .send(UpstreamSseFramePumpItem::Frame(pending_frame_lines))
+                                .blocking_send(UpstreamSseFramePumpItem::Frame(pending_frame_lines))
                                 .is_err()
                         {
                             return;
                         }
-                        let _ = tx.send(UpstreamSseFramePumpItem::Eof);
+                        let _ = tx.blocking_send(UpstreamSseFramePumpItem::Eof);
                         return;
                     }
                     Ok(_) => {
@@ -111,18 +116,93 @@ impl UpstreamSseFramePump {
                         pending_frame_lines.push(line);
                         if is_blank {
                             let frame = std::mem::take(&mut pending_frame_lines);
-                            if tx.send(UpstreamSseFramePumpItem::Frame(frame)).is_err() {
+                            if tx
+                                .blocking_send(UpstreamSseFramePumpItem::Frame(frame))
+                                .is_err()
+                            {
                                 return;
                             }
                         }
                     }
                     Err(err) => {
-                        let _ = tx.send(UpstreamSseFramePumpItem::Error(err.to_string()));
+                        let _ = tx.blocking_send(UpstreamSseFramePumpItem::Error(err.to_string()));
                         return;
                     }
                 }
             }
         });
+        Self { rx }
+    }
+
+    pub(crate) fn from_stream(mut upstream: GatewayByteStream) -> Self {
+        let (tx, rx) = channel(UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY);
+        if let Ok(runtime) = upstream_runtime() {
+            runtime.spawn(async move {
+                let mut pending = Vec::<u8>::new();
+                let mut frame = Vec::<String>::new();
+                loop {
+                    let next = tokio::select! {
+                        _ = tx.closed() => return,
+                        next = upstream.recv_async() => next,
+                    };
+                    match next {
+                        Some(GatewayByteStreamItem::Chunk(bytes)) => {
+                            pending.extend_from_slice(&bytes)
+                        }
+                        Some(GatewayByteStreamItem::Error(error)) => {
+                            let _ = tx.send(UpstreamSseFramePumpItem::Error(error)).await;
+                            return;
+                        }
+                        Some(GatewayByteStreamItem::Eof) | None => {
+                            if !pending.is_empty() {
+                                match String::from_utf8(pending) {
+                                    Ok(line) => frame.push(line),
+                                    Err(error) => {
+                                        let _ = tx
+                                            .send(UpstreamSseFramePumpItem::Error(
+                                                error.to_string(),
+                                            ))
+                                            .await;
+                                        return;
+                                    }
+                                }
+                            }
+                            if !frame.is_empty()
+                                && tx
+                                    .send(UpstreamSseFramePumpItem::Frame(frame))
+                                    .await
+                                    .is_err()
+                            {
+                                return;
+                            }
+                            let _ = tx.send(UpstreamSseFramePumpItem::Eof).await;
+                            return;
+                        }
+                    }
+                    while let Some(end) = pending.iter().position(|byte| *byte == b'\n') {
+                        let line = match String::from_utf8(pending.drain(..=end).collect()) {
+                            Ok(line) => line,
+                            Err(error) => {
+                                let _ = tx
+                                    .send(UpstreamSseFramePumpItem::Error(error.to_string()))
+                                    .await;
+                                return;
+                            }
+                        };
+                        let blank = line == "\n" || line == "\r\n";
+                        frame.push(line);
+                        if blank
+                            && tx
+                                .send(UpstreamSseFramePumpItem::Frame(std::mem::take(&mut frame)))
+                                .await
+                                .is_err()
+                        {
+                            return;
+                        }
+                    }
+                }
+            });
+        }
         Self { rx }
     }
 
@@ -137,26 +217,20 @@ impl UpstreamSseFramePump {
     ///
     /// # 返回
     /// 返回函数执行结果
+    #[cfg(test)]
     pub(crate) fn new(upstream: reqwest::blocking::Response) -> Self {
         Self::from_reader(upstream)
     }
 
-    /// 函数 `recv_timeout`
-    ///
-    /// 作者: gaohongshun
-    ///
-    /// 时间: 2026-04-02
-    ///
-    /// # 参数
-    /// - crate: 参数 crate
-    ///
-    /// # 返回
-    /// 返回函数执行结果
-    pub(crate) fn recv_timeout(
-        &self,
+    pub(crate) async fn recv_timeout_async(
+        &mut self,
         timeout: Duration,
     ) -> Result<UpstreamSseFramePumpItem, RecvTimeoutError> {
-        self.rx.recv_timeout(timeout)
+        match tokio::time::timeout(timeout, self.rx.recv()).await {
+            Ok(Some(item)) => Ok(item),
+            Ok(None) => Err(RecvTimeoutError::Disconnected),
+            Err(_) => Err(RecvTimeoutError::Timeout),
+        }
     }
 }
 

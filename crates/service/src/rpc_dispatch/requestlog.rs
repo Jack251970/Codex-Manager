@@ -13,7 +13,7 @@ fn actor_key_ids_with_storage(storage: &Storage, actor: &RpcActor) -> Result<Vec
         .user_id
         .as_deref()
         .ok_or_else(|| "permission_denied: requestlog requires user session".to_string())?;
-    storage
+    crate::dashboard_storage::DashboardStorage::new(storage)
         .list_api_key_ids_for_user(user_id)
         .map_err(|err| format!("list api key ids for user failed: {err}"))
 }
@@ -138,6 +138,9 @@ pub(super) fn try_handle(req: &JsonRpcRequest, actor: &RpcActor) -> Option<JsonR
                 }
             }))
         }
+        // Service-mode HTTP dispatch handles this write through the injected
+        // DomainStorage contract. Keep the synchronous path for desktop and
+        // compatibility callers that do not carry AppState.
         "requestlog/clear" => super::ok_or_error(requestlog_clear::clear_request_logs()),
         "requestlog/today_summary" => {
             let day_start_ts = super::i64_param(req, "dayStartTs");
