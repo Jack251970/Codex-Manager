@@ -14,6 +14,47 @@ fn terminal_delivery_detects_split_marker_before_large_payload() {
 }
 
 #[test]
+fn anthropic_terminal_delivery_detects_markers_split_across_small_reads() {
+    for event in ["message_stop", "error"] {
+        let collector =
+            super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+        let frame = format!("event: {event}\ndata: {{\"type\":\"{event}\"}}\n\n");
+        for byte in frame.bytes() {
+            super::mark_anthropic_terminal_delivered(&collector, &[byte]);
+        }
+        assert!(collector.lock().unwrap().terminal_delivered);
+    }
+}
+
+#[test]
+fn anthropic_keepalive_and_content_events_are_not_terminal_delivery() {
+    let collector = super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+    for frame in [
+        super::SseKeepAliveFrame::Anthropic.bytes(),
+        b"event: content_block_delta\ndata: {\"type\":\"content_block_delta\"}\n\n",
+        b"event: error_detail\ndata: {}\n\n",
+    ] {
+        super::mark_anthropic_terminal_delivered(&collector, frame);
+        assert!(!collector.lock().unwrap().terminal_delivered);
+    }
+}
+
+#[test]
+fn responses_generic_error_still_requires_normalized_terminal_delivery() {
+    let collector = super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+    super::mark_terminal_delivered(
+        &collector,
+        b"event: error\ndata: {\"type\":\"error\",\"error\":{\"message\":\"upstream error\"}}\n\n",
+    );
+    assert!(!collector.lock().unwrap().terminal_delivered);
+    super::mark_terminal_delivered(
+        &collector,
+        b"event: response.failed\ndata: {\"type\":\"response.failed\"}\n\n",
+    );
+    assert!(collector.lock().unwrap().terminal_delivered);
+}
+
+#[test]
 fn comment_keepalive_is_not_a_semantic_event() {
     let frame = super::SseKeepAliveFrame::Comment.bytes();
     assert_eq!(frame, b": keep-alive\n\n");

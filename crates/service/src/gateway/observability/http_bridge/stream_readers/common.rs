@@ -31,6 +31,42 @@ pub(crate) fn mark_terminal_delivered(
     usage_collector: &Arc<Mutex<PassthroughSseCollector>>,
     chunk: &[u8],
 ) {
+    // A generic SSE error is normalized into response.failed for native Responses.
+    // Only its Responses terminal marker means that normalized tail was delivered.
+    mark_terminal_delivered_with_markers(
+        usage_collector,
+        chunk,
+        &[
+            "response.completed",
+            "response.failed",
+            "response.incomplete",
+            "response.done",
+            "data: [done]",
+        ],
+    );
+}
+
+pub(super) fn mark_anthropic_terminal_delivered(
+    usage_collector: &Arc<Mutex<PassthroughSseCollector>>,
+    chunk: &[u8],
+) {
+    mark_terminal_delivered_with_markers(
+        usage_collector,
+        chunk,
+        &[
+            "event: message_stop\n",
+            "event: message_stop\r\n",
+            "event: error\n",
+            "event: error\r\n",
+        ],
+    );
+}
+
+fn mark_terminal_delivered_with_markers(
+    usage_collector: &Arc<Mutex<PassthroughSseCollector>>,
+    chunk: &[u8],
+    markers: &[&str],
+) {
     let Ok(mut collector) = usage_collector.lock() else {
         return;
     };
@@ -42,11 +78,7 @@ pub(crate) fn mark_terminal_delivered(
     // markers split across reads. A large terminal frame may start with its
     // only terminal marker and end with a long response/error payload.
     let text = String::from_utf8_lossy(&collector.terminal_delivery_tail).to_ascii_lowercase();
-    let delivered = text.contains("response.completed")
-        || text.contains("response.failed")
-        || text.contains("response.incomplete")
-        || text.contains("response.done")
-        || text.contains("data: [done]");
+    let delivered = markers.iter().any(|marker| text.contains(*marker));
     const TAIL_LIMIT: usize = 256;
     if collector.terminal_delivery_tail.len() > TAIL_LIMIT {
         let keep_from = collector.terminal_delivery_tail.len() - TAIL_LIMIT;

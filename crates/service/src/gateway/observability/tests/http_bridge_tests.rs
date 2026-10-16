@@ -480,7 +480,7 @@ fn anthropic_sse_reader_final_usage_contains_input_cache_and_output_tokens() {
             0,
         )],
     );
-    let usage_collector = Arc::new(Mutex::new(super::UpstreamResponseUsage::default()));
+    let usage_collector = Arc::new(Mutex::new(PassthroughSseCollector::default()));
     let mut reader = super::AnthropicSseReader::new(
         response,
         usage_collector,
@@ -517,7 +517,7 @@ fn anthropic_sse_reader_does_not_replay_completed_snapshot_after_tool_call() {
             0,
         )],
     );
-    let usage_collector = Arc::new(Mutex::new(super::UpstreamResponseUsage::default()));
+    let usage_collector = Arc::new(Mutex::new(PassthroughSseCollector::default()));
     let mut reader = AnthropicSseReader::new(
         response,
         Arc::clone(&usage_collector),
@@ -537,6 +537,7 @@ fn anthropic_sse_reader_does_not_replay_completed_snapshot_after_tool_call() {
     let usage = usage_collector
         .lock()
         .expect("lock usage collector")
+        .usage
         .clone();
     assert_eq!(usage.output_text.as_deref(), Some("hello before tool"));
     assert_eq!(usage.input_tokens, Some(3));
@@ -549,12 +550,12 @@ fn anthropic_sse_reader_uses_request_model_when_upstream_stream_omits_model() {
     let (response, server) = open_streaming_mock_http_response(
         "text/event-stream",
         &[(
-            "data: {\"type\":\"response.failed\",\"response\":{\"id\":\"resp_missing_model_1\"}}\n\n\
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_missing_model_1\"}}\n\n\
              data: [DONE]\n\n",
             0,
         )],
     );
-    let usage_collector = Arc::new(Mutex::new(super::UpstreamResponseUsage::default()));
+    let usage_collector = Arc::new(Mutex::new(PassthroughSseCollector::default()));
     let mut reader = super::AnthropicSseReader::new(
         response,
         usage_collector,
