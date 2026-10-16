@@ -127,6 +127,24 @@ fn set_test_db(dir: &Path) -> EnvGuard {
     EnvGuard::set("CODEXMANAGER_DB_PATH", db_path.to_string_lossy().as_ref())
 }
 
+fn write_chatgpt_auth_fixture(dir: &Path) -> Vec<u8> {
+    let auth = concat!(
+        "{\r\n",
+        "  \"auth_mode\" : \"chatgpt\",\r\n",
+        "  \"OPENAI_API_KEY\" : null,\r\n",
+        "  \"tokens\" : {\r\n",
+        "    \"id_token\": \"id-token\",\r\n",
+        "    \"access_token\": \"access-token\",\r\n",
+        "    \"refresh_token\": \"refresh-token\",\r\n",
+        "    \"account_id\": \"chatgpt-account\"\r\n",
+        "  },\r\n",
+        "  \"custom_field\": \"preserve original formatting\"\r\n",
+        "}\r\n"
+    );
+    fs::write(dir.join(AUTH_FILE), auth).expect("write ChatGPT login fixture");
+    auth.as_bytes().to_vec()
+}
+
 #[test]
 fn managed_model_selection_changes_rename_remove_and_deduplicate() {
     let mut slugs = vec![
@@ -295,16 +313,15 @@ name = "Other"
         &managed_catalog,
         true,
         "cm-managed-key",
-        true,
     )
     .expect("patch gateway");
 
     assert!(output.contains("model_provider = \"cm\""));
     assert!(output.contains("[model_providers.cm]"));
-    assert!(output.contains("name = \"CodexManager\""));
+    assert!(output.contains("name = \"cm\""));
     assert!(output.contains("base_url = \"http://127.0.0.1:48770/v1\""));
     assert!(output.contains("wire_api = \"responses\""));
-    assert!(!output.contains("requires_openai_auth"));
+    assert!(output.contains("requires_openai_auth = true"));
     assert!(output.contains("supports_websockets = true"));
     assert!(output.contains("experimental_bearer_token = \"cm-managed-key\""));
     assert!(!output.contains("[model_providers.cm.auth]"));
@@ -337,7 +354,6 @@ name = "Other"
         &managed_catalog,
         false,
         "cm-managed-key",
-        true,
     )
     .expect("disable gateway websocket");
     assert!(without_websocket.contains("supports_websockets = false"));
@@ -383,6 +399,11 @@ async fn reapplying_gateway_profile_refreshes_catalog_and_requests_runtime_reloa
     storage
         .upsert_api_key_secret(&api_key.id, "cm-reapply-secret")
         .expect("insert platform key secret");
+    let original_auth = write_chatgpt_auth_fixture(&dir);
+    let original_auth_modified = fs::metadata(dir.join(AUTH_FILE))
+        .unwrap()
+        .modified()
+        .unwrap();
 
     let codex_home = dir.to_string_lossy().to_string();
     let first = apply_gateway_async(
@@ -394,6 +415,14 @@ async fn reapplying_gateway_profile_refreshes_catalog_and_requests_runtime_reloa
     )
     .await
     .expect("apply gateway profile");
+    assert_eq!(fs::read(dir.join(AUTH_FILE)).unwrap(), original_auth);
+    assert_eq!(
+        fs::metadata(dir.join(AUTH_FILE))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        original_auth_modified
+    );
     assert_eq!(
         first.selected_api_key_id.as_deref(),
         Some(api_key.id.as_str())
@@ -436,6 +465,14 @@ async fn reapplying_gateway_profile_refreshes_catalog_and_requests_runtime_reloa
     )
     .await
     .expect("reapply gateway profile");
+    assert_eq!(fs::read(dir.join(AUTH_FILE)).unwrap(), original_auth);
+    assert_eq!(
+        fs::metadata(dir.join(AUTH_FILE))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        original_auth_modified
+    );
 
     let catalog: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(&paths.gateway_model_catalog_path).expect("read refreshed catalog"),
@@ -510,6 +547,14 @@ async fn reapplying_gateway_profile_refreshes_catalog_and_requests_runtime_reloa
             .and_then(Item::as_str),
         Some(paths.gateway_model_catalog_path.to_string_lossy().as_ref())
     );
+    assert_eq!(fs::read(dir.join(AUTH_FILE)).unwrap(), original_auth);
+    assert_eq!(
+        fs::metadata(dir.join(AUTH_FILE))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        original_auth_modified
+    );
 
     cleanup_profile(&dir);
 }
@@ -554,6 +599,11 @@ async fn service_startup_reconciles_stale_gateway_model_selection() {
     storage
         .upsert_api_key_secret(&api_key.id, "cm-startup-stale-secret")
         .expect("insert platform key secret");
+    let original_auth = write_chatgpt_auth_fixture(&dir);
+    let original_auth_modified = fs::metadata(dir.join(AUTH_FILE))
+        .unwrap()
+        .modified()
+        .unwrap();
 
     let codex_home = dir.to_string_lossy().to_string();
     apply_gateway(
@@ -596,6 +646,46 @@ async fn service_startup_reconciles_stale_gateway_model_selection() {
     assert!(catalog["models"].as_array().is_some_and(|models| {
         !models.is_empty() && models.iter().all(|model| model["slug"] != stale_slug)
     }));
+    assert_eq!(fs::read(dir.join(AUTH_FILE)).unwrap(), original_auth);
+    assert_eq!(
+        fs::metadata(dir.join(AUTH_FILE))
+            .unwrap()
+            .modified()
+            .unwrap(),
+        original_auth_modified
+    );
+
+    for auth in [
+        None,
+        Some("{\"auth_mode\":\"apikey\",\"OPENAI_API_KEY\":\"user-owned-key\"}\n"),
+        Some("{\"auth_mode\":\"chatgpt\",\"tokens\":{\"access_token\":\"partial-login\"}}\n"),
+    ] {
+        if let Some(auth) = auth {
+            fs::write(dir.join(AUTH_FILE), auth).unwrap();
+        } else {
+            fs::remove_file(dir.join(AUTH_FILE)).unwrap();
+        }
+        let auth_before = fs::read(dir.join(AUTH_FILE)).ok();
+        let auth_modified_before = fs::metadata(dir.join(AUTH_FILE))
+            .ok()
+            .and_then(|metadata| metadata.modified().ok());
+        fs::write(&paths.gateway_model_catalog_path, "stale catalog").unwrap();
+
+        crate::lifecycle::startup::reconcile_active_gateway_profile_after_startup_async().await;
+
+        assert_eq!(fs::read(dir.join(AUTH_FILE)).ok(), auth_before);
+        assert_eq!(
+            fs::metadata(dir.join(AUTH_FILE))
+                .ok()
+                .and_then(|metadata| metadata.modified().ok()),
+            auth_modified_before
+        );
+        assert_ne!(
+            fs::read_to_string(&paths.gateway_model_catalog_path).unwrap(),
+            "stale catalog",
+            "startup still reconciles config/catalog without modifying auth"
+        );
+    }
 
     cleanup_profile(&dir);
 }
@@ -1115,7 +1205,7 @@ async fn first_apply_models_failure_removes_new_managed_state() {
 }
 
 #[test]
-fn gateway_config_preserves_requires_openai_auth_when_removal_is_disabled() {
+fn gateway_config_enforces_chatgpt_auth_requirement() {
     let input = r#"
 model_provider = "cm"
 
@@ -1130,9 +1220,8 @@ requires_openai_auth = true
         Path::new("/tmp/gateway-models.json"),
         false,
         "cm-managed-key",
-        false,
     )
-    .expect("patch gateway without removing auth requirement");
+    .expect("patch gateway with ChatGPT auth requirement");
     let doc = parse_config(&output).expect("parse patched gateway config");
     let provider = doc
         .get("model_providers")
@@ -1170,7 +1259,6 @@ http_headers = { "x-existing-header" = "keep", "x-openai-actor-authorization" = 
         &managed_catalog,
         true,
         "cm-managed-key",
-        true,
     )
     .expect("patch gateway");
     let doc = parse_config(&output).expect("parse patched gateway config");
@@ -1181,10 +1269,7 @@ http_headers = { "x-existing-header" = "keep", "x-openai-actor-authorization" = 
         .and_then(Item::as_table)
         .expect("managed provider");
 
-    assert_eq!(
-        provider.get("name").and_then(Item::as_str),
-        Some("Custom Gateway")
-    );
+    assert_eq!(provider.get("name").and_then(Item::as_str), Some("cm"));
     assert_eq!(
         provider
             .get("experimental_bearer_token")
@@ -1203,7 +1288,10 @@ http_headers = { "x-existing-header" = "keep", "x-openai-actor-authorization" = 
         provider.get("wire_api").and_then(Item::as_str),
         Some("responses")
     );
-    assert!(provider.get("requires_openai_auth").is_none());
+    assert_eq!(
+        provider.get("requires_openai_auth").and_then(Item::as_bool),
+        Some(true)
+    );
     assert!(provider.get("auth").is_none());
     assert_eq!(
         provider.get("supports_websockets").and_then(Item::as_bool),
@@ -1253,7 +1341,9 @@ fn direct_config_only_removes_manager_owned_catalog() {
 
 #[test]
 fn direct_mode_preserves_previous_catalog_from_config_and_state() {
+    let _env_lock = crate::test_env_guard();
     let dir = temp_profile("previous-direct-catalog");
+    let _db_guard = set_test_db(&dir);
     fs::create_dir_all(&dir).expect("create profile dir");
     let config = "model_catalog_json = \"C:/user-models.json\"\n";
     assert_eq!(
@@ -1292,13 +1382,205 @@ fn invalid_toml_is_rejected() {
         Path::new("/tmp/gateway-models.json"),
         false,
         "cm-managed-key",
-        false,
     )
     .is_err());
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn gateway_auth_cleanup_setting_covers_apply_reapply_and_startup_sync() {
+async fn gateway_requires_complete_chatgpt_login_before_any_profile_mutation() {
+    let _lock = crate::test_env_guard();
+    let _backend_guard = EnvGuard::remove("CODEXMANAGER_STORAGE_BACKEND");
+    let _database_url_guard = EnvGuard::remove("CODEXMANAGER_DATABASE_URL");
+    let dir = temp_profile("gateway-requires-chatgpt-login");
+    let _db_guard = set_test_db(&dir);
+    let _managed_root_guard = EnvGuard::set(
+        "CODEXMANAGER_TEST_DB_DIR",
+        dir.join("managed").to_string_lossy().as_ref(),
+    );
+    let storage = Storage::open(dir.join("codexmanager.db")).expect("open test storage");
+    storage.init().expect("init test storage");
+    let key = ApiKey {
+        id: "chatgpt-login-required-key".into(),
+        name: None,
+        model_slug: None,
+        reasoning_effort: None,
+        service_tier: None,
+        rotation_strategy: crate::apikey_profile::ROTATION_HYBRID.into(),
+        aggregate_api_id: None,
+        account_plan_filter: None,
+        aggregate_api_url: None,
+        client_type: crate::apikey_profile::CLIENT_CODEX.into(),
+        protocol_type: crate::apikey_profile::PROTOCOL_OPENAI_COMPAT.into(),
+        auth_scheme: crate::apikey_profile::AUTH_BEARER.into(),
+        upstream_base_url: None,
+        static_headers_json: None,
+        key_hash: "chatgpt-login-required-hash".into(),
+        status: "active".into(),
+        created_at: now_ts(),
+        last_used_at: None,
+    };
+    storage.insert_api_key(&key).expect("insert platform key");
+    storage
+        .upsert_api_key_secret(&key.id, "cm-login-required-secret")
+        .expect("insert platform key secret");
+    let valid_auth = serde_json::json!({
+        "auth_mode": "chatgpt",
+        "OPENAI_API_KEY": null,
+        "tokens": {
+            "id_token": "id-token",
+            "access_token": "access-token",
+            "refresh_token": "refresh-token"
+        }
+    });
+    let mut cases = vec![
+        ("missing-file".to_string(), None),
+        (
+            "malformed-json".to_string(),
+            Some("{broken json\n".to_string()),
+        ),
+        ("null-json".to_string(), Some("null\n".to_string())),
+        ("array-json".to_string(), Some("[]\n".to_string())),
+    ];
+    for (name, mode) in [
+        ("apikey-mode", Some(serde_json::json!("apikey"))),
+        ("missing-auth-mode", None),
+        ("non-string-auth-mode", Some(serde_json::json!(true))),
+    ] {
+        let mut auth = valid_auth.clone();
+        if let Some(mode) = mode {
+            auth["auth_mode"] = mode;
+        } else {
+            auth.as_object_mut().unwrap().remove("auth_mode");
+        }
+        cases.push((name.to_string(), Some(auth.to_string())));
+    }
+    for (name, tokens) in [
+        ("missing-tokens", None),
+        ("null-tokens", Some(serde_json::Value::Null)),
+        ("non-object-tokens", Some(serde_json::json!("access-token"))),
+    ] {
+        let mut auth = valid_auth.clone();
+        if let Some(tokens) = tokens {
+            auth["tokens"] = tokens;
+        } else {
+            auth.as_object_mut().unwrap().remove("tokens");
+        }
+        cases.push((name.to_string(), Some(auth.to_string())));
+    }
+    for token in ["id_token", "access_token", "refresh_token"] {
+        for (name, value) in [
+            ("missing", None),
+            ("empty", Some(serde_json::json!(""))),
+            ("blank", Some(serde_json::json!(" \t\r\n "))),
+            ("null", Some(serde_json::Value::Null)),
+            ("non-string", Some(serde_json::json!(123))),
+        ] {
+            let mut auth = valid_auth.clone();
+            if let Some(value) = value {
+                auth["tokens"][token] = value;
+            } else {
+                auth["tokens"].as_object_mut().unwrap().remove(token);
+            }
+            cases.push((format!("{token}-{name}"), Some(auth.to_string())));
+        }
+    }
+
+    crate::app_settings::save_persisted_app_setting(
+        APP_SETTING_STATE_KEY,
+        Some("unchanged pre-existing state"),
+    )
+    .unwrap();
+    crate::app_settings::save_persisted_app_setting(APP_SETTING_BACKUPS_KEY, Some("{}")).unwrap();
+    crate::app_settings::save_persisted_app_setting(
+        APP_SETTING_CODEX_HOME_KEY,
+        Some("C:/previous/.codex"),
+    )
+    .unwrap();
+
+    for (name, auth) in cases {
+        for existing_profile in [false, true] {
+            let profile_dir = dir.join(format!("{name}-{existing_profile}"));
+            fs::create_dir_all(&profile_dir).expect("create profile");
+            if let Some(auth) = &auth {
+                fs::write(profile_dir.join(AUTH_FILE), auth).expect("write invalid auth fixture");
+            }
+            let paths = managed_profile_paths(&profile_dir).expect("managed profile paths");
+            if existing_profile {
+                fs::write(
+                    profile_dir.join(CONFIG_FILE),
+                    "model_provider = \"external\"\ncustom_setting = true\n",
+                )
+                .unwrap();
+                fs::create_dir_all(&paths.root).unwrap();
+                fs::write(&paths.gateway_model_catalog_path, "unchanged catalog\n").unwrap();
+                fs::write(&paths.marker_path, "unchanged marker\n").unwrap();
+                fs::write(&paths.legacy_marker_path, "unchanged legacy marker\n").unwrap();
+                fs::create_dir_all(&paths.legacy_history_backup_root).unwrap();
+                fs::write(
+                    paths
+                        .legacy_history_backup_root
+                        .join("unchanged-backup.txt"),
+                    "unchanged history backup\n",
+                )
+                .unwrap();
+            }
+            let snapshot_files = || {
+                [&profile_dir, &paths.root]
+                    .into_iter()
+                    .map(|root| {
+                        collect_relative_files(root, root)
+                            .unwrap()
+                            .into_iter()
+                            .map(|relative| {
+                                let bytes = fs::read(root.join(&relative)).unwrap();
+                                (relative, bytes)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let files_before = snapshot_files();
+            let settings_before = crate::app_settings::list_app_settings_map();
+            let profile_path = profile_dir.to_string_lossy().to_string();
+
+            let error = apply_gateway_async(
+                Some(&key.id),
+                Some(&profile_path),
+                Some("http://127.0.0.1:48760"),
+                Some(false),
+                false,
+            )
+            .await
+            .expect_err("invalid ChatGPT login must reject gateway apply");
+
+            assert!(
+                error.contains("Codex ChatGPT login required"),
+                "case {name}, existing profile {existing_profile}: {error}"
+            );
+            assert_eq!(
+                snapshot_files(),
+                files_before,
+                "profile files changed for {name}, existing profile {existing_profile}"
+            );
+            assert_eq!(
+                paths.root.exists(),
+                existing_profile,
+                "managed directory changed for {name}"
+            );
+            assert_eq!(
+                crate::app_settings::list_app_settings_map(),
+                settings_before,
+                "state, backups or Codex home changed for {name}"
+            );
+            cleanup_profile(&profile_dir);
+        }
+    }
+    drop(storage);
+    cleanup_profile(&dir);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn gateway_ignores_legacy_auth_cleanup_setting_and_preserves_chatgpt_login() {
     let _lock = crate::test_env_guard();
     let _backend_guard = EnvGuard::remove("CODEXMANAGER_STORAGE_BACKEND");
     let _database_url_guard = EnvGuard::remove("CODEXMANAGER_DATABASE_URL");
@@ -1321,10 +1603,6 @@ async fn gateway_auth_cleanup_setting_covers_apply_reapply_and_startup_sync() {
                     )
                     .unwrap();
             }
-            assert_eq!(
-                remove_requires_openai_auth_enabled(),
-                setting.unwrap_or(true)
-            );
             let key = ApiKey {
                 id: "auth-setting-key".into(),
                 name: None,
@@ -1355,11 +1633,11 @@ async fn gateway_auth_cleanup_setting_covers_apply_reapply_and_startup_sync() {
             let input = format!(
                 "model_provider = \"cm\"\n[model_providers.cm]\nname = \"Keep name\"\n{auth_field}\n[model_providers.other]\nrequires_openai_auth = true\nbase_url = \"https://other.example/v1\"\n"
             );
-            let expected = if setting.unwrap_or(true) {
-                None
-            } else {
-                existing
-            };
+            let original_auth = write_chatgpt_auth_fixture(&dir);
+            let original_auth_modified = fs::metadata(dir.join(AUTH_FILE))
+                .unwrap()
+                .modified()
+                .unwrap();
             let check = || {
                 let config =
                     parse_config(&fs::read_to_string(dir.join(CONFIG_FILE)).unwrap()).unwrap();
@@ -1367,9 +1645,17 @@ async fn gateway_auth_cleanup_setting_covers_apply_reapply_and_startup_sync() {
                 let provider = providers[PROVIDER_ID].as_table().unwrap();
                 assert_eq!(
                     provider.get("requires_openai_auth").and_then(Item::as_bool),
-                    expected
+                    Some(true)
                 );
-                assert_eq!(provider["name"].as_str(), Some("Keep name"));
+                assert_eq!(provider["name"].as_str(), Some("cm"));
+                assert_eq!(fs::read(dir.join(AUTH_FILE)).unwrap(), original_auth);
+                assert_eq!(
+                    fs::metadata(dir.join(AUTH_FILE))
+                        .unwrap()
+                        .modified()
+                        .unwrap(),
+                    original_auth_modified
+                );
                 assert_eq!(
                     provider["experimental_bearer_token"].as_str(),
                     Some("cm-test-secret")
@@ -1405,7 +1691,7 @@ async fn gateway_auth_cleanup_setting_covers_apply_reapply_and_startup_sync() {
                 .unwrap();
                 check();
             }
-            // Startup sync must read the setting again instead of inheriting an old patch result.
+            // Startup sync must repair legacy config without changing the ChatGPT login.
             fs::write(dir.join(CONFIG_FILE), &input).unwrap();
             assert!(sync_active_gateway_profile_from_storage_async(&storage)
                 .await

@@ -255,6 +255,7 @@ PatewayAI специализируется на высококачественн
 - Аккаунты: импорт, экспорт, обновление аккаунтов и лимитов, фильтры низкой квоты/блокировки и время сброса.
 - Platform Key: привязка по модели, reasoning tier и service tier, просмотр журнала запросов.
 - Модели: desktop и Web не записывают и не загружают `~/.codex/models_cache.json`; direct accounts используют официальный каталог, локальный gateway — отдельный управляемый каталог.
+- Перед использованием локального gateway выполните `codex login` в целевом профиле Codex и войдите в ChatGPT. В `auth.json` должны быть `auth_mode = "chatgpt"` и непустые `tokens.id_token`, `tokens.access_token`, `tokens.refresh_token`. Настройка gateway сохраняет `auth.json` и обновляет только `config.toml`; неполный вход предотвращает запись конфигурации. Provider `cm` использует `name = "cm"`, `requires_openai_auth = true` и platform key в `experimental_bearer_token`.
 - Плагины: `/plugins/`, режимы marketplace, установка, включение, задачи, логи и Rhai.
 - Skills и плагины: `/skills/`, отдельные вкладки, GitHub/skills.sh, импорт ZIP/каталога, безопасное удаление, Marketplace и read-only системные Skills.
 - Проекты: локальные каталоги открываются в ChatGPT Codex App на Windows/macOS; «Сессии» используют локальный CLI; Web/Docker не получают доступ к каталогам устройства.

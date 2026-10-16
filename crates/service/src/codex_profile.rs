@@ -937,7 +937,7 @@ pub(crate) async fn apply_gateway_async(
     ) = profile_commit(&lease, move || {
         let profile_dir = resolve_profile_dir(codex_home.as_deref())?;
         ensure_profile_dir_valid(&profile_dir)?;
-        let _ = ensure_managed_profile_migrated(&profile_dir);
+        ensure_gateway_chatgpt_login(&profile_dir)?;
         let storage = open_storage()?;
         let gateway_auth = crate::apikey::remote::gateway_auth(&storage, &api_key_id)
             .map_err(|err| format!("read api key failed: {err}"))?
@@ -953,7 +953,6 @@ pub(crate) async fn apply_gateway_async(
             return Err("api key secret is empty".to_string());
         }
 
-        ensure_backup(&profile_dir)?;
         let current_config = read_optional(&profile_dir.join(CONFIG_FILE))?;
         let previous_model_catalog_json =
             previous_model_catalog_for_gateway(&profile_dir, current_config.as_deref())?;
@@ -988,21 +987,23 @@ pub(crate) async fn apply_gateway_async(
     .await?;
     drop(storage);
     profile_commit(&lease, move || {
-        write_atomic(&paths.gateway_model_catalog_path, &catalog_content)?;
-        let auth_json = build_gateway_auth_json(&secret)?;
+        // Codex can log out while the model catalog is being fetched. Recheck before
+        // committing anything, and leave Codex's own credentials entirely untouched.
+        ensure_gateway_chatgpt_login(&profile_dir)?;
         let config_toml = patch_config_for_gateway(
             current_config,
             &gateway_base_url,
             &paths.gateway_model_catalog_path,
             supports_websockets,
             &secret,
-            remove_requires_openai_auth_enabled(),
         )?;
-        write_profile_files(
+        let _ = ensure_managed_profile_migrated(&profile_dir);
+        ensure_backup(&profile_dir)?;
+        write_atomic(&paths.gateway_model_catalog_path, &catalog_content)?;
+        write_atomic(&profile_dir.join(CONFIG_FILE), &config_toml)?;
+        write_managed_state(
             &profile_dir,
-            &auth_json,
-            &config_toml,
-            ManagedState {
+            &ManagedState {
                 profile_dir: profile_key(&profile_dir),
                 mode: CodexProfileMode::Gateway,
                 account_id: None,
@@ -2620,6 +2621,29 @@ fn auth_json_has_tokens(content: &str) -> bool {
         })
 }
 
+fn ensure_gateway_chatgpt_login(profile_dir: &Path) -> Result<(), String> {
+    let login_required = || {
+        "Codex ChatGPT login required: sign in to any ChatGPT account with Codex first; auth.json must have auth_mode = chatgpt and non-empty id_token, access_token and refresh_token. auth.json was not changed."
+            .to_string()
+    };
+    let content = read_optional(&profile_dir.join(AUTH_FILE))?.ok_or_else(login_required)?;
+    let auth: serde_json::Value = serde_json::from_str(&content).map_err(|_| login_required())?;
+    if auth.get("auth_mode").and_then(serde_json::Value::as_str) != Some("chatgpt") {
+        return Err(login_required());
+    }
+    for key in ["id_token", "access_token", "refresh_token"] {
+        if !auth
+            .get("tokens")
+            .and_then(|tokens| tokens.get(key))
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|token| !token.trim().is_empty())
+        {
+            return Err(login_required());
+        }
+    }
+    Ok(())
+}
+
 fn detect_gateway_config(content: &str) -> Result<Option<DetectedGatewayConfig>, String> {
     let doc = parse_config(content)?;
     let provider_id = doc
@@ -2804,14 +2828,6 @@ fn expand_home_prefix(input: &str) -> PathBuf {
     PathBuf::from(input)
 }
 
-fn remove_requires_openai_auth_enabled() -> bool {
-    crate::app_settings::get_persisted_app_setting(
-        crate::app_settings::APP_SETTING_CODEX_PROFILE_REMOVE_REQUIRES_OPENAI_AUTH_KEY,
-    )
-    .map(|value| crate::app_settings::parse_bool_with_default(&value, true))
-    .unwrap_or(true)
-}
-
 fn profile_key(profile_dir: &Path) -> String {
     profile_dir.to_string_lossy().to_string()
 }
@@ -2991,7 +3007,6 @@ fn patch_config_for_gateway(
     managed_catalog_path: &Path,
     supports_websockets: bool,
     bearer_token: &str,
-    remove_requires_openai_auth: bool,
 ) -> Result<String, String> {
     let mut doc = parse_config(content.as_deref().unwrap_or(""))?;
     doc.as_table_mut()
@@ -3021,17 +3036,8 @@ fn patch_config_for_gateway(
         .get_mut(PROVIDER_ID)
         .and_then(Item::as_table_mut)
         .ok_or_else(|| "config.toml model_providers.cm is not a table".to_string())?;
-    if provider.get("name").is_none() {
-        provider.insert("name", toml_value("CodexManager"));
-    }
-    // Codex only treats actor authorization as an extension capability for custom providers
-    // that do not use ambient OpenAI auth. A provider-scoped bearer token works for local and
-    // remote CodexManager gateways without coupling the profile to a movable desktop executable.
-    // Keep the existing actor-capable behavior by default. Users who depend on ambient auth
-    // can explicitly preserve their existing value, at the cost of actor/image extensions.
-    if remove_requires_openai_auth {
-        provider.remove("requires_openai_auth");
-    }
+    provider.insert("name", toml_value(PROVIDER_ID));
+    provider.insert("requires_openai_auth", toml_value(true));
     set_provider_bearer_auth(provider, bearer_token)?;
     provider.insert("base_url", toml_value(base_url));
     provider.insert("wire_api", toml_value("responses"));
@@ -3377,7 +3383,6 @@ async fn sync_active_gateway_profile_from_storage_with_changes_async(
                         &paths.gateway_model_catalog_path,
                         supports_websockets,
                         secret,
-                        remove_requires_openai_auth_enabled(),
                     )?)
                 }
                 _ => None,

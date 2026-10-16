@@ -84,7 +84,7 @@
 
 ### 运行与使用
 
-托管网关的“移除 requires_openai_auth”设置默认开启，以保留当前图片/actor 扩展行为。关闭后，在网关切换、重复应用与启动同步时仅保留 `cm` provider 已有值，不恢复已删除字段；保留 `true` 可能禁用 Codex 图片扩展。直连聚合 API 和其他 provider 不受此开关影响。
+托管网关接入前需先在目标 Codex profile 中运行 `codex login`，使用任意 ChatGPT 账号登录；`auth.json` 必须为 `auth_mode = "chatgpt"`，且 `tokens.id_token`、`tokens.access_token`、`tokens.refresh_token` 均非空。应用网关逐字节保留 `auth.json`，只更新 `config.toml`；未登录或 token 不完整时不写入配置。`cm` provider 固定使用 `name = "cm"`、`requires_openai_auth = true`，平台 Key 放在 `experimental_bearer_token` 中，不再提供移除认证字段的开关。
 | 文档 | 作用 |
 | --- | --- |
 | [运行与部署指南.md](report/运行与部署指南.md) | 首次启动、Service 版、Docker、macOS 首启 |

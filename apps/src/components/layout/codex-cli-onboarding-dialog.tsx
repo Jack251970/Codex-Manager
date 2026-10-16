@@ -42,7 +42,7 @@ const GUIDE_STEPS = [
     icon: KeyRound,
     title: "第二步：准备账号或平台密钥",
     description:
-      "直接连接 OpenAI 需要 active 账号；通过 CodexManager 需要可用的平台密钥。",
+      "直接连接 OpenAI 需要 active 账号；通过 CodexManager 需要先使用 codex login 登录 ChatGPT，并准备可用的平台密钥。",
     details: ["去添加 OpenAI 账号", "去创建平台密钥"],
   },
   {
@@ -51,7 +51,7 @@ const GUIDE_STEPS = [
     description:
       "选择接入方式与目标后点击应用，页面会调用现有 profile 接口写入配置。",
     details: [
-      "选择直接连接 OpenAI 或通过 CodexManager 后，CodexManager 会接管该 Codex profile 的 auth.json / config.toml。",
+      "通过 CodexManager 接入时保留 auth.json 中的 ChatGPT 登录态，仅更新 config.toml；未登录或登录 token 不完整时不会应用配置。",
       "无需复制配置模板，也不要把账号 token 手动写进 auth.json。",
     ],
   },
@@ -157,7 +157,7 @@ export function CodexCliOnboardingDialog({
               </DialogTitle>
               <DialogDescription className="text-xs leading-5 md:text-sm">
                 {t(
-                  "无需手动编辑 auth.json 或 config.toml。CodexManager 会通过 Codex 接入方式页面安全写入并备份 Codex profile。",
+                  "通过本地网关接入前，请先用 codex login 登录 ChatGPT。应用网关配置会保留 auth.json 中的登录态，并更新 config.toml。",
                 )}
               </DialogDescription>
             </div>

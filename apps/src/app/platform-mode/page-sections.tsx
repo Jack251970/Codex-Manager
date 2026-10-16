@@ -673,6 +673,9 @@ export function GatewayModeCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2.5">
+        <p className="text-xs leading-5 text-muted-foreground">
+          {t("请先在此 Codex profile 中运行 codex login，使用任意 ChatGPT 账号登录。网关接入仅更新 config.toml，保留 auth.json；未登录或登录 token 不完整时不会应用配置。")}
+        </p>
         {candidates.length === 0 && !isLoading ? (
           <div className="grid gap-2 rounded-md border border-dashed border-border/70 bg-muted/25 p-2.5 text-sm text-muted-foreground">
             <p>{t("没有可用于 CodexManager 转发的平台密钥。")}</p>

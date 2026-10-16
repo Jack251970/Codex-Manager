@@ -40,22 +40,24 @@ export const EN_PLATFORM_MODE_MESSAGES: MessageCatalog = {
     "Codex connects directly to OpenAI and follows the official OpenAI model catalog. CodexManager does not route requests or manage the catalog.",
   "Codex 请求由 CodexManager 转发；实际路由和模型目录取决于当前平台密钥的配置。":
     "Codex requests are routed by CodexManager. The selected platform key determines the routing and model catalog.",
-  "选择接入方式后，CodexManager 会接管该 Codex profile 的 auth.json / config.toml。":
-    "After you choose a connection, CodexManager manages auth.json and config.toml for this Codex profile.",
+  "选择接入方式后应用配置；通过 CodexManager 接入会保留现有 ChatGPT 登录态，仅更新 config.toml。":
+    "Apply your chosen connection. Connecting through CodexManager preserves the existing ChatGPT sign-in and only updates config.toml.",
+  "请先在此 Codex profile 中运行 codex login，使用任意 ChatGPT 账号登录。网关接入仅更新 config.toml，保留 auth.json；未登录或登录 token 不完整时不会应用配置。":
+    "First run codex login in this Codex profile and sign in with any ChatGPT account. Gateway setup only updates config.toml and preserves auth.json. Configuration is not applied without a complete ChatGPT sign-in.",
   "请统一在 Codex 接入方式页面切换连接，避免 provider、模型目录和运行时重载配置彼此不一致。":
     "Switch connections from the Codex Connection page so the provider, model catalog, and runtime reload settings stay consistent.",
   "打开 Codex 接入方式": "Open Codex Connection",
   "先确认 CodexManager 本地服务可用，再选择 Codex 接入方式。":
     "Confirm that the local CodexManager service is available, then choose how Codex connects.",
-  "直接连接 OpenAI 需要 active 账号；通过 CodexManager 需要可用的平台密钥。":
-    "A direct OpenAI connection requires an active account; CodexManager routing requires an available platform key.",
+  "直接连接 OpenAI 需要 active 账号；通过 CodexManager 需要先使用 codex login 登录 ChatGPT，并准备可用的平台密钥。":
+    "A direct OpenAI connection requires an active account. For CodexManager routing, first sign in to ChatGPT with codex login and prepare an available platform key.",
   "第三步：应用 Codex 接入方式": "Step 3: Apply the Codex connection",
   "选择接入方式与目标后点击应用，页面会调用现有 profile 接口写入配置。":
     "Choose the connection and target, then apply it. The page writes the configuration through the existing profile API.",
-  "选择直接连接 OpenAI 或通过 CodexManager 后，CodexManager 会接管该 Codex profile 的 auth.json / config.toml。":
-    "After you choose direct OpenAI or CodexManager, CodexManager manages auth.json and config.toml for this Codex profile.",
-  "无需手动编辑 auth.json 或 config.toml。CodexManager 会通过 Codex 接入方式页面安全写入并备份 Codex profile。":
-    "You do not need to edit auth.json or config.toml manually. CodexManager safely writes and backs up the Codex profile from the Codex Connection page.",
+  "通过 CodexManager 接入时保留 auth.json 中的 ChatGPT 登录态，仅更新 config.toml；未登录或登录 token 不完整时不会应用配置。":
+    "Connecting through CodexManager preserves the ChatGPT sign-in in auth.json and only updates config.toml. Configuration is not applied without a complete ChatGPT sign-in.",
+  "通过本地网关接入前，请先用 codex login 登录 ChatGPT。应用网关配置会保留 auth.json 中的登录态，并更新 config.toml。":
+    "Before connecting through the local gateway, sign in to ChatGPT with codex login. Applying gateway settings preserves the sign-in in auth.json and updates config.toml.",
   平台模式选择: "Platform Mode",
   "选择 Codex CLI 直连账号，或通过 CodexManager 本地网关接入。":
     "Choose a direct Codex CLI account connection or route through the CodexManager local gateway.",

@@ -6,12 +6,11 @@ use super::author_links::{
     normalize_author_link_items, serialize_author_link_items, AuthorLinkItem,
 };
 use super::{
-    save_persisted_app_setting, save_persisted_bool_setting, set_auto_start_enabled_setting,
-    set_close_to_tray_on_close_setting, set_codex_cli_guide_dismissed, set_env_overrides,
-    set_gateway_account_max_inflight, set_gateway_background_tasks,
-    set_gateway_compact_model_forward_rules, set_gateway_free_account_max_model,
-    set_gateway_model_forward_rules, set_gateway_originator, set_gateway_quota_guard,
-    set_gateway_residency_requirement, set_gateway_route_strategy,
+    save_persisted_app_setting, set_auto_start_enabled_setting, set_close_to_tray_on_close_setting,
+    set_codex_cli_guide_dismissed, set_env_overrides, set_gateway_account_max_inflight,
+    set_gateway_background_tasks, set_gateway_compact_model_forward_rules,
+    set_gateway_free_account_max_model, set_gateway_model_forward_rules, set_gateway_originator,
+    set_gateway_quota_guard, set_gateway_residency_requirement, set_gateway_route_strategy,
     set_gateway_sse_keepalive_enabled, set_gateway_sse_keepalive_interval_ms,
     set_gateway_thread_aware_account_distribution_enabled, set_gateway_upstream_proxy_bypass_hosts,
     set_gateway_upstream_proxy_url, set_gateway_upstream_stream_timeout_ms,
@@ -21,8 +20,7 @@ use super::{
     set_ui_appearance_preset, set_ui_locale, set_ui_low_transparency_enabled, set_ui_theme,
     set_ui_zoom_factor, set_update_auto_check_enabled, BackgroundTasksInput, QuotaGuardInput,
     APP_SETTING_AUTHOR_SERVER_RECOMMENDATIONS_KEY, APP_SETTING_AUTHOR_SPONSORS_KEY,
-    APP_SETTING_CODEX_PROFILE_REMOVE_REQUIRES_OPENAI_AUTH_KEY, APP_SETTING_PLUGIN_MARKET_MODE_KEY,
-    APP_SETTING_PLUGIN_MARKET_SOURCE_URL_KEY,
+    APP_SETTING_PLUGIN_MARKET_MODE_KEY, APP_SETTING_PLUGIN_MARKET_SOURCE_URL_KEY,
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -107,12 +105,8 @@ pub(super) fn apply_app_settings_patch(patch: AppSettingsPatch) -> Result<(), St
     if let Some(enabled) = patch.update_auto_check {
         set_update_auto_check_enabled(enabled)?;
     }
-    if let Some(enabled) = patch.remove_requires_openai_auth {
-        save_persisted_bool_setting(
-            APP_SETTING_CODEX_PROFILE_REMOVE_REQUIRES_OPENAI_AUTH_KEY,
-            enabled,
-        )?;
-    }
+    // Accept legacy clients without changing historical settings or Gateway authentication.
+    let _ = patch.remove_requires_openai_auth;
     if let Some(enabled) = patch.auto_start_enabled {
         set_auto_start_enabled_setting(enabled)?;
     }
