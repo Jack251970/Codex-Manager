@@ -5,6 +5,27 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-10-18
+
+### Changed
+
+- Codex gateway setup preserves the existing ChatGPT sign-in without rewriting `auth.json`. Run `codex login` with complete login tokens before applying settings; the conflicting `requires_openai_auth` cleanup switch has been removed.
+- Model price sync matches only models sold by their original manufacturers, recognizes common brands and Chinese aliases, and allows model-name matching with custom supplier names. Multiple official regional prices remain ambiguous.
+- Synchronized workspace, frontend, Tauri, and lockfile versions to 0.6.5.
+
+### Fixed
+
+- Fixed Claude Code waiting for connection closure after the upstream had completed. The Claude bridge now ends on completion and reports upstream failures, interruptions, and idle timeouts as errors (#284).
+- Fixed the first account's header timeout exhausting the whole streaming request budget when the upstream total timeout is disabled. Each attempt retains its stream timeout and can fail over to another account (#284).
+- Fixed streaming tool indices and missing non-streaming tool calls in Chat Completions, preserving interleaved IDs, names, arguments, and valid repeated fragments, including calls converted from Responses.
+- Improved SSE chunk, UTF-8, line-ending, and large-frame handling. Buffer limits produce explicit protocol errors and release resources; terminal words in ordinary content no longer imply completion.
+- Aligned desktop and Web retry rules. Timeouts and cancellation cover response-body reads; sent non-idempotent writes are not replayed automatically, and lost responses report an unknown execution result.
+- Fixed partial settings saves, runtime changes before failed persistence, and concurrent overwrites. Settings are fully validated and committed in a transaction before runtime synchronization.
+- Preserved balanced account rotation when reading settings, saving the same routing strategy, or reloading unrelated environment settings.
+- Fixed concurrent reads during Web password-authentication mode changes; authentication is rejected when the password hash is missing.
+- Extended the desktop model price-sync timeout from 10 to 60 seconds, avoiding premature errors while retaining protection against duplicate submissions after lost responses.
+- Made pre-migration desktop SQLite backups usable without WAL sidecars and prevented failures from concurrent SQLite runtime initialization.
+
 ## [0.6.4] - 2026-10-15
 
 ### Added
@@ -612,7 +633,8 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 ### Changed
 - The operation area of ​​the account management page is integrated into a single "Account Operation" drop-down menu, replacing the stack of multiple buttons on the right, making the interface more concise.
 
-[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.6.5...HEAD
+[0.6.5]: https://github.com/qxcnm/Codex-Manager/compare/v0.6.4...v0.6.5
 [0.6.4]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.6.4
 [0.6.3]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.6.3
 [0.6.2]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.6.2
