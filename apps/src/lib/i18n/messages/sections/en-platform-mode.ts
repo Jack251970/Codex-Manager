@@ -40,24 +40,28 @@ export const EN_PLATFORM_MODE_MESSAGES: MessageCatalog = {
     "Codex connects directly to OpenAI and follows the official OpenAI model catalog. CodexManager does not route requests or manage the catalog.",
   "Codex 请求由 CodexManager 转发；实际路由和模型目录取决于当前平台密钥的配置。":
     "Codex requests are routed by CodexManager. The selected platform key determines the routing and model catalog.",
-  "选择接入方式后应用配置；通过 CodexManager 接入会保留现有 ChatGPT 登录态，仅更新 config.toml。":
-    "Apply your chosen connection. Connecting through CodexManager preserves the existing ChatGPT sign-in and only updates config.toml.",
-  "请先在此 Codex profile 中运行 codex login，使用任意 ChatGPT 账号登录。网关接入仅更新 config.toml，保留 auth.json；未登录或登录 token 不完整时不会应用配置。":
-    "First run codex login in this Codex profile and sign in with any ChatGPT account. Gateway setup only updates config.toml and preserves auth.json. Configuration is not applied without a complete ChatGPT sign-in.",
+  "选择接入方式后应用配置；账号直连会更新 auth.json，网关和聚合 API 接入保留 auth.json，仅更新 config.toml。":
+    "Apply your chosen connection. Direct account setup updates auth.json; gateway and aggregated API connections preserve auth.json and only update config.toml.",
+  "通过 CodexManager 接入只需可用的平台密钥。应用网关配置会保留 auth.json，兼容现有 ChatGPT 或 API key 认证，仅更新 config.toml。":
+    "Connecting through CodexManager only requires an available platform key. Applying gateway settings preserves auth.json, supports existing ChatGPT or API key authentication, and only updates config.toml.",
   "请统一在 Codex 接入方式页面切换连接，避免 provider、模型目录和运行时重载配置彼此不一致。":
     "Switch connections from the Codex Connection page so the provider, model catalog, and runtime reload settings stay consistent.",
   "打开 Codex 接入方式": "Open Codex Connection",
   "先确认 CodexManager 本地服务可用，再选择 Codex 接入方式。":
     "Confirm that the local CodexManager service is available, then choose how Codex connects.",
-  "直接连接 OpenAI 需要 active 账号；通过 CodexManager 需要先使用 codex login 登录 ChatGPT，并准备可用的平台密钥。":
-    "A direct OpenAI connection requires an active account. For CodexManager routing, first sign in to ChatGPT with codex login and prepare an available platform key.",
+  "直接连接 OpenAI 需要 active 账号；通过 CodexManager 只需可用的平台密钥。":
+    "A direct OpenAI connection requires an active account. CodexManager routing only requires an available platform key.",
   "第三步：应用 Codex 接入方式": "Step 3: Apply the Codex connection",
   "选择接入方式与目标后点击应用，页面会调用现有 profile 接口写入配置。":
     "Choose the connection and target, then apply it. The page writes the configuration through the existing profile API.",
-  "通过 CodexManager 接入时保留 auth.json 中的 ChatGPT 登录态，仅更新 config.toml；未登录或登录 token 不完整时不会应用配置。":
-    "Connecting through CodexManager preserves the ChatGPT sign-in in auth.json and only updates config.toml. Configuration is not applied without a complete ChatGPT sign-in.",
-  "通过本地网关接入前，请先用 codex login 登录 ChatGPT。应用网关配置会保留 auth.json 中的登录态，并更新 config.toml。":
-    "Before connecting through the local gateway, sign in to ChatGPT with codex login. Applying gateway settings preserves the sign-in in auth.json and updates config.toml.",
+  "直接连接 OpenAI 会更新 auth.json 以切换所选账号；网关和聚合 API 接入保留 auth.json，仅更新 config.toml。":
+    "Connecting directly to OpenAI updates auth.json to switch to the selected account; gateway and aggregated API connections preserve auth.json and only update config.toml.",
+  "应用后会更新 auth.json，切换为所选 OpenAI 账号。":
+    "Applying updates auth.json to switch to the selected OpenAI account.",
+  "仅更新 config.toml，聚合 API 密钥也保存在该文件；保留现有 auth.json。":
+    "Only config.toml is updated, including the aggregated API key; the existing auth.json is preserved.",
+  "通过本地网关接入只需可用的平台密钥。应用网关配置会保留 auth.json 中现有的 ChatGPT 或 API key 认证，仅更新 config.toml。":
+    "Connecting through the local gateway only requires an available platform key. Applying gateway settings preserves the existing ChatGPT or API key authentication in auth.json and only updates config.toml.",
   平台模式选择: "Platform Mode",
   "选择 Codex CLI 直连账号，或通过 CodexManager 本地网关接入。":
     "Choose a direct Codex CLI account connection or route through the CodexManager local gateway.",

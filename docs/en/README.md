@@ -282,13 +282,13 @@ If this project has helped you, donations are welcome!
 
 - Account Management: import, export, refresh accounts and usage, with low-quota/ban filters and reset times.
 - Platform Key: bind keys by model, reasoning tier, and service tier, and inspect request logs.
-- Codex Connection: connect directly through an OpenAI account, directly through an aggregate API that can safely map to Responses, or through the CodexManager local gateway. Direct aggregate-API connections bypass the local gateway and do not appear in gateway request logs.
+- Codex Connection: connect directly through an OpenAI account, directly through an aggregate API that can safely map to Responses, or through the CodexManager local gateway. Account connections write `auth.json` to switch accounts. Aggregate API and gateway connections preserve `auth.json` and update only `config.toml`; the provider field `experimental_bearer_token` holds the selected aggregate API key for direct aggregate connections or the CodexManager platform key for gateway connections. Direct aggregate-API connections bypass the local gateway and do not appear in gateway request logs.
 - Model Management: desktop and Web do not write or download `~/.codex/models_cache.json`; direct accounts follow the official catalog, while the local gateway uses an independent managed catalog.
 - Plugin Center: `/plugins/` provides marketplace switching, installation, enable/disable, tasks, logs, and Rhai integration.
 - Skills and Plugins: `/skills/` separates Skills and Codex plugins, with repository/skills.sh install, ZIP/directory import, safe uninstall, native Marketplace flow, and read-only system Skills.
 - Project Launcher: desktop bookmarks local folders; Windows/macOS open them in the ChatGPT Codex App, Sessions uses the local CLI, and Web/Docker do not access device directories.
 - Settings: manage port, listen address, proxy, timeouts, SSE keepalive, theme, updates, and background behavior.
-- Before using the local gateway, run `codex login` in the target Codex profile and sign in with any ChatGPT account. `auth.json` must use `auth_mode = "chatgpt"` with non-empty `tokens.id_token`, `tokens.access_token`, and `tokens.refresh_token`. Gateway setup updates only `config.toml` and preserves `auth.json` byte for byte; incomplete sign-in prevents configuration writes. The `cm` provider always uses `name = "cm"` and `requires_openai_auth = true`, with the platform key in `experimental_bearer_token`.
+- The local gateway supports existing ChatGPT or API key authentication (`auth_mode = "chatgpt"` or `"apikey"`) without requiring a particular sign-in method. Gateway setup updates only `config.toml`, preserves any existing `auth.json` byte for byte, and does not create an auth file or require ChatGPT login tokens. The `cm` provider always uses `name = "cm"` and `requires_openai_auth = true`, with the platform key in `experimental_bearer_token`.
 
 ### Service Edition
 

@@ -5,6 +5,16 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+### Fixed
+
+- Removed the mandatory ChatGPT sign-in check when applying gateway settings, supporting ChatGPT, API key, and legacy auth files. Gateway and aggregated API connections update `config.toml` with `experimental_bearer_token` while preserving `auth.json`; direct account connections still write the selected account credentials (#507).
+
+## [0.6.7] - 2026-10-18
+
+### Fixed
+
+- Fixed Linux AppImage launch failures for ordinary users caused by overly restrictive launcher and resource permissions. Bundle directory, executable, and resource permissions are normalized, with launcher verification as an unprivileged user.
+
 ## [0.6.6] - 2026-10-18
 
 ### Changed

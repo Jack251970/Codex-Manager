@@ -294,13 +294,13 @@ PatewayAI 专注于官方高质量模型 API 中继，完整支持 Claude、Code
 ### 桌面端
 - 账号管理：集中导入、导出、刷新账号与用量，支持低配额 / 封禁筛选与重置时间展示
 - 平台 Key：按模型、推理等级、服务等级绑定平台 Key，并查看调用日志
-- Codex 接入方式：支持 OpenAI 账号直连、可安全映射到 Responses 的聚合 API 直连，以及通过 CodexManager 本地网关接入；直连聚合 API 不经过本地网关，因此不会写入网关请求日志
+- Codex 接入方式：支持 OpenAI 账号直连、可安全映射到 Responses 的聚合 API 直连，以及通过 CodexManager 本地网关接入；账号直连会写入 `auth.json` 以切换账号，聚合 API 直连和本地网关只更新 `config.toml`、保留 `auth.json`，provider 的 `experimental_bearer_token` 在聚合直连时写入所选聚合 API Key，在网关接入时写入 CodexManager 平台 Key。直连聚合 API 不经过本地网关，因此不会写入网关请求日志
 - 模型管理：桌面端和 Web 端都不会写入或下载 `~/.codex/models_cache.json`；账号直连跟随 Codex 官方目录，本地网关使用 CodexManager 管理目录下独立生成的 catalog
 - 插件中心：`/plugins/` 路由，内置精选 / 企业私有 / 自定义源市场切换，插件安装、启停、任务、日志、Rhai 对接
 - Skills 与插件：`/skills/` 路由以独立 Tab 管理 Skills 安装和 Codex 插件安装；Skills 可从内置/自定义 GitHub 仓库或 skills.sh 搜索后单独安装，也支持 ZIP、目录导入和安全卸载；Codex 原生 Marketplace 继续负责完整插件安装，系统 Skill 只读
 - 项目启动：桌面端收藏本机目录；Windows / macOS 直接在 ChatGPT Codex App 中打开对应工作区，“会话”通过本机 CLI 继续项目；Web / Docker 不访问设备目录
 - 设置页：统一管理端口、监听地址、代理、请求超时、SSE 保活、主题、自动更新、后台行为
-- 本地网关接入前需先在目标 Codex profile 中通过 `codex login` 登录任意 ChatGPT 账号，确保 `auth.json` 的 `auth_mode = "chatgpt"` 且三个登录 token 非空。应用网关只更新 `config.toml`，逐字节保留 `auth.json`；未登录或 token 不完整时不写入配置。`cm` provider 固定使用 `name = "cm"`、`requires_openai_auth = true`，平台 Key 写入 `experimental_bearer_token`。
+- 本地网关兼容现有 ChatGPT 或 API Key 认证（`auth_mode = "chatgpt"` 或 `"apikey"`），不强制指定登录方式。应用网关只更新 `config.toml`，逐字节保留已有 `auth.json`，不会创建认证文件，也不要求具备 ChatGPT 登录 token。`cm` provider 固定使用 `name = "cm"`、`requires_openai_auth = true`，平台 Key 写入 `experimental_bearer_token`。
 
 ### Service 版
 - `codexmanager-service`：提供本地 OpenAI 兼容网关
@@ -411,7 +411,7 @@ PatewayAI 专注于官方高质量模型 API 中继，完整支持 Claude、Code
 
 ### 运行与使用
 
-托管网关接入前需先在目标 Codex profile 中运行 `codex login`，使用任意 ChatGPT 账号登录；`auth.json` 必须为 `auth_mode = "chatgpt"`，且 `tokens.id_token`、`tokens.access_token`、`tokens.refresh_token` 均非空。应用网关逐字节保留 `auth.json`，只更新 `config.toml`；未登录或 token 不完整时不写入配置。`cm` provider 固定使用 `name = "cm"`、`requires_openai_auth = true`，平台 Key 放在 `experimental_bearer_token` 中，不再提供移除认证字段的开关。
+托管网关兼容现有 ChatGPT 或 API Key 认证（`auth_mode = "chatgpt"` 或 `"apikey"`），不要求先运行 `codex login` 或切换登录方式。应用网关逐字节保留已有 `auth.json`，只更新 `config.toml`，不会创建认证文件，也不校验 ChatGPT 登录 token 是否完整。`cm` provider 固定使用 `name = "cm"`、`requires_openai_auth = true`，平台 Key 放在 `experimental_bearer_token` 中，不再提供移除认证字段的开关。
 | 文档 | 作用 |
 | --- | --- |
 | [运行与部署指南.md](report/运行与部署指南.md) | 首次启动、Service 版、Docker、macOS 首启 |

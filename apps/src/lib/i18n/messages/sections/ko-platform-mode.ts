@@ -40,24 +40,28 @@ export const KO_PLATFORM_MODE_MESSAGES: MessageCatalog = {
     "Codex는 OpenAI에 직접 연결하고 OpenAI 공식 모델 카탈로그를 따릅니다. CodexManager는 요청 라우팅이나 카탈로그 관리에 관여하지 않습니다.",
   "Codex 请求由 CodexManager 转发；实际路由和模型目录取决于当前平台密钥的配置。":
     "Codex 요청은 CodexManager가 라우팅합니다. 실제 라우팅과 모델 카탈로그는 현재 플랫폼 키 설정에 따라 결정됩니다.",
-  "选择接入方式后应用配置；通过 CodexManager 接入会保留现有 ChatGPT 登录态，仅更新 config.toml。":
-    "선택한 연결 설정을 적용합니다. CodexManager를 통한 연결은 기존 ChatGPT 로그인을 유지하고 config.toml만 업데이트합니다.",
-  "请先在此 Codex profile 中运行 codex login，使用任意 ChatGPT 账号登录。网关接入仅更新 config.toml，保留 auth.json；未登录或登录 token 不完整时不会应用配置。":
-    "먼저 이 Codex 프로필에서 codex login을 실행하여 ChatGPT 계정으로 로그인하세요. 게이트웨이 설정은 auth.json을 유지하고 config.toml만 업데이트합니다. 로그인하지 않았거나 로그인 토큰이 불완전하면 설정을 적용하지 않습니다.",
+  "选择接入方式后应用配置；账号直连会更新 auth.json，网关和聚合 API 接入保留 auth.json，仅更新 config.toml。":
+    "선택한 연결 설정을 적용합니다. 계정 직접 연결은 auth.json을 업데이트하며, 게이트웨이 및 집계 API 연결은 auth.json을 유지하고 config.toml만 업데이트합니다.",
+  "通过 CodexManager 接入只需可用的平台密钥。应用网关配置会保留 auth.json，兼容现有 ChatGPT 或 API key 认证，仅更新 config.toml。":
+    "CodexManager를 통한 연결에는 사용 가능한 플랫폼 키만 필요합니다. 게이트웨이 설정을 적용하면 auth.json을 유지하고 기존 ChatGPT 또는 API 키 인증을 지원하며 config.toml만 업데이트합니다.",
   "请统一在 Codex 接入方式页面切换连接，避免 provider、模型目录和运行时重载配置彼此不一致。":
     "provider, 모델 카탈로그 및 런타임 다시 로드 설정이 일치하도록 Codex 연결 방식 페이지에서 연결을 전환하세요.",
   "打开 Codex 接入方式": "Codex 연결 방식 열기",
   "先确认 CodexManager 本地服务可用，再选择 Codex 接入方式。":
     "먼저 CodexManager 로컬 서비스를 사용할 수 있는지 확인한 다음 Codex 연결 방식을 선택하세요.",
-  "直接连接 OpenAI 需要 active 账号；通过 CodexManager 需要先使用 codex login 登录 ChatGPT，并准备可用的平台密钥。":
-    "OpenAI 직접 연결에는 active 계정이 필요합니다. CodexManager 경유 시 먼저 codex login으로 ChatGPT에 로그인하고 사용 가능한 플랫폼 키를 준비하세요.",
+  "直接连接 OpenAI 需要 active 账号；通过 CodexManager 只需可用的平台密钥。":
+    "OpenAI 직접 연결에는 active 계정이 필요합니다. CodexManager를 통한 연결에는 사용 가능한 플랫폼 키만 필요합니다.",
   "第三步：应用 Codex 接入方式": "3단계: Codex 연결 방식 적용",
   "选择接入方式与目标后点击应用，页面会调用现有 profile 接口写入配置。":
     "연결 방식과 대상을 선택한 뒤 적용하세요. 기존 profile API를 통해 설정을 기록합니다.",
-  "通过 CodexManager 接入时保留 auth.json 中的 ChatGPT 登录态，仅更新 config.toml；未登录或登录 token 不完整时不会应用配置。":
-    "CodexManager 경유 연결은 auth.json의 ChatGPT 로그인을 유지하고 config.toml만 업데이트합니다. 로그인하지 않았거나 로그인 토큰이 불완전하면 설정을 적용하지 않습니다.",
-  "通过本地网关接入前，请先用 codex login 登录 ChatGPT。应用网关配置会保留 auth.json 中的登录态，并更新 config.toml。":
-    "로컬 게이트웨이에 연결하기 전에 codex login으로 ChatGPT에 로그인하세요. 게이트웨이 설정을 적용하면 auth.json의 로그인을 유지하고 config.toml을 업데이트합니다.",
+  "直接连接 OpenAI 会更新 auth.json 以切换所选账号；网关和聚合 API 接入保留 auth.json，仅更新 config.toml。":
+    "OpenAI 직접 연결은 선택한 계정으로 전환하도록 auth.json을 업데이트합니다. 게이트웨이 및 집계 API 연결은 auth.json을 유지하고 config.toml만 업데이트합니다.",
+  "应用后会更新 auth.json，切换为所选 OpenAI 账号。":
+    "적용하면 auth.json을 업데이트하여 선택한 OpenAI 계정으로 전환합니다.",
+  "仅更新 config.toml，聚合 API 密钥也保存在该文件；保留现有 auth.json。":
+    "집계 API 키를 포함하여 config.toml만 업데이트하며, 기존 auth.json은 유지합니다.",
+  "通过本地网关接入只需可用的平台密钥。应用网关配置会保留 auth.json 中现有的 ChatGPT 或 API key 认证，仅更新 config.toml。":
+    "로컬 게이트웨이를 통한 연결에는 사용 가능한 플랫폼 키만 필요합니다. 게이트웨이 설정을 적용하면 auth.json의 기존 ChatGPT 또는 API 키 인증을 유지하고 config.toml만 업데이트합니다.",
   平台模式选择: "플랫폼 모드 선택",
   "选择 Codex CLI 直连账号，或通过 CodexManager 本地网关接入。":
     "Codex CLI 계정 직결 또는 CodexManager 로컬 게이트웨이 경유 방식을 선택합니다.",

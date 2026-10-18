@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("gateway setup explains preserved ChatGPT sign-in and hides legacy auth cleanup", async ({ page }) => {
+test("settings hides legacy auth cleanup and preserves unrelated preferences", async ({ page }) => {
   let settings: Record<string, unknown> = {
     locale: "en",
     codexCliGuideDismissed: true,
@@ -39,9 +39,4 @@ test("gateway setup explains preserved ChatGPT sign-in and hides legacy auth cle
   await expect(performanceControl).toBeChecked();
   await expect(legacyControl).toHaveCount(0);
 
-  await page.goto("/platform-mode/");
-  await expect(page.getByText(
-    "First run codex login in this Codex profile and sign in with any ChatGPT account. Gateway setup only updates config.toml and preserves auth.json. Configuration is not applied without a complete ChatGPT sign-in.",
-    { exact: true },
-  )).toBeVisible();
 });

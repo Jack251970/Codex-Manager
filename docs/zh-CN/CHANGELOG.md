@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 修复应用网关配置时强制要求 ChatGPT 登录的问题，兼容 ChatGPT、API Key 和旧版认证文件；网关与聚合 API 只更新 `config.toml` 并写入 `experimental_bearer_token`，保留 `auth.json`，账号直连仍写入所选账号凭据（#507）。
+
+## [0.6.7] - 2026-10-18
+
+### Fixed
+
+- 修复 Linux AppImage 内部启动器和资源权限过严导致普通用户无法启动的问题，规范包内目录、可执行文件和资源的访问权限，并补充普通用户启动器验证。
+
 ## [0.6.6] - 2026-10-18
 
 ### Changed

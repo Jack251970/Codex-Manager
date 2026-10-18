@@ -858,7 +858,6 @@ pub(crate) async fn apply_direct_aggregate_async(
         .ok_or_else(|| "aggregate api model catalog is empty".to_string())?;
 
     profile_commit(&lease, move || {
-        let auth_json = build_gateway_auth_json(&secret)?;
         let config_toml = patch_config_for_direct_aggregate(
             current_config,
             &aggregate_config,
@@ -868,11 +867,11 @@ pub(crate) async fn apply_direct_aggregate_async(
             &default_model,
         )?;
         write_atomic(&paths.gateway_model_catalog_path, &catalog_content)?;
-        write_profile_files(
+        // The aggregate key belongs to its provider config, not Codex's account credentials.
+        write_atomic(&profile_dir.join(CONFIG_FILE), &config_toml)?;
+        write_managed_state(
             &profile_dir,
-            &auth_json,
-            &config_toml,
-            ManagedState {
+            &ManagedState {
                 profile_dir: profile_key(&profile_dir),
                 mode: CodexProfileMode::DirectAggregate,
                 account_id: None,
@@ -937,7 +936,6 @@ pub(crate) async fn apply_gateway_async(
     ) = profile_commit(&lease, move || {
         let profile_dir = resolve_profile_dir(codex_home.as_deref())?;
         ensure_profile_dir_valid(&profile_dir)?;
-        ensure_gateway_chatgpt_login(&profile_dir)?;
         let storage = open_storage()?;
         let gateway_auth = crate::apikey::remote::gateway_auth(&storage, &api_key_id)
             .map_err(|err| format!("read api key failed: {err}"))?
@@ -987,9 +985,8 @@ pub(crate) async fn apply_gateway_async(
     .await?;
     drop(storage);
     profile_commit(&lease, move || {
-        // Codex can log out while the model catalog is being fetched. Recheck before
-        // committing anything, and leave Codex's own credentials entirely untouched.
-        ensure_gateway_chatgpt_login(&profile_dir)?;
+        // Gateway credentials live in the provider config. Preserve Codex's own
+        // authentication file without requiring a particular sign-in mode.
         let config_toml = patch_config_for_gateway(
             current_config,
             &gateway_base_url,
@@ -2621,29 +2618,6 @@ fn auth_json_has_tokens(content: &str) -> bool {
         })
 }
 
-fn ensure_gateway_chatgpt_login(profile_dir: &Path) -> Result<(), String> {
-    let login_required = || {
-        "Codex ChatGPT login required: sign in to any ChatGPT account with Codex first; auth.json must have auth_mode = chatgpt and non-empty id_token, access_token and refresh_token. auth.json was not changed."
-            .to_string()
-    };
-    let content = read_optional(&profile_dir.join(AUTH_FILE))?.ok_or_else(login_required)?;
-    let auth: serde_json::Value = serde_json::from_str(&content).map_err(|_| login_required())?;
-    if auth.get("auth_mode").and_then(serde_json::Value::as_str) != Some("chatgpt") {
-        return Err(login_required());
-    }
-    for key in ["id_token", "access_token", "refresh_token"] {
-        if !auth
-            .get("tokens")
-            .and_then(|tokens| tokens.get(key))
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|token| !token.trim().is_empty())
-        {
-            return Err(login_required());
-        }
-    }
-    Ok(())
-}
-
 fn detect_gateway_config(content: &str) -> Result<Option<DetectedGatewayConfig>, String> {
     let doc = parse_config(content)?;
     let provider_id = doc
@@ -2857,14 +2831,6 @@ fn build_direct_auth_json(
     .map_err(|err| format!("serialize auth.json failed: {err}"))
 }
 
-fn build_gateway_auth_json(api_key: &str) -> Result<String, String> {
-    serde_json::to_string_pretty(&serde_json::json!({
-        "auth_mode": "apikey",
-        "OPENAI_API_KEY": api_key,
-    }))
-    .map_err(|err| format!("serialize auth.json failed: {err}"))
-}
-
 fn previous_model_catalog_for_direct(
     profile_dir: &Path,
     config_toml: Option<&str>,
@@ -2911,8 +2877,7 @@ fn patch_config_for_direct(
     previous_model_catalog_json: Option<&str>,
 ) -> Result<String, String> {
     let mut doc = parse_config(content.as_deref().unwrap_or(""))?;
-    doc.as_table_mut()
-        .insert("model_provider", toml_value(DEFAULT_HISTORY_PROVIDER_ID));
+    doc.as_table_mut().remove("model_provider");
     if doc.as_table().get("model_providers").is_none() {
         doc.as_table_mut()
             .insert("model_providers", Item::Table(Table::new()));
@@ -2927,6 +2892,7 @@ fn patch_config_for_direct(
     compatibility_provider.insert("wire_api", toml_value("responses"));
     compatibility_provider.insert("requires_openai_auth", toml_value(true));
     providers.insert(PROVIDER_ID, Item::Table(compatibility_provider));
+    providers.remove(DIRECT_AGGREGATE_PROVIDER_ID);
     let managed_catalog_path = managed_catalog_path.to_string_lossy();
     let catalog_is_managed = doc
         .get("model_catalog_json")
@@ -2982,17 +2948,15 @@ fn patch_config_for_direct_aggregate(
     provider.insert("base_url", toml_value(aggregate.base_url.as_str()));
     provider.insert("wire_api", toml_value("responses"));
     provider.insert("supports_websockets", toml_value(false));
-    match &aggregate.auth {
-        DirectAggregateAuth::Bearer => set_provider_bearer_auth(&mut provider, secret)?,
-        DirectAggregateAuth::Header { name, format } => {
-            provider.insert("requires_openai_auth", toml_value(false));
-            let value = if format == "bearer" {
-                format!("Bearer {}", secret.trim())
-            } else {
-                secret.trim().to_string()
-            };
-            set_provider_http_header(&mut provider, name, value.as_str())?;
-        }
+    set_provider_bearer_auth(&mut provider, secret)?;
+    if let DirectAggregateAuth::Header { name, format } = &aggregate.auth {
+        provider.insert("requires_openai_auth", toml_value(false));
+        let value = if format == "bearer" {
+            format!("Bearer {}", secret.trim())
+        } else {
+            secret.trim().to_string()
+        };
+        set_provider_http_header(&mut provider, name, value.as_str())?;
     }
     if let Some(user_agent) = aggregate.user_agent.as_deref() {
         set_provider_http_header(&mut provider, "User-Agent", user_agent)?;
