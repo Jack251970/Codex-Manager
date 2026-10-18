@@ -1,15 +1,12 @@
 use super::{Arc, Mutex, UpstreamResponseUsage};
-use crate::gateway::upstream::attempt_flow::transport::runtime::upstream_runtime;
 use crate::gateway::upstream::{GatewayByteStream, GatewayByteStreamItem};
-#[cfg(test)]
-use std::io::{BufRead, BufReader, Read};
-use std::sync::mpsc::RecvTimeoutError;
-#[cfg(test)]
-use std::thread;
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc::{channel, Receiver};
 
-const UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY: usize = 128;
+#[path = "sse_frame_buffer.rs"]
+mod sse_frame_buffer;
+#[cfg(test)]
+pub(super) use sse_frame_buffer::SseFrameLimits;
+pub(crate) use sse_frame_buffer::{UpstreamSseFramePump, UpstreamSseFramePumpItem};
 
 const STREAM_INCOMPLETE_FALLBACK_MESSAGE: &str = "连接中断（可能是网络波动或客户端主动取消）";
 const STREAM_READ_FAILED_FALLBACK_MESSAGE: &str = "上游中途断开，未返回具体错误信息";
@@ -20,8 +17,8 @@ pub(crate) struct PassthroughSseCollector {
     pub(crate) usage: UpstreamResponseUsage,
     pub(crate) saw_terminal: bool,
     pub(crate) terminal_delivered: bool,
-    #[allow(dead_code)]
     pub(crate) terminal_delivery_tail: Vec<u8>,
+    pub(crate) terminal_delivery_line_truncated: bool,
     pub(crate) terminal_error: Option<String>,
     pub(crate) upstream_error_hint: Option<String>,
     pub(crate) last_event_type: Option<String>,
@@ -33,7 +30,7 @@ pub(crate) fn mark_terminal_delivered(
 ) {
     // A generic SSE error is normalized into response.failed for native Responses.
     // Only its Responses terminal marker means that normalized tail was delivered.
-    mark_terminal_delivered_with_markers(
+    mark_terminal_delivered_with_events(
         usage_collector,
         chunk,
         &[
@@ -41,8 +38,8 @@ pub(crate) fn mark_terminal_delivered(
             "response.failed",
             "response.incomplete",
             "response.done",
-            "data: [done]",
         ],
+        true,
     );
 }
 
@@ -50,22 +47,14 @@ pub(super) fn mark_anthropic_terminal_delivered(
     usage_collector: &Arc<Mutex<PassthroughSseCollector>>,
     chunk: &[u8],
 ) {
-    mark_terminal_delivered_with_markers(
-        usage_collector,
-        chunk,
-        &[
-            "event: message_stop\n",
-            "event: message_stop\r\n",
-            "event: error\n",
-            "event: error\r\n",
-        ],
-    );
+    mark_terminal_delivered_with_events(usage_collector, chunk, &["message_stop", "error"], false);
 }
 
-fn mark_terminal_delivered_with_markers(
+fn mark_terminal_delivered_with_events(
     usage_collector: &Arc<Mutex<PassthroughSseCollector>>,
     chunk: &[u8],
-    markers: &[&str],
+    events: &[&str],
+    accept_done_data: bool,
 ) {
     let Ok(mut collector) = usage_collector.lock() else {
         return;
@@ -73,18 +62,41 @@ fn mark_terminal_delivered_with_markers(
     if collector.terminal_delivered {
         return;
     }
-    collector.terminal_delivery_tail.extend_from_slice(chunk);
-    // Inspect the full chunk before retaining only the suffix needed to match
-    // markers split across reads. A large terminal frame may start with its
-    // only terminal marker and end with a long response/error payload.
-    let text = String::from_utf8_lossy(&collector.terminal_delivery_tail).to_ascii_lowercase();
-    let delivered = markers.iter().any(|marker| text.contains(*marker));
-    const TAIL_LIMIT: usize = 256;
-    if collector.terminal_delivery_tail.len() > TAIL_LIMIT {
-        let keep_from = collector.terminal_delivery_tail.len() - TAIL_LIMIT;
-        collector.terminal_delivery_tail.drain(..keep_from);
+    // Retain only a bounded line prefix across small reads. Searching arbitrary
+    // text (or a truncated suffix) mistakes comments and JSON content for SSE
+    // control lines, which can suppress a later real transport failure.
+    const LINE_PREFIX_LIMIT: usize = 256;
+    for &byte in chunk {
+        if byte == b'\r' || byte == b'\n' {
+            let delivered = !collector.terminal_delivery_line_truncated
+                && std::str::from_utf8(&collector.terminal_delivery_tail)
+                    .ok()
+                    .is_some_and(|line| {
+                        let line = line.trim_start_matches('\u{feff}');
+                        line.strip_prefix("event:").is_some_and(|value| {
+                            events
+                                .iter()
+                                .any(|event| value.trim().eq_ignore_ascii_case(event))
+                        }) || (accept_done_data
+                            && line
+                                .strip_prefix("data:")
+                                .is_some_and(|value| value.trim().eq_ignore_ascii_case("[DONE]")))
+                    });
+            collector.terminal_delivery_tail.clear();
+            collector.terminal_delivery_line_truncated = false;
+            if delivered {
+                collector.terminal_delivered = true;
+                return;
+            }
+        } else if !collector.terminal_delivery_line_truncated {
+            if collector.terminal_delivery_tail.len() < LINE_PREFIX_LIMIT {
+                collector.terminal_delivery_tail.push(byte);
+            } else {
+                collector.terminal_delivery_tail.clear();
+                collector.terminal_delivery_line_truncated = true;
+            }
+        }
     }
-    collector.terminal_delivered = delivered;
 }
 
 fn elapsed_ms_since(started_at: Instant) -> i64 {
@@ -135,169 +147,6 @@ impl SseKeepAliveFrame {
         match self {
             Self::Comment => b": keep-alive\n\n",
             Self::Anthropic => b"event: ping\ndata: {\"type\":\"ping\"}\n\n",
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) enum UpstreamSseFramePumpItem {
-    Frame(Vec<String>),
-    Eof,
-    Error(String),
-}
-
-pub(crate) struct UpstreamSseFramePump {
-    rx: Receiver<UpstreamSseFramePumpItem>,
-}
-
-impl UpstreamSseFramePump {
-    #[cfg(test)]
-    pub(super) fn from_receiver(rx: Receiver<UpstreamSseFramePumpItem>) -> Self {
-        Self { rx }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn from_reader<R>(upstream: R) -> Self
-    where
-        R: Read + Send + 'static,
-    {
-        let (tx, rx) = channel::<UpstreamSseFramePumpItem>(UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY);
-        thread::spawn(move || {
-            let mut reader = BufReader::new(upstream);
-            let mut pending_frame_lines = Vec::new();
-            loop {
-                let mut line = String::new();
-                match reader.read_line(&mut line) {
-                    Ok(0) => {
-                        if !pending_frame_lines.is_empty()
-                            && tx
-                                .blocking_send(UpstreamSseFramePumpItem::Frame(pending_frame_lines))
-                                .is_err()
-                        {
-                            return;
-                        }
-                        let _ = tx.blocking_send(UpstreamSseFramePumpItem::Eof);
-                        return;
-                    }
-                    Ok(_) => {
-                        let is_blank = line == "\n" || line == "\r\n";
-                        pending_frame_lines.push(line);
-                        if is_blank {
-                            let frame = std::mem::take(&mut pending_frame_lines);
-                            if tx
-                                .blocking_send(UpstreamSseFramePumpItem::Frame(frame))
-                                .is_err()
-                            {
-                                return;
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        let _ = tx.blocking_send(UpstreamSseFramePumpItem::Error(err.to_string()));
-                        return;
-                    }
-                }
-            }
-        });
-        Self { rx }
-    }
-
-    pub(crate) fn from_stream(mut upstream: GatewayByteStream) -> Self {
-        let (tx, rx) = channel(UPSTREAM_SSE_FRAME_CHANNEL_CAPACITY);
-        if let Ok(runtime) = upstream_runtime() {
-            runtime.spawn(async move {
-                let mut pending = Vec::<u8>::new();
-                let mut frame = Vec::<String>::new();
-                loop {
-                    let next = tokio::select! {
-                        _ = tx.closed() => return,
-                        next = upstream.recv_async() => next,
-                    };
-                    match next {
-                        Some(GatewayByteStreamItem::Chunk(bytes)) => {
-                            pending.extend_from_slice(&bytes)
-                        }
-                        Some(GatewayByteStreamItem::Error(error)) => {
-                            let _ = tx.send(UpstreamSseFramePumpItem::Error(error)).await;
-                            return;
-                        }
-                        Some(GatewayByteStreamItem::Eof) | None => {
-                            if !pending.is_empty() {
-                                match String::from_utf8(pending) {
-                                    Ok(line) => frame.push(line),
-                                    Err(error) => {
-                                        let _ = tx
-                                            .send(UpstreamSseFramePumpItem::Error(
-                                                error.to_string(),
-                                            ))
-                                            .await;
-                                        return;
-                                    }
-                                }
-                            }
-                            if !frame.is_empty()
-                                && tx
-                                    .send(UpstreamSseFramePumpItem::Frame(frame))
-                                    .await
-                                    .is_err()
-                            {
-                                return;
-                            }
-                            let _ = tx.send(UpstreamSseFramePumpItem::Eof).await;
-                            return;
-                        }
-                    }
-                    while let Some(end) = pending.iter().position(|byte| *byte == b'\n') {
-                        let line = match String::from_utf8(pending.drain(..=end).collect()) {
-                            Ok(line) => line,
-                            Err(error) => {
-                                let _ = tx
-                                    .send(UpstreamSseFramePumpItem::Error(error.to_string()))
-                                    .await;
-                                return;
-                            }
-                        };
-                        let blank = line == "\n" || line == "\r\n";
-                        frame.push(line);
-                        if blank
-                            && tx
-                                .send(UpstreamSseFramePumpItem::Frame(std::mem::take(&mut frame)))
-                                .await
-                                .is_err()
-                        {
-                            return;
-                        }
-                    }
-                }
-            });
-        }
-        Self { rx }
-    }
-
-    /// 函数 `new`
-    ///
-    /// 作者: gaohongshun
-    ///
-    /// 时间: 2026-04-02
-    ///
-    /// # 参数
-    /// - crate: 参数 crate
-    ///
-    /// # 返回
-    /// 返回函数执行结果
-    #[cfg(test)]
-    pub(crate) fn new(upstream: reqwest::blocking::Response) -> Self {
-        Self::from_reader(upstream)
-    }
-
-    pub(crate) async fn recv_timeout_async(
-        &mut self,
-        timeout: Duration,
-    ) -> Result<UpstreamSseFramePumpItem, RecvTimeoutError> {
-        match tokio::time::timeout(timeout, self.rx.recv()).await {
-            Ok(Some(item)) => Ok(item),
-            Ok(None) => Err(RecvTimeoutError::Disconnected),
-            Err(_) => Err(RecvTimeoutError::Timeout),
         }
     }
 }
@@ -444,3 +293,7 @@ pub(super) fn classify_upstream_stream_read_error(raw: &str) -> String {
 #[cfg(test)]
 #[path = "common_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "common_protocol_tests.rs"]
+mod protocol_tests;

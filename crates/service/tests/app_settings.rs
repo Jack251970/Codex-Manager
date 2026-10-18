@@ -925,6 +925,17 @@ fn sse_keepalive_app_settings_respect_process_env_and_preserve_requested_storage
                 Some(15_000),
                 "snapshot must report the effective env-backed interval"
             );
+            assert!(
+                codexmanager_service::set_gateway_sse_keepalive_enabled(false)
+                    .expect("persist requested enabled value through standalone setter"),
+                "standalone setter must report the effective env-backed enabled value"
+            );
+            assert_eq!(
+                codexmanager_service::set_gateway_sse_keepalive_interval_ms(42_000)
+                    .expect("persist requested interval through standalone setter"),
+                15_000,
+                "standalone setter must report the effective env-backed interval"
+            );
 
             let storage = Storage::open(db_path).expect("open storage");
             assert_eq!(

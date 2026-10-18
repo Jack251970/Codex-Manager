@@ -124,6 +124,25 @@ fn copy_db_snapshot(source: &Path, target: &Path) -> Result<(), String> {
                 target.display()
             )
         })?;
+    drop(backup);
+    // The pooled connection closes asynchronously. Finish the destination WAL
+    // now so the returned snapshot is usable as a single database file.
+    let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = target_conn
+        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|err| {
+            format!(
+                "checkpoint sqlite backup {} failed: {err}",
+                target.display()
+            )
+        })?;
+    if busy != 0 || log_frames != checkpointed_frames {
+        return Err(format!(
+            "checkpoint sqlite backup {} incomplete: busy={busy}, log_frames={log_frames}, checkpointed_frames={checkpointed_frames}",
+            target.display()
+        ));
+    }
     Ok(())
 }
 
@@ -460,6 +479,54 @@ mod tests {
         migrated.init().expect("init migrated qa storage");
         assert_eq!(migrated.account_count().expect("count accounts"), 1);
 
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn pre_migration_backup_is_immediately_usable_without_sidecars() {
+        let root = unique_temp_dir();
+        std::fs::create_dir_all(&root).expect("create test dir");
+        let db_path = root.join("codexmanager.db");
+        let source = create_populated_db(&db_path);
+        let backup = create_pre_migration_backup(&db_path, "standalone")
+            .expect("create standalone backup")
+            .expect("backup path");
+        let bare_copy = root.join("bare-copy.db");
+        std::fs::copy(&backup, &bare_copy).expect("copy only backup main file");
+        for sidecar in super::db_sidecar_paths(&bare_copy) {
+            assert!(!sidecar.exists(), "bare copy must not inherit a WAL or SHM");
+        }
+        // Avoid the compatibility facade's writable WAL setup: verify only the
+        // copied main file through a truly read-only, immutable SQLite handle.
+        tauri::async_runtime::block_on(async {
+            use sqlx::{Connection, SqliteConnection};
+            let options = sqlx::sqlite::SqliteConnectOptions::new()
+                .filename(&bare_copy)
+                .read_only(true)
+                .immutable(true);
+            let mut copied = SqliteConnection::connect_with(&options)
+                .await
+                .expect("open bare backup read-only");
+            let accounts: Vec<String> = sqlx::query_scalar("SELECT id FROM accounts")
+                .fetch_all(&mut copied)
+                .await
+                .expect("read backed up account from main file");
+            let integrity: String = sqlx::query_scalar("PRAGMA integrity_check")
+                .fetch_one(&mut copied)
+                .await
+                .expect("check bare backup integrity");
+            copied.close().await.expect("close read-only backup");
+            assert_eq!(accounts, ["acc-1"]);
+            assert_eq!(integrity, "ok");
+        });
+        for sidecar in super::db_sidecar_paths(&bare_copy) {
+            assert!(
+                !sidecar.exists(),
+                "read-only verification must not create sidecars"
+            );
+        }
+        assert_eq!(source.account_count().expect("read live source"), 1);
+        drop(source);
         let _ = std::fs::remove_dir_all(&root);
     }
 

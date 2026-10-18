@@ -14,11 +14,75 @@ fn terminal_delivery_detects_split_marker_before_large_payload() {
 }
 
 #[test]
+fn terminal_delivery_ignores_terminal_words_outside_complete_control_lines() {
+    let collector = super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+    for frame in [
+        ": event: response.completed\n\n",
+        "id: response.failed\n\n",
+        "event: response.incomplete_detail\n\n",
+        "event: response.completed trailing text\n\n",
+        "Event: response.completed\n\n",
+        "data: {\"type\":\"response.output_text.delta\",\"delta\":\"response.done and data: [DONE]\"}\n\n",
+    ] {
+        for byte in frame.bytes() {
+            super::mark_terminal_delivered(&collector, &[byte]);
+            assert!(!collector.lock().unwrap().terminal_delivered);
+        }
+    }
+    super::mark_terminal_delivered(&collector, b"event: response.completed");
+    assert!(!collector.lock().unwrap().terminal_delivered);
+    super::mark_terminal_delivered(&collector, b"_detail\n\n");
+    assert!(!collector.lock().unwrap().terminal_delivered);
+    super::mark_terminal_delivered(&collector, b"data: [DONE]\r");
+    assert!(collector.lock().unwrap().terminal_delivered);
+}
+
+#[test]
+fn terminal_delivery_accepts_control_fields_without_an_optional_space() {
+    for frame in [
+        b"event:response.completed\r".as_slice(),
+        b"data:[DONE]\n".as_slice(),
+    ] {
+        let collector =
+            super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+        for &byte in frame {
+            super::mark_terminal_delivered(&collector, &[byte]);
+        }
+        assert!(collector.lock().unwrap().terminal_delivered);
+    }
+}
+
+#[test]
+fn terminal_delivery_does_not_treat_a_long_data_line_suffix_as_an_event() {
+    let collector = super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+    let data = format!("data: {}", "x".repeat(1024));
+    super::mark_terminal_delivered(&collector, data.as_bytes());
+    super::mark_terminal_delivered(&collector, b"event: response.failed\n\n");
+    assert!(!collector.lock().unwrap().terminal_delivered);
+    assert!(collector.lock().unwrap().terminal_delivery_tail.len() <= 256);
+    super::mark_terminal_delivered(&collector, b"event: response.failed\n\n");
+    assert!(collector.lock().unwrap().terminal_delivered);
+}
+
+#[test]
 fn anthropic_terminal_delivery_detects_markers_split_across_small_reads() {
     for event in ["message_stop", "error"] {
         let collector =
             super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
         let frame = format!("event: {event}\ndata: {{\"type\":\"{event}\"}}\n\n");
+        for byte in frame.bytes() {
+            super::mark_anthropic_terminal_delivered(&collector, &[byte]);
+        }
+        assert!(collector.lock().unwrap().terminal_delivered);
+    }
+}
+
+#[test]
+fn anthropic_terminal_delivery_accepts_cr_only_line_endings() {
+    for event in ["message_stop", "error"] {
+        let collector =
+            super::Arc::new(super::Mutex::new(super::PassthroughSseCollector::default()));
+        let frame = format!("event: {event}\rdata: {{\"type\":\"{event}\"}}\r\r");
         for byte in frame.bytes() {
             super::mark_anthropic_terminal_delivered(&collector, &[byte]);
         }

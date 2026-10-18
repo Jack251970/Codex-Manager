@@ -1,4 +1,4 @@
-mod api;
+pub(crate) mod api;
 mod codex_latest_sync;
 mod env_overrides;
 mod gateway;

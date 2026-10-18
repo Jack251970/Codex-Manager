@@ -174,6 +174,11 @@ impl AnthropicSseReader {
                     return Ok(self.transport_error_chunk("upstream_stream_read_error", message));
                 }
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    self.last_upstream_activity = self.last_upstream_activity.max(
+                        self.upstream
+                            .last_activity()
+                            .unwrap_or(self.last_upstream_activity),
+                    );
                     if stream_idle_timed_out(self.last_upstream_activity) {
                         return Ok(self.transport_error_chunk(
                             "upstream_stream_idle_timeout",
