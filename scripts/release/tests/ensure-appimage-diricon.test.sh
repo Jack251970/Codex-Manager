@@ -24,13 +24,28 @@ new_fixture() {
   ln -s usr/share/icons/App.png "$app_dir/App.png"
   printf '[Desktop Entry]\nType=Application\nName=Fixture\nExec=fixture\nIcon=App\n' > "$app_dir/usr/share/applications/App.desktop"
   ln -s usr/share/applications/App.desktop "$app_dir/App.desktop"
+  mkdir -p "$app_dir/usr/bin" "$app_dir/usr/share/resources"
+  printf 'fixture-data\n' > "$app_dir/usr/share/resources/payload"
+  cat > "$app_dir/AppRun" <<'SH'
+#!/usr/bin/env bash
+exec "$(dirname -- "$0")/AppRun.wrapped"
+SH
+  cat > "$app_dir/AppRun.wrapped" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+app_dir="$(cd -- "$(dirname -- "$0")" && pwd)"
+[[ "$(cat "$app_dir/usr/share/resources/payload")" == fixture-data ]]
+exec "$app_dir/usr/bin/helper"
+SH
+  printf '#!/usr/bin/env bash\necho fixture-launch-ok\n' > "$app_dir/usr/bin/helper"
+  chmod 755 "$app_dir/AppRun" "$app_dir/AppRun.wrapped" "$app_dir/usr/bin/helper"
 }
 
 pack_fixture() {
   # A tiny executable runtime exposes the same offset interface as AppImage.
   printf '#!/usr/bin/env bash\nif [[ "${1:-}" == --appimage-offset ]]; then echo %s; exit 0; fi\nexit 1\n' "$offset" > "$case_dir/runtime"
   truncate -s "$offset" "$case_dir/runtime"
-  mksquashfs "$app_dir" "$case_dir/filesystem" -noappend -comp xz -quiet -processors 1 >/dev/null
+  mksquashfs "$app_dir" "$case_dir/filesystem" -noappend -comp xz -quiet -processors 1 -all-root >/dev/null
   cat "$case_dir/runtime" "$case_dir/filesystem" > "$image"
   chmod 751 "$image"
   before_hash="$(sha256sum "$image" | cut -d ' ' -f1)"
@@ -60,11 +75,26 @@ repair_and_check() {
   [[ -f "$case_dir/check/.DirIcon" ]] || fail 'icon is unavailable outside build tree'
   cmp "$case_dir/check/.DirIcon" "$case_dir/build-hidden/AppDir/usr/share/icons/App.png" || fail 'icon contents changed'
   [[ -f "$case_dir/check/App.desktop" ]] || fail 'desktop entry is unavailable outside build tree'
+  [[ -z "$(find "$case_dir/check" -type d ! -perm -0555 -print -quit)" ]] || fail 'directory is not readable/traversable by all users'
+  [[ -z "$(find "$case_dir/check" -type f \( ! -perm -0444 -o \( -perm /0111 ! -perm -0111 \) \) -print -quit)" ]] || fail 'resource or executable permissions are not portable'
+  [[ -z "$(find -L "$case_dir/check/AppRun" "$case_dir/check/AppRun.wrapped" ! -perm -0111 -print -quit)" ]] || fail 'launcher is not executable by all users'
   if [[ "$changed" == true ]]; then
     [[ "$(readlink "$case_dir/check/.DirIcon")" != /* ]] || fail 'absolute icon link remains'
   fi
   passed=$((passed + 1))
   echo "PASS: ${case_dir##*/}"
+}
+
+run_as_unprivileged_user() {
+  local output
+  if [[ "$EUID" == 0 ]]; then
+    command -v setpriv >/dev/null || fail 'root test requires setpriv for the nonroot launch check'
+    chmod a+rx "$test_dir" "$case_dir"
+    output="$(setpriv --reuid=65534 --regid=65534 --clear-groups "$case_dir/check/AppRun")" || fail 'nonroot user could not start launcher'
+  else
+    output="$("$case_dir/check/AppRun")" || fail 'nonroot user could not start launcher'
+  fi
+  [[ "$output" == fixture-launch-ok ]] || fail 'nonroot launcher did not execute helper/read resources'
 }
 
 new_fixture valid-relative
@@ -154,4 +184,66 @@ fi
 passed=$((passed + 1))
 echo "PASS: verification-failure (input preserved)"
 
-echo "Passed $passed AppImage metadata regression cases"
+new_fixture restricted-permissions
+ln -s App.png "$app_dir/.DirIcon"
+chmod 770 "$app_dir/AppRun" "$app_dir/AppRun.wrapped"
+chmod 700 "$app_dir/usr/bin/helper" "$app_dir/usr/share/resources"
+chmod 000 "$app_dir/usr/share/resources/payload"
+pack_fixture
+repair_and_check true
+if [[ "$EUID" == 0 ]]; then
+  [[ "$(stat -c %u:%g "$case_dir/check/AppRun.wrapped")" == 0:0 ]] || fail 'root-owned regression fixture lost its owner'
+fi
+run_as_unprivileged_user
+echo 'PASS: root-owned launchers and restricted resources run as a nonroot user'
+
+new_fixture non-executable-launchers
+ln -s App.png "$app_dir/.DirIcon"
+chmod 644 "$app_dir/AppRun" "$app_dir/AppRun.wrapped"
+pack_fixture
+repair_and_check true
+run_as_unprivileged_user
+
+new_fixture relative-launcher
+ln -s App.png "$app_dir/.DirIcon"
+mv "$app_dir/AppRun" "$app_dir/usr/bin/launcher"
+ln -s usr/bin/launcher "$app_dir/AppRun"
+chmod 644 "$app_dir/usr/bin/launcher"
+pack_fixture
+repair_and_check true
+run_as_unprivileged_user
+
+new_fixture cyclic-icon
+ln -s icon-cycle "$app_dir/.DirIcon"
+ln -s .DirIcon "$app_dir/icon-cycle"
+pack_fixture
+repair_and_check true
+
+new_fixture external-launcher
+ln -s App.png "$app_dir/.DirIcon"
+mv "$app_dir/AppRun" "$case_dir/external-launcher"
+chmod 700 "$case_dir/external-launcher"
+ln -s "$case_dir/external-launcher" "$app_dir/AppRun"
+pack_fixture
+if bash "$repair_script" "$image" > "$case_dir/repair.log" 2>&1; then
+  fail 'accepted an absolute launcher link'
+fi
+[[ "$(stat -c %a "$case_dir/external-launcher")" == 700 ]] || fail 'permission repair followed an external launcher link'
+[[ "$(sha256sum "$image" | cut -d ' ' -f1)" == "$before_hash" ]] || fail 'unsafe launcher failure changed the input'
+passed=$((passed + 1))
+echo 'PASS: external-launcher (external mode and input preserved)'
+
+new_fixture cyclic-launcher
+ln -s App.png "$app_dir/.DirIcon"
+rm "$app_dir/AppRun"
+ln -s launcher-cycle "$app_dir/AppRun"
+ln -s AppRun "$app_dir/launcher-cycle"
+pack_fixture
+if bash "$repair_script" "$image" > "$case_dir/repair.log" 2>&1; then
+  fail 'accepted a cyclic launcher link'
+fi
+[[ "$(sha256sum "$image" | cut -d ' ' -f1)" == "$before_hash" ]] || fail 'cyclic launcher failure changed the input'
+passed=$((passed + 1))
+echo 'PASS: cyclic-launcher (input preserved)'
+
+echo "Passed $passed AppImage metadata/permission regression cases"

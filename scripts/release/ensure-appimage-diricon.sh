@@ -69,6 +69,46 @@ verify_metadata() {
   done < <(find "$root" -maxdepth 1 -name '*.desktop' -print0)
 }
 
+permission_issue() {
+  find "$1" \( \( -type d ! -perm -0555 \) -o \
+    \( -type f \( ! -perm -0444 -o \( -perm /0111 ! -perm -0111 \) \) \) \) -print -quit
+}
+
+normalize_permissions() {
+  local root="$1" launcher target
+  [[ -d "$root" && ! -L "$root" ]] || return 1
+  if [[ -n "$(permission_issue "$root")" ]]; then
+    # The extraction root is a real directory. GNU chmod ignores links found
+    # during recursion, so package links cannot change files outside AppDir.
+    chmod -R a+rX -- "$root" || return 1
+    changed=true
+  fi
+  for launcher in AppRun AppRun.wrapped; do
+    if [[ "$launcher" == AppRun || -e "$root/$launcher" || -L "$root/$launcher" ]]; then
+      target="$(resolve_portable_file "$root" "$launcher")" || {
+        echo "Missing or nonportable AppImage launcher: $launcher" >&2
+        return 1
+      }
+      if [[ -n "$(find "$target" ! -perm -0111 -print -quit)" ]]; then
+        # Resolution removed every link component before chmod follows a path.
+        chmod a+x -- "$target" || return 1
+        changed=true
+      fi
+    fi
+  done
+}
+
+verify_permissions() {
+  local root="$1" launcher target
+  [[ -z "$(permission_issue "$root")" ]] || return 1
+  for launcher in AppRun AppRun.wrapped; do
+    if [[ "$launcher" == AppRun || -e "$root/$launcher" || -L "$root/$launcher" ]]; then
+      target="$(resolve_portable_file "$root" "$launcher")" || return 1
+      [[ -z "$(find "$target" ! -perm -0111 -print -quit)" ]] || return 1
+    fi
+  done
+}
+
 work_dir=""
 repaired_image=""
 cleanup() {
@@ -87,6 +127,10 @@ for image in "$@"; do
   unsquashfs -quiet -offset "$offset" -dest "$work_dir/AppDir" "$image"
 
   changed=false
+  normalize_permissions "$work_dir/AppDir" || {
+    echo "AppImage permission normalization failed: $image" >&2
+    exit 1
+  }
   if ! portable_png "$work_dir/AppDir" .DirIcon; then
     icon=""
     while IFS= read -r -d '' candidate; do
@@ -127,10 +171,10 @@ for image in "$@"; do
   # Verify a fresh extraction before replacing the input. Link resolution must
   # stay within this copy even when the original build directory still exists.
   unsquashfs -quiet -offset "$offset" -dest "$work_dir/verify" "$candidate_image" >/dev/null
-  verify_metadata "$work_dir/verify" || {
-    echo "AppImage portable icon/desktop verification failed: $image" >&2
+  if ! verify_metadata "$work_dir/verify" || ! verify_permissions "$work_dir/verify"; then
+    echo "AppImage portable metadata/permission verification failed: $image" >&2
     exit 1
-  }
+  fi
 
   if [[ "$changed" == true ]]; then
     mv -f -- "$repaired_image" "$image"
