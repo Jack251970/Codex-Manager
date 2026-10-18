@@ -5,6 +5,12 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+## [0.6.8] - 2026-10-18
+
+### Fixed
+
+- Fixed compression compatibility when repacking Linux AppImages after permission repairs. Repacking now uses runtime-supported gzip so AppImageHub checks and the application runtime can mount the bundled filesystem.
+
 ## [0.6.7] - 2026-10-18
 
 ### Fixed

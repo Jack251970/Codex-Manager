@@ -18,6 +18,9 @@ new_fixture() {
   case_dir="$test_dir/$1"
   app_dir="$case_dir/build/AppDir"
   image="$case_dir/fixture.AppImage"
+  fixture_compression=gzip
+  runtime_extract_fails=false
+  runtime_private_directories=false
   mkdir -p "$app_dir/usr/share/icons" "$app_dir/usr/share/applications"
   # The full one-pixel PNG keeps the fixture meaningful without image tools.
   printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNF8AAAAASUVORK5CYII=' | base64 -d > "$app_dir/usr/share/icons/App.png"
@@ -42,10 +45,17 @@ SH
 }
 
 pack_fixture() {
-  # A tiny executable runtime exposes the same offset interface as AppImage.
-  printf '#!/usr/bin/env bash\nif [[ "${1:-}" == --appimage-offset ]]; then echo %s; exit 0; fi\nexit 1\n' "$offset" > "$case_dir/runtime"
+  # This fixture implements the offset/extraction interface with unsquashfs;
+  # real embedded AppImage runtime compatibility needs an actual release image.
+  local extract_command
+  extract_command='exec unsquashfs -quiet -offset 512 -dest squashfs-root "$(readlink -f -- "$0")"'
+  if [[ "$runtime_private_directories" == true ]]; then
+    extract_command='unsquashfs -quiet -offset 512 -dest squashfs-root "$(readlink -f -- "$0")" && find squashfs-root -type d -exec chmod 700 {} +'
+  fi
+  if [[ "$runtime_extract_fails" == true ]]; then extract_command='exit 73'; fi
+  printf '#!/usr/bin/env bash\ncase "${1:-}" in\n--appimage-offset) echo %s;;\n--appimage-extract) %s;;\n*) exit 1;;\nesac\nexit 0\n' "$offset" "$extract_command" > "$case_dir/runtime"
   truncate -s "$offset" "$case_dir/runtime"
-  mksquashfs "$app_dir" "$case_dir/filesystem" -noappend -comp xz -quiet -processors 1 -all-root "$@" >/dev/null
+  mksquashfs "$app_dir" "$case_dir/filesystem" -noappend -comp "$fixture_compression" -quiet -processors 1 -all-root "$@" >/dev/null
   cat "$case_dir/runtime" "$case_dir/filesystem" > "$image"
   chmod 751 "$image"
   before_hash="$(sha256sum "$image" | cut -d ' ' -f1)"
@@ -62,6 +72,10 @@ repair_and_check() {
   head -c "$offset" "$image" > "$case_dir/repaired-runtime"
   cmp "$case_dir/runtime" "$case_dir/repaired-runtime" || fail 'runtime changed'
   [[ "$("$image" --appimage-offset)" == "$offset" ]] || fail 'offset changed'
+  local expected_compression="$fixture_compression" actual_compression
+  if [[ "$changed" == true ]]; then expected_compression=gzip; fi
+  actual_compression="$(LC_ALL=C unsquashfs -s -offset "$offset" "$image" | sed -n 's/^Compression[[:space:]]*//p')"
+  [[ "$actual_compression" == "$expected_compression" ]] || fail "unexpected repaired compression: $actual_compression (expected $expected_compression)"
   if [[ "$changed" == false ]]; then
     [[ "$(sha256sum "$image" | cut -d ' ' -f1)" == "$before_hash" ]] || fail 'valid image was repacked'
   fi
@@ -104,6 +118,24 @@ repair_and_check false
 
 new_fixture valid-regular
 cp "$app_dir/usr/share/icons/App.png" "$app_dir/.DirIcon"
+pack_fixture
+repair_and_check false
+
+new_fixture compatible-zstd
+fixture_compression=zstd
+ln -s App.png "$app_dir/.DirIcon"
+pack_fixture
+repair_and_check false
+
+new_fixture incompatible-xz
+fixture_compression=xz
+ln -s App.png "$app_dir/.DirIcon"
+pack_fixture
+repair_and_check true
+
+new_fixture runtime-private-directories
+runtime_private_directories=true
+ln -s App.png "$app_dir/.DirIcon"
 pack_fixture
 repair_and_check false
 
@@ -249,5 +281,18 @@ fi
 [[ "$(sha256sum "$image" | cut -d ' ' -f1)" == "$before_hash" ]] || fail 'cyclic launcher failure changed the input'
 passed=$((passed + 1))
 echo 'PASS: cyclic-launcher (input preserved)'
+
+new_fixture embedded-extraction-failure
+runtime_extract_fails=true
+pack_fixture
+if bash "$repair_script" "$image" > "$case_dir/repair.log" 2>&1; then
+  fail 'accepted a runtime that reports an offset but cannot extract its image'
+fi
+grep -q 'Embedded AppImage runtime extraction failed' "$case_dir/repair.log" || fail 'fixture failed before embedded runtime extraction'
+[[ "$(sha256sum "$image" | cut -d ' ' -f1)" == "$before_hash" ]] || fail 'embedded extraction failure replaced the input'
+[[ "$(stat -c %a "$image")" == 751 ]] || fail 'embedded extraction failure changed input mode'
+[[ -z "$(find "$case_dir" -maxdepth 1 -name '.appimage-diricon.*' -print -quit)" ]] || fail 'embedded extraction failure left a temporary replacement'
+passed=$((passed + 1))
+echo 'PASS: embedded-extraction-failure (input preserved)'
 
 echo "Passed $passed AppImage metadata/permission regression cases"

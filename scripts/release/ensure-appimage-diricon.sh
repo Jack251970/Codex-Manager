@@ -109,6 +109,10 @@ verify_permissions() {
   done
 }
 
+squashfs_compression() {
+  LC_ALL=C unsquashfs -s -offset "$2" "$1" | sed -n 's/^Compression[[:space:]]*//p'
+}
+
 work_dir=""
 repaired_image=""
 cleanup() {
@@ -127,6 +131,14 @@ for image in "$@"; do
   unsquashfs -quiet -offset "$offset" -dest "$work_dir/AppDir" "$image"
 
   changed=false
+  compression="$(squashfs_compression "$image" "$offset")"
+  [[ -n "$compression" ]] || { echo "Cannot determine AppImage compression: $image" >&2; exit 1; }
+  # Modern Tauri runtimes support zlib (SquashFS gzip) and zstd, but not xz.
+  # Also normalize older already-repaired xz images instead of accepting them.
+  case "$compression" in
+    gzip|zstd) ;;
+    *) changed=true ;;
+  esac
   normalize_permissions "$work_dir/AppDir" || {
     echo "AppImage permission normalization failed: $image" >&2
     exit 1
@@ -161,7 +173,7 @@ for image in "$@"; do
   candidate_image="$image"
   if [[ "$changed" == true ]]; then
     head -c "$offset" "$image" > "$work_dir/runtime"
-    mksquashfs "$work_dir/AppDir" "$work_dir/filesystem.squashfs" -noappend -comp xz -quiet >/dev/null
+    mksquashfs "$work_dir/AppDir" "$work_dir/filesystem.squashfs" -noappend -comp gzip -quiet >/dev/null
     repaired_image="$(mktemp "$(dirname "$image")/.appimage-diricon.XXXXXX")"
     cat "$work_dir/runtime" "$work_dir/filesystem.squashfs" > "$repaired_image"
     chmod --reference="$image" "$repaired_image"
@@ -171,8 +183,30 @@ for image in "$@"; do
   # Verify a fresh extraction before replacing the input. Link resolution must
   # stay within this copy even when the original build directory still exists.
   unsquashfs -quiet -offset "$offset" -dest "$work_dir/verify" "$candidate_image" >/dev/null
+  case "$(squashfs_compression "$candidate_image" "$offset")" in
+    gzip|zstd) ;;
+    *) echo "AppImage runtime does not support the SquashFS compression: $image" >&2; exit 1 ;;
+  esac
   if ! verify_metadata "$work_dir/verify" || ! verify_permissions "$work_dir/verify"; then
     echo "AppImage portable metadata/permission verification failed: $image" >&2
+    exit 1
+  fi
+
+  # System unsquashfs may support codecs that the embedded AppImage runtime
+  # cannot read. Exercise that runtime before replacing the original image.
+  runtime_image="$(readlink -f -- "$candidate_image")"
+  mkdir "$work_dir/runtime-verify"
+  if ! (cd "$work_dir/runtime-verify" && "$runtime_image" --appimage-extract) > "$work_dir/runtime-extract.log" 2>&1; then
+    cat "$work_dir/runtime-extract.log" >&2
+    echo "Embedded AppImage runtime extraction failed: $image" >&2
+    exit 1
+  fi
+  runtime_root="$work_dir/runtime-verify/squashfs-root"
+  # The embedded extractor creates directories with its own private mode 0700;
+  # archive permissions are checked on the independent unsquashfs copy above.
+  if [[ ! -d "$runtime_root" || -L "$runtime_root" ]] || \
+    ! verify_metadata "$runtime_root"; then
+    echo "Embedded AppImage runtime metadata verification failed: $image" >&2
     exit 1
   fi
 
