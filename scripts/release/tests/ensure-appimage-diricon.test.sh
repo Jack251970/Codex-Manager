@@ -45,7 +45,7 @@ pack_fixture() {
   # A tiny executable runtime exposes the same offset interface as AppImage.
   printf '#!/usr/bin/env bash\nif [[ "${1:-}" == --appimage-offset ]]; then echo %s; exit 0; fi\nexit 1\n' "$offset" > "$case_dir/runtime"
   truncate -s "$offset" "$case_dir/runtime"
-  mksquashfs "$app_dir" "$case_dir/filesystem" -noappend -comp xz -quiet -processors 1 -all-root >/dev/null
+  mksquashfs "$app_dir" "$case_dir/filesystem" -noappend -comp xz -quiet -processors 1 -all-root "$@" >/dev/null
   cat "$case_dir/runtime" "$case_dir/filesystem" > "$image"
   chmod 751 "$image"
   before_hash="$(sha256sum "$image" | cut -d ' ' -f1)"
@@ -188,8 +188,12 @@ new_fixture restricted-permissions
 ln -s App.png "$app_dir/.DirIcon"
 chmod 770 "$app_dir/AppRun" "$app_dir/AppRun.wrapped"
 chmod 700 "$app_dir/usr/bin/helper" "$app_dir/usr/share/resources"
-chmod 000 "$app_dir/usr/share/resources/payload"
-pack_fixture
+# Keep source data readable by an ordinary CI user; only the packaged inode is
+# unreadable. Otherwise mksquashfs can replace unreadable source data with an
+# empty file without failing, so the nonroot launch tests the wrong failure.
+pack_fixture -p 'usr/share/resources/payload m 000 0 0'
+unsquashfs -quiet -offset "$offset" -dest "$case_dir/before-repair" "$image" >/dev/null
+[[ "$(stat -c %a "$case_dir/before-repair/usr/share/resources/payload")" == 0 ]] || fail 'restricted resource was not packed with mode 000'
 repair_and_check true
 if [[ "$EUID" == 0 ]]; then
   [[ "$(stat -c %u:%g "$case_dir/check/AppRun.wrapped")" == 0:0 ]] || fail 'root-owned regression fixture lost its owner'
