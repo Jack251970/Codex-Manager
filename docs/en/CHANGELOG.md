@@ -5,6 +5,17 @@ It follows Keep a Changelog with a lightweight adaptation for this repository.
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-18
+
+### Changed
+
+- Made English the default README language and synchronized sponsorship, feature, and language information across the Chinese, Russian, and Korean documentation.
+
+### Fixed
+
+- Added the CodexManager main heading to each localized homepage so AppImageHub does not mistake the sponsors section for the application name.
+- Fixed Linux AppImage `.DirIcon` metadata pointing to an absolute CI build path. Icon metadata now stays inside the bundle, with stricter icon path and readability checks.
+
 ## [0.6.5] - 2026-10-18
 
 ### Changed

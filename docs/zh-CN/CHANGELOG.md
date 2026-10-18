@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-10-18
+
+### Changed
+
+- 默认使用英文 README，并同步中文、俄文和韩文文档中的赞助、功能与语言说明。
+
+### Fixed
+
+- 为各语言首页补充 CodexManager 主标题，避免 AppImageHub 将赞助章节误识别为应用名称。
+- 修复 Linux AppImage 的 `.DirIcon` 引用 CI 构建机绝对路径的问题，改用包内图标元数据，并加强图标路径与可读性检查。
+
 ## [0.6.5] - 2026-10-18
 
 ### Changed
