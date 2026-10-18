@@ -1,7 +1,7 @@
 <table align="center">
   <tr>
     <td align="center" valign="middle" width="44%">
-      <img src="../../assets/logo/readme-header-ko.png" alt="CodexManager — 로컬 Codex 계정 풀 관리자" width="460" />
+      <img src="../../assets/logo/readme-header-ko.png" alt="CodexManager — 로컬 데스크톱 및 서비스용 Codex 계정 풀 관리자" width="460" />
       <br />
       <sub>
         <a href="https://qxnm.top/">공식 사이트</a> ·
@@ -10,9 +10,9 @@
     </td>
     <td align="center" valign="middle" width="13%">
       <sub>
-        <a href="../../README.md">中文</a>
+        <a href="../../README.md">English</a>
         <br />
-        <a href="../en/README.md">English</a>
+        <a href="../zh-CN/README.md">中文</a>
         <br />
         <a href="../ru/README.md">Русский</a>
         <br />
@@ -44,6 +44,8 @@
     </td>
   </tr>
 </table>
+
+CodexManager는 데스크톱 앱과 서비스 모드에서 Codex 계정, 사용량, 플랫폼 Key, 모델 라우팅을 한곳에서 관리합니다. 인터페이스는 영어, 중국어, 러시아어, 한국어를 지원합니다. 새 설치의 기본 **자동 감지** 설정은 브라우저 또는 데스크톱 WebView가 보고하는 언어를 따르며, 지원하지 않거나 언어 정보를 확인할 수 없으면 영어로 표시합니다. 상단 언어 메뉴나 설정에서 언어를 직접 선택할 수 있으며, 저장된 선택은 유지됩니다.
 
 **CodexManager는 [쉬안우 커뮤니티](https://xuanwu.openatom.org/articles/project/codex-manager/)에 합류했습니다.** 이 커뮤니티는 OpenAtom Foundation이 인큐베이팅하고 운영하는 Rust 기술 커뮤니티입니다.
 
@@ -87,25 +89,45 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 <table>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://vmcardio.com/zh/register?code=OPK6X2DSLW"><img src="../../assets/images/sponsors/vmcard.jpg" alt="VMCard" width="120" /></a>
+      <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger"><img src="../../assets/images/sponsors/sidrune.png" alt="Sidrune AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://vmcardio.com/zh/register?code=OPK6X2DSLW">VMCard 엔터프라이즈 가상 카드 발급 플랫폼</a></strong>은 AI 계정 플랫폼, AI API 제공업체 및 대규모 구독 팀을 위해 미국 Visa 전용 BIN, API 일괄 카드 발급, 엔터프라이즈 카드 관리를 제공합니다.<br />
-      장기·대규모 기업 결제에 적합한 경쟁력 있는 정산 환율을 제공합니다. 비즈니스 문의: <a href="https://t.me/Vmcardio_yuki">@Vmcardio_yuki</a>
+      <strong><a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">Sidrune AI｜하나의 진입점으로 세계 주요 AI 모델 연결 및 관리</a></strong><br />
+      Sidrune AI는 개인 개발자, 기술팀, 기업이 통합 API를 통해 세계 주요 AI 모델에 연결하고 관리할 수 있도록 지원합니다. 여러 경로의 동적 스케줄링으로 가용성을 높이고 모델 성능, 응답 시간, 비용을 투명하게 제공합니다. 모델과 경로에 따라 API 호출 비용을 공식 또는 기준 가격 대비 40%~98% 절감할 수 있습니다.<br />
+      지금 <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">방문하여 가입</a>하면 바로 사용할 수 있는 $3.88 체험 크레딧을 받을 수 있습니다.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://88api.ai/sign-up?aff=OceE"><img src="../../assets/images/sponsors/88api.png" alt="88API" width="120" /></a>
+      <a href="https://onesay.io"><img src="../../assets/images/sponsors/onesay.jpg" alt="OneSay Desktop" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://88api.ai/sign-up?aff=OceE">88API 올인원 모델 통합 플랫폼</a></strong><br />
-      🧠 GPT, Claude, Gemini, Grok, DeepSeek, Kimi, GLM 등 언어·코딩 모델;<br />
-      🎨 GPT-Image, Gemini, Grok 등 이미지 모델;<br />
-      🎬 Seedance, Veo, MiniMax Hailuo H3, Kling, Grok 등 비디오 모델;<br />
-      🎙️ Whisper, TTS 등 음성 기능으로 문구 작성부터 이미지·비디오 생성과 더빙까지 지원합니다.<br />
-      🎁 신규 사용자는 모델 테스트용 체험 크레딧을 받고 사이트의 상담 지원을 이용할 수 있습니다.<br />
-      👉 해외 법인 자격으로 운영하며 정식 청구서와 1:1 충전 비율을 제공합니다.
+      <strong><a href="https://onesay.io">Typeless를 대신할 OneSay! OneSay Pro를 3개월 무료로 사용하세요!</a></strong><br />
+      느린 타이핑과 낮은 작업 효율이 고민이라면 OneSay Desktop을 사용해 보세요. 지능형 받아쓰기, AI 번역, 문장 다듬기, 질의응답을 통합한 AI 음성 비서로, 말하기만 하면 이메일 작성, 메시지 답장, 아이디어 기록을 처리할 수 있습니다.<br />
+      <strong>기간 한정 혜택: 신규 사용자는 Pro 모드를 3개월 무료로 체험할 수 있습니다!</strong> 친구를 초대해 가입하면 멤버십 기간이 연장되며, 더 많이 초대할수록 더 오래 무료로 사용할 수 있습니다.<br />
+      Typeless 수준의 음성 입력 효율을 OneSay에서 경험하세요. 지금 가입: <a href="https://onesay.io">https://onesay.io</a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle" width="180">
+      <a href="https://omniakey.com"><img src="../../assets/images/sponsors/OmniaKey.png" alt="OmniaKey" width="120" /></a>
+    </td>
+    <td valign="top">
+      <strong>안녕하세요! 만나서 반갑습니다 👋</strong><br />
+      저희는 개발자를 위한 멀티모달 AI API 중계 플랫폼 <strong><a href="https://omniakey.com">OmniaKey</a></strong> 팀입니다. 하나의 API Key로 텍스트, 이미지, 비디오, 오디오 모델을 다양한 AI 작업에 사용할 수 있습니다.<br />
+      <strong>📝 텍스트:</strong> GPT, Claude, Gemini, Grok, GLM, Qwen 등 주요 모델로 대화, 코드, 추론을 한곳에서 처리합니다.<br />
+      <strong>🎨 이미지:</strong> GPT-image-2.5, Nanobanna 2.1, Seedream 5.0 Pro로 텍스트 기반 이미지 생성, 이미지 변환, 이미지 편집을 바로 사용할 수 있습니다.<br />
+      <strong>🎬 비디오:</strong> Seedance 2.5, Wan3, Kling, MiniMaxH3의 텍스트 및 이미지 기반 비디오 모델을 간편하게 연결해 영상을 제작합니다.<br />
+      <strong>🔊 오디오:</strong> Suno AI 음악 생성을 API로 직접 호출하여 오디오 제작에 활용할 수 있습니다.<br />
+      공식 사이트: <a href="https://omniakey.com">omniakey.com</a> · 중국어 사이트: <a href="https://omniakey.com/zh">omniakey.com/zh</a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle" width="180">
+      <a href="https://daitouai.com/"><img src="../../assets/images/sponsors/daitouai.svg" alt="DaitouAI (呆头 AI)" width="120" /></a>
+    </td>
+    <td valign="top">
+      <strong><a href="https://daitouai.com/">DaitouAI (呆头 AI)</a></strong>는 중국 주요 대규모 모델 API 서비스를 전문으로 하며 GLM, Kimi, DeepSeek 등에 간편하게 연결할 수 있습니다. 대화와 질의응답, 코드 생성, 콘텐츠 제작, 자동화 개발에 적합하며 공식 가격보다 저렴한 요금을 제공합니다. 개인 개발자의 빠른 체험부터 독립 프로젝트와 팀의 필요에 따른 호출까지 중국 모델 사용 비용을 낮출 수 있습니다. 사용 가능한 모델, 연결 방법, 최신 혜택은 <a href="https://daitouai.com/">공식 사이트</a>에서 확인하세요.
     </td>
   </tr>
   <tr>
@@ -113,7 +135,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
       <a href="https://api.fenno.ai/s/4ADZ"><img src="../../assets/images/sponsors/fennoai.jpg" alt="FennoAI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://api.fenno.ai/s/4ADZ">FennoAI</a></strong>는 기업 R&amp;D 팀과 개발자를 위한 안정적이고 고성능인 API 중계 서비스를 제공합니다. OpenAI와 Anthropic 프로토콜을 지원하며 Codex, Claude Code, OpenCode 등과 연동됩니다. 엔터프라이즈 인프라는 하루 수천억 Token 규모와 기업 정산·청구를 지원합니다. Codex-Manager 사용자는 <a href="https://api.fenno.ai/s/4ADZ">전용 링크</a>로 50달러 상당의 Coding Plan을 1.99달러에 이용할 수 있으며 추천 수익은 최대 20%입니다.
+      <strong><a href="https://api.fenno.ai/s/4ADZ">FennoAI</a></strong>는 기업 R&amp;D 팀과 개발자를 위한 안정적이고 고성능인 API 중계 서비스를 제공합니다. OpenAI와 Anthropic 프로토콜을 지원하며 Codex, Claude Code, OpenCode 등 주요 AI 코딩 도구와 연동됩니다. 엔터프라이즈 인프라는 하루 수천억 Token 규모를 지원하며 중국 내외 법인 간 정산과 청구서 발행도 제공합니다. Codex-Manager 사용자는 <a href="https://api.fenno.ai/s/4ADZ">전용 링크</a>로 구독하면 50달러 상당의 Coding Plan 크레딧을 1.99달러에 이용할 수 있습니다. 친구를 초대해 구매하면 최대 20%의 수수료를 받을 수 있으며, 초대할수록 보상이 늘어납니다.
     </td>
   </tr>
   <tr>
@@ -121,7 +143,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
       <a href="https://s.qiniu.com/eiaQrq"><img src="../../assets/images/sponsors/qiniuyun.jpg" alt="Qiniu Cloud AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://s.qiniu.com/eiaQrq">Qiniu Cloud AI</a></strong>는 Qiniu Cloud(02567.HK)의 엔터프라이즈 대규모 모델 MaaS 플랫폼으로, 텍스트·이미지·오디오·비디오·파일 처리를 포함한 150개 이상의 글로벌 모델을 한 곳에서 제공합니다. <a href="https://s.qiniu.com/eiaQrq">전용 링크</a>로 가입하면 Codex-Manager 기업 사용자는 1,200만 Token, 개발자는 300만 Token을 무료로 받을 수 있습니다.
+      <strong><a href="https://s.qiniu.com/eiaQrq">Qiniu Cloud AI</a></strong>는 Qiniu Cloud(02567.HK)의 엔터프라이즈 대규모 모델 MaaS 플랫폼으로, 150개 이상의 글로벌 주요 모델을 한곳에서 호출할 수 있습니다. 주요 모델 공급업체 프로토콜을 지원하고 텍스트·이미지·오디오·비디오·파일 처리 등 멀티모달 기능을 제공하며, 169만 이상의 기업과 개발자가 이용하고 있습니다. Codex-Manager 전용 혜택으로 <a href="https://s.qiniu.com/eiaQrq">전용 링크</a>를 통해 가입하면 기업 사용자는 1,200만 Token, 개발자는 300만 Token을 무료로 받을 수 있습니다.
     </td>
   </tr>
   <tr>
@@ -132,7 +154,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
       <strong><a href="https://www.aixiamo.com/?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=brand_home_v3">AIXiamo 공식 사이트 | 중국 내 본인 계정 ChatGPT Plus / Pro 정식 충전</a></strong><br />
       <strong>Codex 한도가 부족하다면 Plus와 Pro 중 무엇을 선택할까요?</strong> 일상 사용은 <a href="https://www.aixiamo.com/chatgpt-plus-domestic-recharge?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=plus_owner_v3">Plus</a>, 한도에 자주 도달하거나 장시간 작업은 <a href="https://www.aixiamo.com/chatgpt-pro?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=pro_owner_v3">Pro 5x / 20x</a>를 비교하세요.<br />
       <strong>스폰서 가이드:</strong> <a rel="sponsored nofollow" href="https://gpt-guide.aixiamo.com/knowledge">2026 중국 ChatGPT Plus / Pro 충전 및 요금제 선택 가이드</a><br />
-      해외 은행 카드 없이 Alipay를 지원하며 비밀번호, 인증 코드, 복구 코드를 요구하지 않습니다. 주문 조회와 중국어 상담을 제공하고, 충전 실패 시 확인 후 전액 환불합니다. Claude Pro / Max, Gemini, Grok / SuperGrok 등도 제공합니다.<br />
+      해외 은행 카드 없이 Alipay를 지원하며 비밀번호, 인증 코드, 복구 코드를 요구하지 않습니다. 주문 조회와 중국어 상담을 제공하고, 충전 실패 시 확인 후 전액 환불합니다. 3년 이상 운영하면서 온라인과 오프라인으로 수만 명의 사용자에게 서비스를 제공했으며, Claude Pro / Max, Gemini(Google AI Pro), Grok / SuperGrok 등 주요 AI 멤버십도 제공합니다.<br />
       기업 구매도 가능하며, <a href="https://www.aixiamo.com/articles/aixiamo-invoice-application-notice-2026?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=invoice_notice_v3">완료된 주문은 상담 확인 후 청구서를 신청</a>할 수 있습니다.
     </td>
   </tr>
@@ -183,7 +205,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 | 포트, 프록시, 데이터베이스, Web 암호, 환경변수 설정 | [환경변수 및 실행 설정](report/환경변수-및-실행-설정-안내.md) |
 | 계정 라우팅, 가져오기 실패, challenge, 요청 오류 해결 | [FAQ 및 계정 라우팅 규칙](report/FAQ-및-계정-라우팅-규칙.md) |
 | 백그라운드 작업이 계정을 건너뛰거나 비활성화하는 이유 | [백그라운드 작업 계정 안내](report/백그라운드-작업-계정-건너뛰기-안내.md) |
-| 모델, 가격, 라우트, instructions policy, 로컬 cache 내보내기 | [중국어 Model Catalog V2 가이드](../zh-CN/report/模型目录V2管理与计费说明.md) |
+| 모델, 가격, 라우트, instructions policy, Codex 모델 카탈로그 적용 | [중국어 Model Catalog V2 가이드](../zh-CN/report/模型目录V2管理与计费说明.md) |
 | 플러그인 센터 최소 연동 | [플러그인 센터 최소 연동 안내](report/플러그인-센터-최소-연동-안내.md) |
 | 플러그인 인터페이스, marketplace 모드, Rhai API | [플러그인 센터 연동 및 인터페이스](report/플러그인-센터-연동-및-인터페이스-목록.md) |
 | 전체 시스템 내부 인터페이스 | [시스템 내부 인터페이스 총람](report/시스템-내부-인터페이스-총람.md) |
@@ -194,20 +216,21 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 - 계정 풀 관리: 그룹, 태그, 정렬, 메모, 차단 감지와 필터링.
 - 일괄 가져오기/내보내기: 여러 파일, 데스크톱 JSON 폴더 재귀 가져오기, 계정별 단일 파일 내보내기.
 - 사용량 표시: 표준 5시간 + 7일 창, 7일 전용 계정, Code Review / Spark 등의 추가 한도를 남은 비율과 초기화 시간으로 통합 표시.
+- [한도 초기화 후 자동 깨우기(중국어)](../zh-CN/额度重置自动唤醒.md): 소진된 5시간 한도의 초기화 시각이 되면 짧은 준비 메시지를 기본으로 전송합니다. 계정별 또는 일괄 활성화·비활성화를 지원하여 다음 한도 새로고침을 기다리는 시간을 줄입니다.
 - 계정 인증: `chatgpt.com` 브라우저 OAuth와 Device Code 로그인, 콜백 URL 수동 붙여넣기.
-- 플랫폼 Key: 임의 또는 고정 Key, 비활성화, 삭제, 모델·추론·서비스 등급 바인딩, 사용자 그룹과 플랜 필터의 교집합 내 순환.
-- 모델 관리: Model Catalog V2를 유일한 런타임 기준으로 사용하며 builtin/custom, 3단계 및 긴 컨텍스트 가격, 계정 풀/집계 API 라우트, instructions policy, JSON preview/commit, Codex cache 내보내기를 지원.
+- 플랫폼 Key: 임의 생성 또는 고정 Key 지정, 비활성화, 삭제, 모델 바인딩, 추론 등급, 서비스 등급(요청 따르기 / Standard / Fast / Ultrafast / Flex)을 지원합니다. 사용자 지정 계정 그룹에 바인딩할 수 있으며, 계정 플랜 필터와의 교집합으로 허용된 풀 안에서만 순환합니다.
+- 모델 관리: Model Catalog V2를 유일한 런타임 기준으로 사용하며 builtin/custom, 정수로 저장하는 세 가지 가격과 긴 컨텍스트 단계별 가격, 계정 풀/집계 API 라우트, instructions policy, 로컬 JSON preview/commit을 지원합니다. 모델을 선택한 뒤 Codex의 `model_catalog_json`에 적용할 수 있습니다.
 - 현재 builtin 카탈로그에는 12개 레코드가 있습니다. `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, GPT-5.6 세 모델, `gpt-5.5`, `gpt-image-2`, Image 2.5 변형 두 개까지 총 11개 모델이 기본 표시되며, `codex-auto-review`만 숨겨집니다.
 - `gpt-5.4`와 `gpt-5.4-mini`는 2026-08-31에 ChatGPT 로그인 방식의 Codex에서 retired되었고, `gpt-5.2`도 해당 로그인 경로에서 deprecated되었습니다. 일반 API 모델은 이 정리의 영향을 받지 않습니다. revision 9는 수정되지 않은 해당 builtin을 제거하지만 사용자 편집, 가격 tier, 기본값이 아닌 route, permission/API Key 연결은 custom 모델로 전환해 보존합니다. API Key 사용자는 같은 slug를 custom 모델로 명시적으로 추가할 수도 있습니다.
-- 집계 API: V2 라우트 기준으로 외부 upstream 생성, 편집, 잔액, 연결 테스트를 제공하며 모델은 관리자가 가져와 선택적으로 연결.
+- 집계 API: 최소 중계 기능의 외부 업스트림을 관리하며 생성, 편집, 잔액 조회, 구성된 V2 라우트 기준의 연결 테스트를 제공합니다. 공급업체 모델을 자동 탐색하지 않으며, 관리자가 직접 가져와 Model Catalog V2에 선택적으로 연결할 수 있습니다. 기존 공급업체 모델 풀은 유지하지 않습니다.
 - 플러그인 센터: `/plugins/`에서 내장 추천, 기업 비공개, 사용자 소스 marketplace와 manifest, 작업, 로그, Rhai 인터페이스를 제공.
-- Skills와 플러그인: `/skills/`에서 Skills 설치와 Codex Plugin 설치를 분리하고 GitHub, skills.sh, ZIP/폴더 가져오기와 설치 관리를 지원하며 `.system` Skills는 읽기 전용.
+- Skills와 플러그인: `/skills/`에서 Skills 설치와 Codex 플러그인 설치를 별도 탭으로 제공합니다. 내장 및 사용자 지정 GitHub 스킬 저장소, 저장소 새로고침과 개별 Skill 설치, skills.sh 검색·설치, ZIP/폴더 가져오기, 설치 항목 관리를 지원합니다. Codex 플러그인 설치는 기본 Marketplace의 전체 설치 과정을 유지하며 `.system` 내장 Skill은 항상 읽기 전용입니다.
 - 프로젝트 실행: 데스크톱에서 로컬 폴더를 즐겨찾기하고 Windows/macOS의 ChatGPT Codex App으로 열며, “세션”은 로컬 프로필로 새 터미널의 `resume` 선택기를 실행.
-- 설정: 시스템 추론, 계정별 동시성, upstream proxy, 전체/stream idle timeout, SSE keepalive와 고동시성 저하 정책. `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0`으로 keepalive를 끄고 `CODEXMANAGER_USE_WEBSOCKET_UPSTREAM=1`로 실험적 WebSocket을 켤 수 있음.
+- 설정: “시스템 기준 계산” 버튼, 계정별 동시 요청 상한, 업스트림 프록시, 요청 전체 시간 제한, 스트림 유휴 시간 제한, SSE 연결 유지 스위치와 주기, 더 보수적인 고동시성 성능 저하 정책을 제공합니다. SSE 연결 유지는 기본으로 켜지며 `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0`(또는 `false`)으로 끌 수 있습니다. 실험적 업스트림 WebSocket은 기본으로 꺼져 있으며 `CODEXMANAGER_USE_WEBSOCKET_UPSTREAM=1`로 켤 수 있습니다.
 - 시스템 내부 인터페이스 목록: 데스크톱/서비스 명령, RPC 메서드, 플러그인 내장 함수.
 - 로컬 서비스: 자동 시작, 포트와 수신 주소 설정.
 - 로컬 게이트웨이: Codex CLI, Gemini CLI, Claude Code와 타사 도구를 위한 OpenAI 호환 엔드포인트; Gemini → `/v1/responses`, SSE, tools, MCP, skills, 요청/스트림 timeout 지원.
-- 이미지 생성: `/v1/responses`에 `image_generation` tool을 기본 주입하고 `/v1/images/generations`, `/v1/images/edits`를 제공합니다. Images API 호환 메인 모델의 기본값은 `gpt-6-luna`이며, 주입되는 이미지 tool의 기본값은 `gpt-image-2`이고 Image 2.5 두 변형은 명시적으로 선택할 수 있습니다.
+- 이미지 생성: 공식 Codex 동작에 따라 `/v1/responses`에 `image_generation` tool을 기본 주입하며, 명시적 tool 전달과 `/v1/images/generations`, `/v1/images/edits` 호환 엔드포인트를 지원합니다. Images API 호환 메인 모델의 기본값은 `gpt-6-luna`이며, 이미지 tool의 기본 모델은 `gpt-image-2`이고 Image 2.5 두 변형은 명시적으로 선택할 수 있습니다.
 
 ## 스크린샷
 
@@ -231,7 +254,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 
 ## 빠른 시작
 
-1. 데스크톱 앱을 실행하고 **서비스 시작**을 클릭합니다.
+1. [GitHub Releases](https://github.com/qxcnm/Codex-Manager/releases/latest)에서 사용 중인 플랫폼의 패키지를 다운로드한 뒤 데스크톱 앱을 실행하고 **서비스 시작**을 클릭합니다.
 2. **계정 관리**에서 브라우저 인증 또는 Device Code를 선택해 `chatgpt.com`에 로그인합니다.
 3. 브라우저 콜백이 실패하면 콜백 URL을 붙여넣어 수동으로 처리합니다.
 4. 사용량을 새로고침하고 계정 상태를 확인합니다.
@@ -246,6 +269,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 - 설정의 “데스크톱 진단”에서 Debug 모드, 일반 파일 로그 비활성화, 로그 폴더 열기를 사용할 수 있습니다. 일반 로그는 512KB로 제한되며 요청 로그와 Token/비용 통계는 영향을 받지 않습니다.
 - UI가 시작되지 않으면 `CodexManager.exe --debug`(macOS/Linux는 `CodexManager --debug`)를 사용하세요. 오류 이유를 표시하고 안내된 디렉터리에 `startup-error.log`를 기록합니다.
 - 데이터베이스, 프록시, 수신 주소 등은 [환경변수 및 실행 설정](report/환경변수-및-실행-설정-안내.md)을 참고하세요.
+- Service는 해당 드라이버를 포함해 빌드하면 SeaORM MySQL/PostgreSQL 백엔드도 사용할 수 있습니다. 기존 SQLite는 읽기 전용으로 내보낸 뒤 빈 대상 데이터베이스에 트랜잭션으로 가져올 수 있습니다. 자세한 내용은 [데이터베이스 전환 및 오프라인 가져오기(중국어)](../zh-CN/report/环境变量与运行配置说明.md#service-数据库切换与离线导入)를 참고하세요. 로컬 격리 데이터베이스 검증은 운영 환경 검증을 의미하지 않으며, 현재 범위는 [마이그레이션 검증 기록(중국어)](../zh-CN/report/Axum-Tokio-Tower-SeaORM迁移进度与会话交接.md)에서 확인할 수 있습니다.
 - Docker 기본값은 `TZ=Asia/Shanghai`이며 Compose는 환경의 `TZ`를 우선 사용합니다. 다른 지역에서는 적절한 IANA 시간대를 설정하세요.
 
 ## 화면 안내
@@ -254,6 +278,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 
 - 계정 관리: 계정과 사용량 가져오기, 내보내기, 새로고침, 낮은 한도/차단 필터와 초기화 시간.
 - 플랫폼 Key: 모델, 추론 등급, 서비스 등급별 Key 바인딩과 호출 로그.
+- Codex 연결 방식: OpenAI 계정 직접 연결, Responses에 안전하게 매핑할 수 있는 집계 API 직접 연결, CodexManager 로컬 게이트웨이 연결을 지원합니다. 집계 API 직접 연결은 로컬 게이트웨이를 거치지 않으므로 게이트웨이 요청 로그에 기록되지 않습니다.
 - 모델 관리: 데스크톱/Web은 `~/.codex/models_cache.json`을 기록하거나 다운로드하지 않습니다. 직접 계정은 공식 카탈로그, 로컬 게이트웨이는 독립 관리 카탈로그를 사용합니다.
 - 로컬 게이트웨이 사용 전 대상 Codex 프로필에서 `codex login`으로 ChatGPT에 로그인하세요. `auth.json`은 `auth_mode = "chatgpt"`이며 `tokens.id_token`, `tokens.access_token`, `tokens.refresh_token`이 모두 비어 있지 않아야 합니다. 게이트웨이 설정은 `auth.json`을 그대로 유지하고 `config.toml`만 업데이트합니다. 로그인 정보가 불완전하면 설정을 기록하지 않습니다. `cm` provider는 `name = "cm"`, `requires_openai_auth = true`를 사용하며 플랫폼 Key는 `experimental_bearer_token`에 기록합니다.
 - 플러그인 센터: `/plugins/` marketplace 전환, 설치·활성화, 작업, 로그, Rhai.
@@ -275,7 +300,7 @@ PatewayAI는 공식 고품질 모델 API 중계에 집중하며 Claude와 Codex 
 - 테스트: [테스트](테스트.md)
 - 보안: [보안](보안.md)
 - Model Catalog V2: [중국어 가이드](../zh-CN/report/模型目录V2管理与计费说明.md)
-- 문서 인덱스: [중국어 문서 인덱스](../zh-CN/README.md)
+- 문서 인덱스: [중국어 문서 인덱스](../zh-CN/README.md#文档首页)
 
 ## 주제별 문서
 

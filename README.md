@@ -1,18 +1,18 @@
 <table align="center">
   <tr>
     <td align="center" valign="middle" width="44%">
-      <img src="assets/logo/readme-header.png" alt="CodexManager — 本地桌面端与服务进程的 Codex 账号池管理器" width="460" />
+      <img src="assets/logo/readme-header-en.png" alt="CodexManager — local desktop and service-process Codex account pool manager" width="460" />
       <br />
       <sub>
-        <a href="https://qxnm.top/">官网</a> ·
-        <a href="#赞助商">赞助商</a>
+        <a href="https://qxnm.top/">Website</a> ·
+        <a href="#sponsors">Sponsors</a>
       </sub>
     </td>
     <td align="center" valign="middle" width="13%">
       <sub>
-        <strong>中文</strong>
+        <strong>English</strong>
         <br />
-        <a href="docs/en/README.md">English</a>
+        <a href="docs/zh-CN/README.md">中文</a>
         <br />
         <a href="docs/ru/README.md">Русский</a>
         <br />
@@ -33,170 +33,157 @@
       </a>
     </td>
     <td align="center" valign="middle" width="20%">
-      <sub><strong>认可社区</strong></sub>&nbsp;
+      <sub><strong>Community</strong></sub>&nbsp;
       <a href="https://linux.do/t/topic/1688401" title="LINUX DO">
         <img src="https://cdn3.ldstatic.com/original/4X/d/1/4/d146c68151340881c884d95e0da4acdf369258c6.png" alt="LINUX DO" height="30" />
       </a>
       &nbsp;
-      <a href="https://xuanwu.openatom.org/articles/project/codex-manager/" title="旋武社区">
-        <img src="https://xuanwu.openatom.org/logo.png" alt="旋武社区" height="30" />
+      <a href="https://xuanwu.openatom.org/articles/project/codex-manager/" title="Xuanwu Community">
+        <img src="https://xuanwu.openatom.org/logo.png" alt="Xuanwu Community" height="30" />
       </a>
     </td>
   </tr>
 </table>
 
-**CodexManager 已加入 [旋武社区](https://xuanwu.openatom.org/articles/project/codex-manager/)**，这是由开放原子开源基金会孵化运营的 Rust 技术社区。
+**CodexManager** manages Codex CLI account pools and provides a local OpenAI-compatible gateway, with a desktop app and a browser-based Service edition.
+
+**Interface language:** New installations default to **Auto-detect**, following the language reported by the desktop WebView or browser. Chinese, English, Russian, and Korean are supported; unsupported or unavailable language information falls back to **English**. You can choose a fixed language in the header or Settings, and saved choices are preserved.
+
+**CodexManager has joined the [Xuanwu Community](https://xuanwu.openatom.org/articles/project/codex-manager/)**, a Rust technical community incubated and operated by the OpenAtom Foundation.
 
 <table>
   <tr>
     <td valign="top" width="50%">
-      <strong>源码说明</strong>
+      <strong>Source Code Note</strong>
       <br />
       <sub>
-        本产品完全由本人指挥+AI打造 Codex（98%） Gemini (2%) 如果在使用过程中产生问题请友好交流，因为开源只是觉得有人能用的上，基本功能也没什么问题，不喜勿喷。其次是本人没有足够的环境来验证每个包都有没有问题，本人也要上班(我只是个穷逼买不起mac之类的)，本人只保证win的桌面端的可用性，如果其他端有问题，请在充分测试后提交 Issues，有时间我自会处理。最后感谢各位使用者反馈的各个平台问题和参与的部分测试。
+        This product was built under my direction with AI: Codex (98%) and Gemini (2%). If you encounter a problem, please communicate respectfully. I do not have enough environments to validate every package and can guarantee only the Windows desktop build. For other platforms, test thoroughly before opening an Issue. Thank you to everyone who reports platform-specific problems and helps with testing.
       </sub>
     </td>
     <td valign="top" width="50%">
-      <strong>免责声明</strong>
+      <strong>Disclaimer</strong>
       <br />
       <sub>
-        本项目仅用于学习与开发目的；使用者必须遵守相关平台的服务条款（例如 OpenAI、Anthropic）；作者不提供或分发任何账号、API Key 或代理服务，也不对本软件的具体使用方式负责；请勿使用本项目绕过速率限制或服务限制。
+        This project is intended solely for learning and development; users must comply with the terms of service of the relevant platforms, including OpenAI and Anthropic; the author does not provide or distribute accounts, API keys, or proxy services and is not responsible for specific uses of this software; do not use this project to circumvent rate limits or service restrictions.
       </sub>
     </td>
   </tr>
 </table>
 
-## 赞助商
+## Sponsors
 
-本项目现开放赞助合作，价格可谈。赞助方可在 README 及项目内的赞助展示区域展示品牌 Logo、简介及官方链接；具体文案、展示位置、展示周期与上线时间由双方协商确认。为保持项目调性与用户体验，合作内容需与开发者或 AI 工具生态相关，并符合相关法律法规。
+This project is open to sponsorship partnerships, with pricing negotiable. Sponsors may display their brand logo, introduction, and official link in the README and in-project sponsor areas. Exact wording, placement, display period, and launch time are agreed upon by both parties. Partnerships should be relevant to developers or the AI tooling ecosystem and comply with applicable laws and regulations.
 
-** 合作洽谈：** 可通过微信、Telegram 或邮箱 `18272669457@163.com` 联系，添加好友时请备注“赞助合作”。
+**Partnership contact:** Reach out via WeChat, Telegram, or email at `18272669457@163.com`; when adding on WeChat, please note “Sponsorship”.
 
-感谢以下朋友与伙伴对 CodexManager 的支持。
+Thanks to the following friends and partners for supporting CodexManager.
 
-[![PatewayAI 官方高质量模型 API 中继服务](assets/images/sponsors/patewayai-banner-cn-4k.png)](https://pateway.ai/?ch=kimnmd)
+[![PatewayAI official high-quality model API relay service](assets/images/sponsors/patewayai-banner-en-4k.png)](https://pateway.ai/?ch=kimnmd)
 
-感谢 <strong>PatewayAI</strong> 对本项目的赞助！
+Thanks to <strong>PatewayAI</strong> for sponsoring this project!
 
-PatewayAI 专注于官方高质量模型 API 中继，完整支持 Claude、Codex 系列，并提供透明计费与企业级服务。
+PatewayAI focuses on high-quality official model API relay services, with full support for Claude and Codex series models, transparent billing, and enterprise-grade service.
 
-经济模式低至 0.5 折！通过<a href="https://pateway.ai/?ch=kimnmd" rel="sponsored nofollow">此链接</a>注册可获试用额度，还可参与不定时活动领取免费额度，双向推荐奖励最高达 150 美元。
+Economy mode starts as low as 5% of standard rates. <a href="https://pateway.ai/?ch=kimnmd" rel="sponsored nofollow">Register through this link</a> to receive trial credits, join occasional promotions for free credits, and earn up to $150 in two-way referral rewards.
 
 ---
 
 <table>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">
-        <img src="assets/images/sponsors/sidrune.png" alt="Sidrune AI" width="120" />
-      </a>
+      <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger"><img src="assets/images/sponsors/sidrune.png" alt="Sidrune AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">Sidrune AI｜一个入口，接入并管理全球主流AI模型</a></strong><br />
-      Sidrune AI 面向个人开发者、技术团队与企业，通过统一 API 接入并管理全球主流 AI 模型；通过多线路动态调度提升可用性，模型表现、响应时间与费用透明可查。根据不同模型与线路，API 调用成本可较官方或基准价格降低 40%—98%。<br />
-      立即<a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">访问并注册</a>，即可获得 $3.88 试用额度，可直接使用。
+      <strong><a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">Sidrune AI | One entry point to access and manage leading AI models worldwide</a></strong><br />
+      Sidrune AI gives individual developers, technical teams, and enterprises a unified API for accessing and managing leading global AI models. Dynamic routing across multiple connections improves availability, with transparent model performance, response times, and costs. Depending on the model and route, API costs can be 40%–98% below official or reference prices.<br />
+      <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">Visit and register</a> to receive $3.88 in trial credits, ready to use.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://onesay.io">
-        <img src="assets/images/sponsors/onesay.jpg" alt="OneSay Desktop" width="120" />
-      </a>
+      <a href="https://onesay.io"><img src="assets/images/sponsors/onesay.jpg" alt="OneSay Desktop" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://onesay.io">Typeless 最佳平替来了！OneSay Pro 免费用 3 个月！</a></strong><br />
-      还在为打字慢、效率低而烦恼？试试 OneSay Desktop！一款让你开口就能高效工作的 AI 语音助手，集智能听写、AI 翻译、文字改写、智能问答于一体。写邮件、回消息、记录灵感，动动嘴就能搞定！<br />
-      <strong>限时福利：新用户免费体验 Pro 模式 3 个月！</strong>邀请好友注册，还能继续延长会员时长，邀请越多，免费用得越久！<br />
-      体验 Typeless 级别的语音输入效率，从 OneSay 开始！立即注册体验：<a href="https://onesay.io">https://onesay.io</a>
+      <strong><a href="https://onesay.io">A great Typeless alternative: try OneSay Pro free for 3 months!</a></strong><br />
+      Slow typing holding you back? Try OneSay Desktop, an AI voice assistant that combines intelligent dictation, AI translation, rewriting, and Q&amp;A. Write emails, reply to messages, and capture ideas just by speaking.<br />
+      <strong>Limited-time offer: new users get 3 months of Pro free!</strong> Invite friends to register and extend your membership; more referrals mean more free time.<br />
+      Start with OneSay for Typeless-level voice input productivity. Register now: <a href="https://onesay.io">https://onesay.io</a>
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://omniakey.com">
-        <img src="assets/images/sponsors/OmniaKey.png" alt="OmniaKey" width="120" />
-      </a>
+      <a href="https://omniakey.com"><img src="assets/images/sponsors/OmniaKey.png" alt="OmniaKey" width="120" /></a>
     </td>
     <td valign="top">
-      <strong>嗨嗨嗨！很高兴被你看见 👋</strong><br />
-      我们是 <strong><a href="https://omniakey.com">OmniaKey</a></strong> 团队，专为开发者打造的全模态 AI API 中转平台，提供文本、图片、视频与音频模型接入，一套 API Key 覆盖多种 AI 场景。<br />
-      <strong>📝 文本：</strong>GPT、Claude、Gemini、Grok、GLM、Qwen 等主流大模型全线覆盖，对话、代码、推理一站满足。<br />
-      <strong>🎨 图片：</strong>GPT-image-2.5、Nanobanna 2.1、Seedream 5.0 Pro，文生图、图生图、改图设计开箱即用。<br />
-      <strong>🎬 视频：</strong>Seedance 2.5、Wan3、Kling、MiniMaxH3，文生视频与图生视频模型，一键接入即可出片。<br />
-      <strong>🔊 音频：</strong>Suno AI 音乐生成，直接 API 调用，轻松落地音频创作场景。<br />
-      官网：<a href="https://omniakey.com">omniakey.com</a> · 中文地址：<a href="https://omniakey.com/zh">omniakey.com/zh</a>
+      <strong>Hello! Glad you found us 👋</strong><br />
+      We are the <strong><a href="https://omniakey.com">OmniaKey</a></strong> team, building a multimodal AI API relay platform for developers. Access text, image, video, and audio models with one API key for a wide range of AI applications.<br />
+      <strong>📝 Text:</strong> GPT, Claude, Gemini, Grok, GLM, Qwen, and other leading models for chat, coding, and reasoning.<br />
+      <strong>🎨 Images:</strong> GPT-image-2.5, Nanobanna 2.1, and Seedream 5.0 Pro for text-to-image, image-to-image, editing, and design.<br />
+      <strong>🎬 Video:</strong> Seedance 2.5, Wan3, Kling, and MiniMaxH3 for text-to-video and image-to-video, ready to integrate.<br />
+      <strong>🔊 Audio:</strong> Suno AI music generation through direct API calls for audio creation workflows.<br />
+      Website: <a href="https://omniakey.com">omniakey.com</a> · Chinese site: <a href="https://omniakey.com/zh">omniakey.com/zh</a>
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://daitouai.com/">
-        <img src="assets/images/sponsors/daitouai.svg" alt="呆头 AI" width="120" />
-      </a>
+      <a href="https://daitouai.com/"><img src="assets/images/sponsors/daitouai.svg" alt="Daitou AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://daitouai.com/">呆头 AI</a></strong> 专注于国内主流大模型 API 服务，提供 GLM、Kimi、DeepSeek 等模型的便捷接入，适用于对话问答、代码生成、内容创作和自动化开发等常见场景。平台主打比官方更实惠的价格，支持个人开发者快速试用，也适合独立项目与团队按需调用，帮助降低国内大模型的使用成本。欢迎通过<a href="https://daitouai.com/">官网</a>了解可用模型、接入方式与最新优惠。
+      <strong><a href="https://daitouai.com/">Daitou AI</a></strong> focuses on APIs for leading Chinese large language models, providing convenient access to GLM, Kimi, DeepSeek, and more for chat, coding, content creation, and automation. With prices below official rates, the platform supports quick trials for individual developers and on-demand use by independent projects and teams, helping lower model costs. Visit the <a href="https://daitouai.com/">official site</a> for available models, integration details, and current offers.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://api.fenno.ai/s/4ADZ">
-        <img src="assets/images/sponsors/fennoai.jpg" alt="FennoAI" width="120" />
-      </a>
+      <a href="https://api.fenno.ai/s/4ADZ"><img src="assets/images/sponsors/fennoai.jpg" alt="FennoAI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://api.fenno.ai/s/4ADZ">FennoAI</a></strong> 面向企业研发团队和开发者提供高稳定、高性能的 API 中转服务，兼容 OpenAI 与 Anthropic 协议，可无缝接入 Codex、Claude Code、OpenCode 等主流 AI 编程工具。平台具备企业级稳定性，可支撑千亿 Token/日的调用规模，并支持境内外主体公对公结算及开票。Codex-Manager 用户通过<a href="https://api.fenno.ai/s/4ADZ">专属链接</a>购买订阅，仅需 1.99 美元即可获得价值 50 美元的 Coding Plan 额度；邀请好友购买最高可获得 20% 返佣，邀请越多，奖励越高。
+      <strong><a href="https://api.fenno.ai/s/4ADZ">FennoAI</a></strong> provides highly stable, high-performance API relay services for enterprise R&amp;D teams and developers. It supports OpenAI and Anthropic protocols and integrates with Codex, Claude Code, OpenCode, and other mainstream AI coding tools. Its enterprise-grade infrastructure supports hundreds of billions of tokens per day, business-to-business settlement for domestic and overseas entities, and invoicing. Codex-Manager users can purchase a $50 Coding Plan allowance for only $1.99 through the <a href="https://api.fenno.ai/s/4ADZ">exclusive link</a>; earn up to 20% commission by inviting friends to subscribe, with more referrals bringing more rewards.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://s.qiniu.com/eiaQrq">
-        <img src="assets/images/sponsors/qiniuyun.jpg" alt="七牛云 AI" width="120" />
-      </a>
+      <a href="https://s.qiniu.com/eiaQrq"><img src="assets/images/sponsors/qiniuyun.jpg" alt="Qiniu Cloud AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://s.qiniu.com/eiaQrq">七牛云 AI</a></strong> 是七牛云（02567.HK）旗下企业级大模型 MaaS 平台，一站式调用全球 150+ 主流模型，兼容全球主流模型厂商协议，覆盖文本、图像、音频、视频、文件处理等全模态处理能力，服务超过 169 万企业及开发者用户。七牛云 AI 为 Codex-Manager 用户提供专属福利：通过<a href="https://s.qiniu.com/eiaQrq">专属链接</a>注册，企业用户免费领取 1200 万 Token，开发者免费领取 300 万 Token。
+      <strong><a href="https://s.qiniu.com/eiaQrq">Qiniu Cloud AI</a></strong> is an enterprise large-model MaaS platform from Qiniu Cloud (02567.HK), offering one-stop access to more than 150 mainstream global models, compatibility with leading providers' protocols, and text, image, audio, video, and file processing. It serves more than 1.69 million enterprises and developers. Register through the <a href="https://s.qiniu.com/eiaQrq">exclusive link</a> for Codex-Manager benefits: enterprise users receive 12 million tokens free, while developers receive 3 million tokens free.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://www.aixiamo.com/?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=logo_brand_home_v3">
-        <img src="assets/images/sponsors/aixiamo.jpg" alt="AI夏末 AIXiamo" width="120" />
-      </a>
+      <a href="https://www.aixiamo.com/?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=logo_brand_home_v3"><img src="assets/images/sponsors/aixiamo.jpg" alt="AI夏末 AIXiamo" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://www.aixiamo.com/?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=brand_home_v3">AIXiamo 官网｜国内 ChatGPT Plus / Pro 本人账号正规充值</a></strong><br />
-      <strong>Codex 额度不够，Plus 还是 Pro？</strong> 日常使用和普通 Codex 选 <a href="https://www.aixiamo.com/chatgpt-plus-domestic-recharge?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=plus_owner_v3">Plus</a>；经常触顶或高频长任务，再比较 <a href="https://www.aixiamo.com/chatgpt-pro?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=pro_owner_v3">Pro 5x / 20x</a>。<br />
-      <strong>赞助方教程：</strong><a rel="sponsored nofollow" href="https://gpt-guide.aixiamo.com/knowledge">2026 ChatGPT Plus / Pro 国内充值与套餐选择完整指南</a><br />
-      支持支付宝、无需海外银行卡；不索取密码、验证码或恢复码，订单可查、中文售后，充值不成功经核验后全额退款。持续运营三年多，线上线下累计服务数万名用户；另有 Claude Pro / Max、Gemini（Google AI Pro）、Grok / SuperGrok 等主流 AI 会员。<br />
-      欢迎企业采购对接；<a href="https://www.aixiamo.com/articles/aixiamo-invoice-application-notice-2026?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=invoice_notice_v3">已完成订单支持申请开具发票，请先联系售后确认</a>。
+      <strong><a href="https://www.aixiamo.com/?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=brand_home_v3">AIXiamo official site | Legitimate ChatGPT Plus / Pro top-ups for your own account in China</a></strong><br />
+      <strong>Not enough Codex allowance—Plus or Pro?</strong> Choose <a href="https://www.aixiamo.com/chatgpt-plus-domestic-recharge?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=plus_owner_v3">Plus</a> for everyday use; compare <a href="https://www.aixiamo.com/chatgpt-pro?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=pro_owner_v3">Pro 5x / 20x</a> for frequent limits or long, intensive tasks.<br />
+      <strong>Sponsor guide:</strong> <a rel="sponsored nofollow" href="https://gpt-guide.aixiamo.com/knowledge">2026 guide to ChatGPT Plus / Pro top-ups and plan selection in China</a><br />
+      Supports Alipay without an overseas bank card; never asks for passwords, verification codes, or recovery codes. Orders are traceable, Chinese support is available, and failed top-ups are fully refunded after verification. Operating for over three years, it has served tens of thousands of users online and offline. Claude Pro / Max, Gemini (Google AI Pro), Grok / SuperGrok, and other memberships are also available.<br />
+      Enterprise purchasing is welcome. <a href="https://www.aixiamo.com/articles/aixiamo-invoice-application-notice-2026?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=invoice_notice_v3">Completed orders can apply for an invoice after confirming with support</a>.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://gzxsy.vip/register?aff=eapz">
-        <img src="assets/images/sponsors/xingsiyan.jpg" alt="星思研中转站" width="120" />
-      </a>
+      <a href="https://gzxsy.vip/register?aff=eapz"><img src="assets/images/sponsors/xingsiyan.jpg" alt="Xing Si Yan Gateway" width="120" /></a>
     </td>
     <td valign="top">
-      <strong>星思研中转站</strong> 为 Claude Code、Codex 等模型调用场景提供稳定中转与配套服务，适合需要高可用接口、便捷接入和持续交付支持的开发者与团队。可前往<a href="https://gzxsy.vip/register?aff=eapz">官网</a>了解最新方案。
+      <strong>Xing Si Yan Gateway</strong> provides stable relay and supporting services for Claude Code, Codex, and similar model-call scenarios. It suits developers and teams requiring highly available APIs, convenient onboarding, and continuous delivery support. Visit the <a href="https://gzxsy.vip/register?aff=eapz">official site</a> for current plans.
     </td>
   </tr>
 </table>
 
+Other supporters: 呆头呆脑, [Wonderdch](https://github.com/Wonderdch), [suxinwl](https://github.com/suxinwl), [Hermit](https://github.com/HermitChen), [Suifeng023](https://github.com/Suifeng023), [HK-hub](https://github.com/HK-hub)
 
-其他支持者：呆头呆脑、 [Wonderdch](https://github.com/Wonderdch)、[suxinwl](https://github.com/suxinwl)、[Hermit](https://github.com/HermitChen)、[Suifeng023](https://github.com/Suifeng023)、[HK-hub](https://github.com/HK-hub)
+## ☕ Support the Project
 
+If this project has helped you, donations are welcome!
 
-## ☕ 支持项目 (Support)
-
-如果您觉得本项目对您有所帮助，欢迎打赏作者！
 <table>
   <tr>
-    <th>支付宝 (Alipay)</th>
-    <th>微信支付 (WeChat)</th>
+    <th>Alipay</th>
+    <th>WeChat Pay</th>
   </tr>
   <tr>
-    <td align="center"><img src="assets/images/AliPay.jpg" alt="支付宝赞助码" width="220" /></td>
-    <td align="center"><img src="assets/images/wechatPay.jpg" alt="微信赞助码" width="220" /></td>
+    <td align="center"><img src="assets/images/AliPay.jpg" alt="Alipay donation QR code" width="220" /></td>
+    <td align="center"><img src="assets/images/wechatPay.jpg" alt="WeChat Pay donation QR code" width="220" /></td>
   </tr>
 </table>
 
@@ -210,147 +197,156 @@ PatewayAI 专注于官方高质量模型 API 中继，完整支持 Claude、Code
  </picture>
 </a>
 
-## 首页导览
-| 你要做什么 | 直接进入 |
+## Home Navigation
+
+| What you want to do | Go directly to |
 | --- | --- |
-| 首次启动、部署、Docker、macOS 放行 | [运行与部署指南](docs/zh-CN/report/运行与部署指南.md) |
-| 配置 Codex CLI / ccswitch 接入、`auth.json` 与 `config.toml` | [运行与部署指南](docs/zh-CN/report/运行与部署指南.md#通过-ccswitch-接入) |
-| 不登陆 Codex，使用 ChatGPT `/api/auth/session` 导入账号 | [不登陆 Codex 使用 ChatGPT 的 /api/auth/session 在软件中的使用](docs/zh-CN/report/不登陆Codex使用ChatGPT-auth-session导入账号.md) |
-| 配置端口、代理、数据库、Web 密码、环境变量 | [环境变量与运行配置](docs/zh-CN/report/环境变量与运行配置说明.md) |
-| 排查账号不命中、导入失败、挑战拦截、请求异常 | [FAQ 与账号命中规则](docs/zh-CN/report/FAQ与账号命中规则.md) |
-| 排查后台任务账号跳过、禁用与停用原因 | [后台任务账号跳过说明](docs/zh-CN/report/后台任务账号跳过说明.md) |
-| 管理模型、价格、路由、instructions policy 与 Codex 模型目录应用 | [模型目录 V2 管理与计费说明](docs/zh-CN/report/模型目录V2管理与计费说明.md) |
-| 插件中心最小接入、快速对接 | [插件中心最小接入说明](docs/zh-CN/report/插件中心最小接入说明.md) |
-| 对接插件中心、查看接口清单、市场模式与 Rhai 接口 | [插件中心对接与接口清单](docs/zh-CN/report/插件中心对接与接口清单.md) |
-| 系统全部可对接内部接口 | [系统内部接口总表](docs/zh-CN/report/系统内部接口总表.md) |
-| 本地构建、打包、发版、脚本调用 | [构建发布与脚本说明](docs/zh-CN/release/构建发布与脚本说明.md) |
+| First launch, deployment, Docker, or macOS allowlisting | [Runtime and Deployment Guide](docs/en/report/runtime-and-deployment-guide.md) |
+| Configure Codex CLI / ccswitch, `auth.json`, and `config.toml` | [Runtime and Deployment Guide](docs/en/report/runtime-and-deployment-guide.md#connect-through-ccswitch) |
+| Import an account from ChatGPT `/api/auth/session` without logging in through Codex | [Chinese guide: Import ChatGPT auth session](docs/zh-CN/report/不登陆Codex使用ChatGPT-auth-session导入账号.md) |
+| Configure ports, proxy, database, Web password, and environment variables | [Environment and Runtime Configuration](docs/en/report/environment-and-runtime-config.md) |
+| Troubleshoot account routing, import failures, challenge interception, or request errors | [FAQ and Account Routing Rules](docs/en/report/faq-and-account-routing-rules.md) |
+| Understand why background jobs skip, disable, or deactivate accounts | [Background Task Account Skip Notes](docs/en/report/background-task-account-skip-notes.md) |
+| Manage models, pricing, routes, instructions policy, and Codex model catalogs | [Chinese guide: Model Catalog V2 Management and Billing](docs/zh-CN/report/模型目录V2管理与计费说明.md) |
+| Minimal plugin center integration and quick onboarding | [Plugin Center Minimal Integration](docs/en/report/plugin-center-minimal-integration.md) |
+| Integrate with the plugin center, view interfaces, marketplace modes, and Rhai APIs | [Plugin Center Integration and Interfaces](docs/en/report/plugin-center-integration-and-interfaces.md) |
+| View every internal integration interface | [System Internal Interface Inventory](docs/en/report/system-internal-interface-inventory.md) |
+| Build, package, release, or call scripts locally | [Build, Release, and Script Guide](docs/en/release/build-release-and-scripts.md) |
 
-## 功能概览
-- 账号池管理：分组、标签、排序、备注、封禁识别与封禁筛选
-- 批量导入 / 导出：支持多文件导入、桌面端文件夹递归导入 JSON、按账号导出单文件
-- 用量展示：支持标准 5 小时 + 7 日窗口、仅 7 日单窗口账号，以及 Code Review / Spark 等官方附加额度窗口；刷新后会统一展示各额度的剩余百分比与重置时间
-- [额度重置自动唤醒](docs/zh-CN/额度重置自动唤醒.md)：默认在已耗尽的 5 小时额度到达重置时间后发送简短预热消息，支持按账号或批量开启、关闭，减少等待下一轮额度刷新的时间。
-- 授权登录：支持 `chatgpt.com` 浏览器授权与 Device Code 登录；浏览器授权仍可手动粘贴回调地址完成解析
-- 平台 Key：随机生成或自定义固定 Key、禁用、删除、模型绑定、推理等级、服务等级（跟随请求 / Standard / Fast / Ultrafast / Flex）；可绑定自定义账号分组，并与账号计划筛选取交集后仅在授权池内轮转
-- 模型管理：模型目录 V2 是唯一运行时真相源；支持 builtin/custom、整数三价与长上下文阶梯价、账号池/聚合 API route、instructions policy、本地 JSON preview/commit，以及勾选模型后应用到 Codex 的 `model_catalog_json`
-- 当前 builtin 目录共 12 条记录：`gpt-6.1-sol`、`gpt-6-astra`、`gpt-6-sol`、`gpt-6-luna`、GPT-5.6 三款模型、`gpt-5.5`、`gpt-image-2` 和两个 Image 2.5 变体共 11 款模型默认可见；只有 `codex-auto-review` 默认隐藏
-- `gpt-5.4` 与 `gpt-5.4-mini` 已于 2026-08-31 从 ChatGPT 登录的 Codex 退役，`gpt-5.2` 也已在该登录方式下 deprecated；通用 API 模型不受此清理影响。revision 9 会清理未定制的对应 builtin；带有用户编辑、价格阶梯、路由或权限关联的数据会转为 custom 保留，需要 API Key 继续使用时也可显式添加同名 custom 模型
-- 聚合 API：管理第三方最小转发上游，支持创建、编辑、余额和基于已配置 V2 route 的连通性测试；不会自动发现供应商模型，管理员可主动拉取并选择性关联到模型目录 V2，不维护旧供应商模型池
-- 插件中心：路由为 `/plugins/`，支持内置精选、企业私有、自定义源三种市场模式，并提供插件清单、任务、日志与 Rhai 对接接口
-- Skills 与插件：`/skills/` 按“Skills 安装 / Codex 插件安装”分栏。Skills 安装提供内置及自定义 GitHub 技能仓库、仓库刷新与单 Skill 安装、skills.sh 搜索安装、ZIP / 目录导入和已安装管理；Codex 插件安装保留原生 Marketplace 的完整插件安装流程，`.system` 内置 Skill 始终只读
-- 项目启动（桌面端）：收藏本机项目目录；Windows / macOS 通过 ChatGPT Codex App 打开对应工作区，“会话”继续使用本机 CodexManager profile 在新终端中打开 `resume` 选择器
-- 设置页：支持“系统推导”按钮、单账号并发上限、上游代理、请求总超时、流式空闲超时、SSE 保活开关与间隔，以及更保守的高并发退化策略；SSE 保活默认开启，可通过 `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0`（或 `false`）关闭；实验性上游 WebSocket 可通过 `CODEXMANAGER_USE_WEBSOCKET_UPSTREAM=1` 开启，默认关闭
-- 系统内部接口总表：列出当前桌面端与服务端所有可对接命令、RPC 方法、以及插件内建函数
-- 本地服务：自动拉起、可自定义端口与监听地址
-- 本地网关：为 Codex CLI、Gemini CLI、Claude Code 和第三方工具提供统一 OpenAI 兼容入口；Gemini 请求可转发到 `/v1/responses`，并兼容 SSE、tools、MCP、skill、请求总超时与流式空闲超时等调用链路
-- 图片生成：默认按官方 Codex 行为为 `/v1/responses` 自动注入 `image_generation` tool，并支持显式 tool 透传、`/v1/images/generations` 与 `/v1/images/edits` 兼容入口；Images API 兼容入口默认主模型为 `gpt-6-luna`，默认图片工具模型仍为 `gpt-image-2`，并可显式选择两个 Image 2.5 变体
+## Feature Overview
 
-## 截图
+- Account pool management: groups, tags, ordering, notes, ban recognition, and ban filtering.
+- Batch import/export: multi-file import, recursive JSON folder import on desktop, and per-account single-file export.
+- Usage display: standard 5-hour + 7-day windows, 7-day-only accounts, and official additional buckets such as Code Review / Spark; refresh shows remaining percentages and reset times consistently.
+- [Quota reset warmup (Chinese guide)](docs/zh-CN/额度重置自动唤醒.md): enabled by default, sends a short warmup message after an exhausted 5-hour window resets. Enable or disable it per account or in bulk to reduce the wait for the next quota refresh.
+- Account authorization: `chatgpt.com` browser OAuth and Device Code login; browser OAuth also supports manually pasting the callback URL.
+- Platform keys: random or custom fixed keys, disabling, deletion, model binding, reasoning tier, and service tier (follow request / Standard / Fast / Ultrafast / Flex). Keys can be bound to custom account groups and intersected with plan filters so rotation stays inside the authorized pool.
+- Model management: Model Catalog V2 is the sole runtime source of truth. It supports builtin/custom models, integer input/output/cached-input rates and long-context pricing tiers, account-pool and aggregate-API routes, instructions policy, local JSON preview/commit, and applying selected models to Codex through `model_catalog_json`.
+- The current catalog contains 12 built-in rows. `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, the three GPT-5.6 models, `gpt-5.5`, `gpt-image-2`, and the two Image 2.5 variants make up the 11 models visible by default; only `codex-auto-review` is hidden.
+- `gpt-5.4` and `gpt-5.4-mini` retired from Codex with ChatGPT sign-in on August 31, 2026, and `gpt-5.2` is also deprecated for that sign-in path; the general API model is not removed by this cleanup. Revision 9 removes their untouched built-ins, while user edits, price tiers, non-default routes, and permission/API-key associations are preserved as custom models. API-key users can also add the same slugs explicitly as custom models.
+- Aggregate API: manage minimal third-party upstreams, including create, edit, balance, and connectivity tests against configured V2 routes. It does not auto-discover provider models; administrators fetch and selectively link models to Catalog V2, with no legacy provider model pool.
+- Plugin center: `/plugins/` supports built-in curated, enterprise private, and custom source marketplace modes, plus manifests, tasks, logs, and Rhai interfaces.
+- Skills and plugins: `/skills/` separates Skills Installation from Codex Plugin Installation. Skills support built-in and custom GitHub repositories, repository refresh, individual Skill installation, skills.sh search and installation, ZIP/directory import, and installed-item management. Codex plugins retain the full native Marketplace installation flow; `.system` Skills remain read-only.
+- Desktop project launcher: bookmark local directories; Windows and macOS open them in the ChatGPT Codex App, while Sessions opens the `resume` selector in a new terminal with the local CodexManager profile.
+- Settings: includes a system-derived settings button, per-account concurrency, upstream proxy, total and stream-idle timeouts, SSE keepalive settings and interval, and conservative high-concurrency degradation. Keepalive is enabled by default; disable it with `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0` (or `false`). Experimental upstream WebSocket is disabled by default; enable it with `CODEXMANAGER_USE_WEBSOCKET_UPSTREAM=1`.
+- System internal interface inventory: all desktop/service commands, RPC methods, and built-in plugin functions.
+- Local service: automatic startup with configurable port and listen address.
+- Local gateway: one OpenAI-compatible endpoint for Codex CLI, Gemini CLI, Claude Code, and third-party tools; supports Gemini to `/v1/responses`, SSE, tools, MCP, skills, and request/stream timeouts.
+- Image generation: injects the official Codex `image_generation` tool for `/v1/responses` by default, passes explicitly provided tools through, and provides `/v1/images/generations` and `/v1/images/edits`; the Images API compatibility main model defaults to `gpt-6-luna`, while the injected image tool remains `gpt-image-2` and the two Image 2.5 variants are available for explicit selection.
 
-![仪表盘](assets/images/dashboard%20.png)
+## Screenshots
 
-![OpenAI 账号池（列表视图）](assets/images/accounts.png)
+![Dashboard](assets/images/dashboard%20.png)
 
-![OpenAI 账号池（卡片视图）](assets/images/accounts2.png)
+![OpenAI Account Pool (List View)](assets/images/accounts.png)
 
-![聚合 API](assets/images/aggregate-api%20.png)
+![OpenAI Account Pool (Card View)](assets/images/accounts2.png)
 
-![平台密钥](assets/images/platform-key%20.png)
+![Aggregate API](assets/images/aggregate-api%20.png)
 
-![模型与路由](assets/images/models.png)
+![Platform Keys](assets/images/platform-key%20.png)
 
-![请求日志](assets/images/log.png)
+![Models and Routing](assets/images/models.png)
 
-![系统设置](assets/images/setting.png)
+![Request Logs](assets/images/log.png)
 
-![插件中心](assets/images/plug.png)
+![System Settings](assets/images/setting.png)
 
-## 快速开始
-1. 启动桌面端，点击“启动服务”。
-2. 进入“账号管理”，选择浏览器授权或 Device Code 完成 `chatgpt.com` 登录。
-3. 浏览器授权如回调失败，可粘贴回调链接手动完成解析。
-4. 刷新用量并确认账号状态。
+![Plugin Center](assets/images/plug.png)
 
-## 默认数据目录
-- 桌面端默认会把 SQLite 数据库写到应用数据目录下，文件名固定为 `codexmanager.db`。
-- Windows：`%APPDATA%\\com.codexmanager.desktop\\codexmanager.db`
-- macOS：`~/Library/Application Support/com.codexmanager.desktop/codexmanager.db`
-- Linux：`~/.local/share/com.codexmanager.desktop/codexmanager.db`
-- 桌面端每次升级首次初始化数据库前，会在数据库同目录保留 `codexmanager.db.pre-<版本>.bak` 快照；同一版本失败重试时不会覆盖该备份。
-- 设置页“桌面诊断”可启用 Debug 模式、关闭普通桌面文件日志并打开日志目录。普通运行日志限制为 512 KB 并自动覆盖；请求日志与 Token / 费用统计不受这个开关影响。
-- 如果界面无法启动，可使用 `CodexManager.exe --debug`（macOS / Linux 为 `CodexManager --debug`）临时启用详细日志。启动失败会弹出具体原因，并将 `startup-error.log` 写入弹窗所示的日志目录。
-- 如需调整数据库、代理、监听地址等运行配置，可继续查看 [环境变量与运行配置](docs/zh-CN/report/环境变量与运行配置说明.md)。
-- Service 可选 SeaORM MySQL/PostgreSQL 后端，需编译对应驱动；旧 SQLite 可只读导出并事务导入空目标库，详见 [数据库切换与离线导入](docs/zh-CN/report/环境变量与运行配置说明.md#service-数据库切换与离线导入)。本地隔离数据库验收不代表生产验收，当前范围见 [迁移实证记录](docs/zh-CN/report/Axum-Tokio-Tower-SeaORM迁移进度与会话交接.md)。
-- Docker 镜像默认使用 `TZ=Asia/Shanghai`；compose 示例会优先沿用部署环境里的 `TZ`，没有设置时回退到 `Asia/Shanghai`，其他地区部署时请改成对应 IANA 时区。
+## Quick Start
 
-## 页面展示
-### 桌面端
-- 账号管理：集中导入、导出、刷新账号与用量，支持低配额 / 封禁筛选与重置时间展示
-- 平台 Key：按模型、推理等级、服务等级绑定平台 Key，并查看调用日志
-- Codex 接入方式：支持 OpenAI 账号直连、可安全映射到 Responses 的聚合 API 直连，以及通过 CodexManager 本地网关接入；直连聚合 API 不经过本地网关，因此不会写入网关请求日志
-- 模型管理：桌面端和 Web 端都不会写入或下载 `~/.codex/models_cache.json`；账号直连跟随 Codex 官方目录，本地网关使用 CodexManager 管理目录下独立生成的 catalog
-- 插件中心：`/plugins/` 路由，内置精选 / 企业私有 / 自定义源市场切换，插件安装、启停、任务、日志、Rhai 对接
-- Skills 与插件：`/skills/` 路由以独立 Tab 管理 Skills 安装和 Codex 插件安装；Skills 可从内置/自定义 GitHub 仓库或 skills.sh 搜索后单独安装，也支持 ZIP、目录导入和安全卸载；Codex 原生 Marketplace 继续负责完整插件安装，系统 Skill 只读
-- 项目启动：桌面端收藏本机目录；Windows / macOS 直接在 ChatGPT Codex App 中打开对应工作区，“会话”通过本机 CLI 继续项目；Web / Docker 不访问设备目录
-- 设置页：统一管理端口、监听地址、代理、请求超时、SSE 保活、主题、自动更新、后台行为
-- 本地网关接入前需先在目标 Codex profile 中通过 `codex login` 登录任意 ChatGPT 账号，确保 `auth.json` 的 `auth_mode = "chatgpt"` 且三个登录 token 非空。应用网关只更新 `config.toml`，逐字节保留 `auth.json`；未登录或 token 不完整时不写入配置。`cm` provider 固定使用 `name = "cm"`、`requires_openai_auth = true`，平台 Key 写入 `experimental_bearer_token`。
+1. Download a package for your platform from [GitHub Releases](https://github.com/qxcnm/Codex-Manager/releases/latest), launch the desktop app, and click **Start Service**.
+2. Open **Account Management** and choose browser authorization or Device Code login for `chatgpt.com`.
+3. If the browser callback fails, paste the callback URL to complete parsing manually.
+4. Refresh usage and verify account status.
 
-### Service 版
-- `codexmanager-service`：提供本地 OpenAI 兼容网关
-- `codexmanager-web`：提供浏览器管理页面，并承载 `/api/runtime` 与 `/api/rpc` 代理
-- `codexmanager-start`：一键拉起 service + web
+## Default Data Directory
 
-## 常用文档
-- 版本历史：[CHANGELOG.md](docs/zh-CN/CHANGELOG.md)
-- 协作约定：[CONTRIBUTING.md](docs/zh-CN/CONTRIBUTING.md)
-- 架构说明：[ARCHITECTURE.md](docs/zh-CN/ARCHITECTURE.md)
-- 测试基线：[TESTING.md](docs/zh-CN/TESTING.md)
-- 安全说明：[SECURITY.md](docs/zh-CN/SECURITY.md)
-- 模型目录 V2：[模型目录 V2 管理与计费说明](docs/zh-CN/report/模型目录V2管理与计费说明.md)
-- 文档索引：[docs/zh-CN/README.md](docs/zh-CN/README.md)
+- The desktop app stores its SQLite database in the application data directory as `codexmanager.db`.
+- Windows: `%APPDATA%\\com.codexmanager.desktop\\codexmanager.db`
+- macOS: `~/Library/Application Support/com.codexmanager.desktop/codexmanager.db`
+- Linux: `~/.local/share/com.codexmanager.desktop/codexmanager.db`
+- Before first initialization after an upgrade, a `codexmanager.db.pre-<version>.bak` snapshot is retained in the same directory; retries for the same version do not overwrite it.
+- **Desktop Diagnostics** can enable Debug mode, disable ordinary file logs, and open the log directory. Runtime logs are capped at 512 KB; request logs and token/cost statistics are unaffected.
+- If the UI cannot start, use `CodexManager.exe --debug` (`CodexManager --debug` on macOS/Linux). Startup failures display the reason and write `startup-error.log` to the shown log directory.
+- For database, proxy, listen-address, and other settings, see [Environment and Runtime Configuration](docs/en/report/environment-and-runtime-config.md).
+- The Service edition optionally supports SeaORM MySQL/PostgreSQL backends when built with the corresponding driver. Existing SQLite data can be exported read-only and transactionally imported into an empty target database; see the [Chinese database switching and offline import guide](docs/zh-CN/report/环境变量与运行配置说明.md#service-数据库切换与离线导入). Validation with isolated local databases does not establish production acceptance; see the [Chinese migration evidence and scope](docs/zh-CN/report/Axum-Tokio-Tower-SeaORM迁移进度与会话交接.md).
+- Docker defaults to `TZ=Asia/Shanghai`; Compose inherits the deployment `TZ` or falls back to `Asia/Shanghai`. Use the appropriate IANA time zone elsewhere.
 
-## 专题页面
-| 页面 | 内容 |
+## Product Views
+
+### Desktop
+
+- Account Management: import, export, refresh accounts and usage, with low-quota/ban filters and reset times.
+- Platform Key: bind keys by model, reasoning tier, and service tier, and inspect request logs.
+- Codex Connection: connect directly through an OpenAI account, directly through an aggregate API that can safely map to Responses, or through the CodexManager local gateway. Direct aggregate-API connections bypass the local gateway and do not appear in gateway request logs.
+- Model Management: desktop and Web do not write or download `~/.codex/models_cache.json`; direct accounts follow the official catalog, while the local gateway uses an independent managed catalog.
+- Plugin Center: `/plugins/` provides marketplace switching, installation, enable/disable, tasks, logs, and Rhai integration.
+- Skills and Plugins: `/skills/` separates Skills and Codex plugins, with repository/skills.sh install, ZIP/directory import, safe uninstall, native Marketplace flow, and read-only system Skills.
+- Project Launcher: desktop bookmarks local folders; Windows/macOS open them in the ChatGPT Codex App, Sessions uses the local CLI, and Web/Docker do not access device directories.
+- Settings: manage port, listen address, proxy, timeouts, SSE keepalive, theme, updates, and background behavior.
+- Before using the local gateway, run `codex login` in the target Codex profile and sign in with any ChatGPT account. `auth.json` must use `auth_mode = "chatgpt"` with non-empty `tokens.id_token`, `tokens.access_token`, and `tokens.refresh_token`. Gateway setup updates only `config.toml` and preserves `auth.json` byte for byte; incomplete sign-in prevents configuration writes. The `cm` provider always uses `name = "cm"` and `requires_openai_auth = true`, with the platform key in `experimental_bearer_token`.
+
+### Service Edition
+
+- `codexmanager-service`: local OpenAI-compatible gateway.
+- `codexmanager-web`: browser management page plus `/api/runtime` and `/api/rpc` proxies.
+- `codexmanager-start`: starts service + web together.
+
+## Common Documentation
+
+- Version history: [CHANGELOG.md](docs/en/CHANGELOG.md)
+- Contribution guidelines: [CONTRIBUTING.md](docs/en/CONTRIBUTING.md)
+- Architecture: [ARCHITECTURE.md](docs/en/ARCHITECTURE.md)
+- Testing baseline: [TESTING.md](docs/en/TESTING.md)
+- Security: [SECURITY.md](docs/en/SECURITY.md)
+- Model Catalog V2: [Chinese guide](docs/zh-CN/report/模型目录V2管理与计费说明.md)
+- Documentation index: [Chinese documentation index](docs/zh-CN/README.md#文档首页)
+
+## Topic Pages
+
+| Page | Contents |
 | --- | --- |
-| [运行与部署指南](docs/zh-CN/report/运行与部署指南.md) | 首次启动、Docker、Service 版、macOS 放行 |
-| [环境变量与运行配置](docs/zh-CN/report/环境变量与运行配置说明.md) | 应用配置、代理、监听地址、数据库、Web 安全 |
-| [FAQ 与账号命中规则](docs/zh-CN/report/FAQ与账号命中规则.md) | 账号命中、挑战拦截、导入导出、常见异常 |
-| [不登陆 Codex 使用 ChatGPT 的 /api/auth/session 在软件中的使用](docs/zh-CN/report/不登陆Codex使用ChatGPT-auth-session导入账号.md) | 浏览器复制 ChatGPT session JSON 后，通过批量导入加入账号池 |
-| [后台任务账号跳过说明](docs/zh-CN/report/后台任务账号跳过说明.md) | 后台任务过滤、禁用账号、workspace 停用原因 |
-| [最小排障手册](docs/zh-CN/report/最小排障手册.md) | 快速定位服务启动、请求转发、模型刷新异常 |
-| [插件中心对接与接口清单](docs/zh-CN/report/插件中心对接与接口清单.md) | 插件中心路由、市场模式、Tauri/RPC 接口、清单字段、Rhai 内建函数 |
-| [构建发布与脚本说明](docs/zh-CN/release/构建发布与脚本说明.md) | 本地构建、Tauri 打包、Release workflow、脚本参数 |
-| [发布与产物说明](docs/zh-CN/release/发布与产物说明.md) | 各平台发版产物、命名、是否 pre-release |
-| [脚本与发布职责对照](docs/zh-CN/report/脚本与发布职责对照.md) | 各脚本负责什么、什么场景该用哪个 |
-| [当前网关与 Codex 请求头和参数差异表](docs/zh-CN/report/当前网关与Codex请求头和参数差异表.md) | 当前网关参数传递、请求头和请求参数与 Codex 的对照说明 |
-| [系统内部接口总表](docs/zh-CN/report/系统内部接口总表.md) | 桌面端、服务端、插件中心全部可对接内部接口 |
-| [CHANGELOG.md](docs/zh-CN/CHANGELOG.md) | 最新发版内容、未发版更新与完整版本历史 |
+| [Runtime and Deployment Guide](docs/en/report/runtime-and-deployment-guide.md) | First launch, Docker, Service edition, and macOS allowlisting |
+| [Environment and Runtime Configuration](docs/en/report/environment-and-runtime-config.md) | Application settings, proxy, listen address, database, and Web security |
+| [FAQ and Account Routing Rules](docs/en/report/faq-and-account-routing-rules.md) | Account routing, challenge interception, import/export, and common errors |
+| [Chinese guide: Import ChatGPT auth session](docs/zh-CN/report/不登陆Codex使用ChatGPT-auth-session导入账号.md) | Copy ChatGPT session JSON and batch-import it into the account pool |
+| [Background Task Account Skip Notes](docs/en/report/background-task-account-skip-notes.md) | Background filtering, disabled accounts, and workspace deactivation |
+| [Minimal Troubleshooting Guide](docs/en/report/minimal-troubleshooting-guide.md) | Service startup, request forwarding, and model refresh failures |
+| [Plugin Center Integration and Interfaces](docs/en/report/plugin-center-integration-and-interfaces.md) | Routes, marketplace modes, Tauri/RPC interfaces, manifest fields, and Rhai functions |
+| [Build, Release, and Script Guide](docs/en/release/build-release-and-scripts.md) | Local builds, Tauri packaging, workflows, and script parameters |
+| [Release and Artifacts](docs/en/release/release-and-artifacts.md) | Platform artifacts, naming, and pre-release behavior |
+| [Script and Release Responsibility Matrix](docs/en/report/script-and-release-responsibility-matrix.md) | Script responsibilities and usage scenarios |
+| [Gateway vs Codex Headers and Params](docs/en/report/gateway-vs-codex-headers-and-params.md) | Gateway forwarding compared with Codex headers and parameters |
+| [System Internal Interface Inventory](docs/en/report/system-internal-interface-inventory.md) | Desktop, service, and plugin-center interfaces |
+| [CHANGELOG.md](docs/en/CHANGELOG.md) | Releases, unreleased changes, and full history |
 
-## 目录结构
+## Directory Structure
+
 ```text
 .
-├─ apps/                # 前端与 Tauri 桌面端
+├─ apps/                # Frontend and Tauri desktop app
 │  ├─ src/
 │  ├─ src-tauri/
 │  └─ out/
 ├─ crates/              # Rust core/service
 │  ├─ core
 │  ├─ service
-│  ├─ start              # Service 版本一键启动器（拉起 service + web）
-│  └─ web                # Service 版本 Web UI（可内嵌静态资源 + /api/rpc 代理）
-├─ docs/                # 正式文档目录
-├─ scripts/             # 构建与发布脚本
+│  ├─ start              # Starts service + web
+│  └─ web                # Service Web UI and /api/rpc proxy
+├─ docs/                # Official documentation
+├─ scripts/             # Build and release scripts
 └─ README.md
 ```
 
-## 鸣谢与参考项目
+## Acknowledgements and Reference Projects
 
-- Codex（OpenAI）：本项目在请求链路、登录语义与上游兼容行为上参考了该项目的实现与源码结构 <https://github.com/openai/codex>
-- CLIProxyAPI（CPA）：本项目在请求链路（Responses 请求转换与工具调用约定）参考其实现与约定 <https://github.com/router-for-me/CLIProxyAPI>
+- Codex (OpenAI): referenced for request flows, login semantics, and upstream-compatible source structure <https://github.com/openai/codex>
+- CLIProxyAPI (CPA): referenced for Responses request conversion and tool-call conventions <https://github.com/router-for-me/CLIProxyAPI>
 
+## Contact
 
-
-## 联系方式
-- 公众号：七线牛马
-- 微信：加微信群请加我微信 `ProsperGao`，并说明来意
-- Telegram 群聊：[CodexManager TG 群](https://t.me/+OdpFa9GvjxhjMDhl)
+- WeChat public account: 七线牛马
+- WeChat: add `ProsperGao` to join the group and state your purpose
+- Telegram group: [CodexManager TG group](https://t.me/+OdpFa9GvjxhjMDhl)

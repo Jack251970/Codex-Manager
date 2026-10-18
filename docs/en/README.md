@@ -10,9 +10,9 @@
     </td>
     <td align="center" valign="middle" width="13%">
       <sub>
-        <a href="../../README.md">中文</a>
-        <br />
         <strong>English</strong>
+        <br />
+        <a href="../zh-CN/README.md">中文</a>
         <br />
         <a href="../ru/README.md">Русский</a>
         <br />
@@ -44,6 +44,10 @@
     </td>
   </tr>
 </table>
+
+**CodexManager** manages Codex CLI account pools and provides a local OpenAI-compatible gateway, with a desktop app and a browser-based Service edition.
+
+**Interface language:** New installations default to **Auto-detect**, following the language reported by the desktop WebView or browser. Chinese, English, Russian, and Korean are supported; unsupported or unavailable language information falls back to **English**. You can choose a fixed language in the header or Settings, and saved choices are preserved.
 
 **CodexManager has joined the [Xuanwu Community](https://xuanwu.openatom.org/articles/project/codex-manager/)**, a Rust technical community incubated and operated by the OpenAtom Foundation.
 
@@ -87,25 +91,45 @@ Economy mode starts as low as 5% of standard rates. <a href="https://pateway.ai/
 <table>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://vmcardio.com/zh/register?code=OPK6X2DSLW"><img src="../../assets/images/sponsors/vmcard.jpg" alt="VMCard" width="120" /></a>
+      <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger"><img src="../../assets/images/sponsors/sidrune.png" alt="Sidrune AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://vmcardio.com/zh/register?code=OPK6X2DSLW">VMCard enterprise virtual card issuing platform</a></strong> provides dedicated U.S. Visa BINs, API-based bulk card issuance, and enterprise card management for AI account platforms, AI API providers, and subscription teams operating at scale.<br />
-      It offers highly competitive settlement rates for long-term, large-scale corporate payments. Business contact: <a href="https://t.me/Vmcardio_yuki">@Vmcardio_yuki</a>
+      <strong><a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">Sidrune AI | One entry point to access and manage leading AI models worldwide</a></strong><br />
+      Sidrune AI gives individual developers, technical teams, and enterprises a unified API for accessing and managing leading global AI models. Dynamic routing across multiple connections improves availability, with transparent model performance, response times, and costs. Depending on the model and route, API costs can be 40%–98% below official or reference prices.<br />
+      <a href="https://sidrune.ai/register?source=github&campaign=codexmanger&promo=codexmanger">Visit and register</a> to receive $3.88 in trial credits, ready to use.
     </td>
   </tr>
   <tr>
     <td align="center" valign="middle" width="180">
-      <a href="https://88api.ai/sign-up?aff=OceE"><img src="../../assets/images/sponsors/88api.png" alt="88API" width="120" /></a>
+      <a href="https://onesay.io"><img src="../../assets/images/sponsors/onesay.jpg" alt="OneSay Desktop" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://88api.ai/sign-up?aff=OceE">88API all-model aggregation platform</a></strong><br />
-      🧠 Language and coding models including GPT, Claude, Gemini, Grok, DeepSeek, Kimi, and GLM;<br />
-      🎨 Image models including GPT-Image, Gemini, and Grok;<br />
-      🎬 Video models including Seedance, Veo, MiniMax Hailuo H3, Kling, and Grok;<br />
-      🎙️ Voice capabilities including Whisper and TTS, covering copywriting, image generation and editing, video generation, and voice-over.<br />
-      🎁 New users receive trial credits for testing model capabilities, with human support available on the site.<br />
-      👉 Operated by an overseas registered business, with formal invoices and a 1:1 top-up ratio.
+      <strong><a href="https://onesay.io">A great Typeless alternative: try OneSay Pro free for 3 months!</a></strong><br />
+      Slow typing holding you back? Try OneSay Desktop, an AI voice assistant that combines intelligent dictation, AI translation, rewriting, and Q&amp;A. Write emails, reply to messages, and capture ideas just by speaking.<br />
+      <strong>Limited-time offer: new users get 3 months of Pro free!</strong> Invite friends to register and extend your membership; more referrals mean more free time.<br />
+      Start with OneSay for Typeless-level voice input productivity. Register now: <a href="https://onesay.io">https://onesay.io</a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle" width="180">
+      <a href="https://omniakey.com"><img src="../../assets/images/sponsors/OmniaKey.png" alt="OmniaKey" width="120" /></a>
+    </td>
+    <td valign="top">
+      <strong>Hello! Glad you found us 👋</strong><br />
+      We are the <strong><a href="https://omniakey.com">OmniaKey</a></strong> team, building a multimodal AI API relay platform for developers. Access text, image, video, and audio models with one API key for a wide range of AI applications.<br />
+      <strong>📝 Text:</strong> GPT, Claude, Gemini, Grok, GLM, Qwen, and other leading models for chat, coding, and reasoning.<br />
+      <strong>🎨 Images:</strong> GPT-image-2.5, Nanobanna 2.1, and Seedream 5.0 Pro for text-to-image, image-to-image, editing, and design.<br />
+      <strong>🎬 Video:</strong> Seedance 2.5, Wan3, Kling, and MiniMaxH3 for text-to-video and image-to-video, ready to integrate.<br />
+      <strong>🔊 Audio:</strong> Suno AI music generation through direct API calls for audio creation workflows.<br />
+      Website: <a href="https://omniakey.com">omniakey.com</a> · Chinese site: <a href="https://omniakey.com/zh">omniakey.com/zh</a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle" width="180">
+      <a href="https://daitouai.com/"><img src="../../assets/images/sponsors/daitouai.svg" alt="Daitou AI" width="120" /></a>
+    </td>
+    <td valign="top">
+      <strong><a href="https://daitouai.com/">Daitou AI</a></strong> focuses on APIs for leading Chinese large language models, providing convenient access to GLM, Kimi, DeepSeek, and more for chat, coding, content creation, and automation. With prices below official rates, the platform supports quick trials for individual developers and on-demand use by independent projects and teams, helping lower model costs. Visit the <a href="https://daitouai.com/">official site</a> for available models, integration details, and current offers.
     </td>
   </tr>
   <tr>
@@ -113,7 +137,7 @@ Economy mode starts as low as 5% of standard rates. <a href="https://pateway.ai/
       <a href="https://api.fenno.ai/s/4ADZ"><img src="../../assets/images/sponsors/fennoai.jpg" alt="FennoAI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://api.fenno.ai/s/4ADZ">FennoAI</a></strong> provides highly stable, high-performance API relay services for enterprise R&amp;D teams and developers. It supports OpenAI and Anthropic protocols and integrates with Codex, Claude Code, OpenCode, and other mainstream AI coding tools. Its enterprise-grade infrastructure supports hundreds of billions of tokens per day plus business settlement and invoicing. Codex-Manager users can purchase a $50 Coding Plan allowance for only $1.99 through the <a href="https://api.fenno.ai/s/4ADZ">exclusive link</a>; referral commission can reach 20%.
+      <strong><a href="https://api.fenno.ai/s/4ADZ">FennoAI</a></strong> provides highly stable, high-performance API relay services for enterprise R&amp;D teams and developers. It supports OpenAI and Anthropic protocols and integrates with Codex, Claude Code, OpenCode, and other mainstream AI coding tools. Its enterprise-grade infrastructure supports hundreds of billions of tokens per day, business-to-business settlement for domestic and overseas entities, and invoicing. Codex-Manager users can purchase a $50 Coding Plan allowance for only $1.99 through the <a href="https://api.fenno.ai/s/4ADZ">exclusive link</a>; earn up to 20% commission by inviting friends to subscribe, with more referrals bringing more rewards.
     </td>
   </tr>
   <tr>
@@ -121,7 +145,7 @@ Economy mode starts as low as 5% of standard rates. <a href="https://pateway.ai/
       <a href="https://s.qiniu.com/eiaQrq"><img src="../../assets/images/sponsors/qiniuyun.jpg" alt="Qiniu Cloud AI" width="120" /></a>
     </td>
     <td valign="top">
-      <strong><a href="https://s.qiniu.com/eiaQrq">Qiniu Cloud AI</a></strong> is an enterprise large-model MaaS platform from Qiniu Cloud (02567.HK), offering one-stop access to more than 150 mainstream global models across text, image, audio, video, and file processing. Through the <a href="https://s.qiniu.com/eiaQrq">exclusive link</a>, Codex-Manager enterprise users can receive 12 million tokens free, while developers can receive 3 million tokens free.
+      <strong><a href="https://s.qiniu.com/eiaQrq">Qiniu Cloud AI</a></strong> is an enterprise large-model MaaS platform from Qiniu Cloud (02567.HK), offering one-stop access to more than 150 mainstream global models, compatibility with leading providers' protocols, and text, image, audio, video, and file processing. It serves more than 1.69 million enterprises and developers. Register through the <a href="https://s.qiniu.com/eiaQrq">exclusive link</a> for Codex-Manager benefits: enterprise users receive 12 million tokens free, while developers receive 3 million tokens free.
     </td>
   </tr>
   <tr>
@@ -132,7 +156,7 @@ Economy mode starts as low as 5% of standard rates. <a href="https://pateway.ai/
       <strong><a href="https://www.aixiamo.com/?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=brand_home_v3">AIXiamo official site | Legitimate ChatGPT Plus / Pro top-ups for your own account in China</a></strong><br />
       <strong>Not enough Codex allowance—Plus or Pro?</strong> Choose <a href="https://www.aixiamo.com/chatgpt-plus-domestic-recharge?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=plus_owner_v3">Plus</a> for everyday use; compare <a href="https://www.aixiamo.com/chatgpt-pro?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=pro_owner_v3">Pro 5x / 20x</a> for frequent limits or long, intensive tasks.<br />
       <strong>Sponsor guide:</strong> <a rel="sponsored nofollow" href="https://gpt-guide.aixiamo.com/knowledge">2026 guide to ChatGPT Plus / Pro top-ups and plan selection in China</a><br />
-      Supports Alipay without an overseas bank card; never asks for passwords, verification codes, or recovery codes. Orders are traceable, Chinese support is available, and failed top-ups are fully refunded after verification. Claude Pro / Max, Gemini, Grok / SuperGrok, and other memberships are also available.<br />
+      Supports Alipay without an overseas bank card; never asks for passwords, verification codes, or recovery codes. Orders are traceable, Chinese support is available, and failed top-ups are fully refunded after verification. Operating for over three years, it has served tens of thousands of users online and offline. Claude Pro / Max, Gemini (Google AI Pro), Grok / SuperGrok, and other memberships are also available.<br />
       Enterprise purchasing is welcome. <a href="https://www.aixiamo.com/articles/aixiamo-invoice-application-notice-2026?utm_source=github&utm_medium=sponsor&utm_campaign=codex_manager&utm_content=invoice_notice_v3">Completed orders can apply for an invoice after confirming with support</a>.
     </td>
   </tr>
@@ -183,7 +207,7 @@ If this project has helped you, donations are welcome!
 | Configure ports, proxy, database, Web password, and environment variables | [Environment and Runtime Configuration](report/environment-and-runtime-config.md) |
 | Troubleshoot account routing, import failures, challenge interception, or request errors | [FAQ and Account Routing Rules](report/faq-and-account-routing-rules.md) |
 | Understand why background jobs skip, disable, or deactivate accounts | [Background Task Account Skip Notes](report/background-task-account-skip-notes.md) |
-| Manage models, pricing, routes, instructions policy, and local cache exports | [Chinese guide: Model Catalog V2 Management and Billing](../zh-CN/report/模型目录V2管理与计费说明.md) |
+| Manage models, pricing, routes, instructions policy, and Codex model catalogs | [Chinese guide: Model Catalog V2 Management and Billing](../zh-CN/report/模型目录V2管理与计费说明.md) |
 | Minimal plugin center integration and quick onboarding | [Plugin Center Minimal Integration](report/plugin-center-minimal-integration.md) |
 | Integrate with the plugin center, view interfaces, marketplace modes, and Rhai APIs | [Plugin Center Integration and Interfaces](report/plugin-center-integration-and-interfaces.md) |
 | View every internal integration interface | [System Internal Interface Inventory](report/system-internal-interface-inventory.md) |
@@ -194,22 +218,21 @@ If this project has helped you, donations are welcome!
 - Account pool management: groups, tags, ordering, notes, ban recognition, and ban filtering.
 - Batch import/export: multi-file import, recursive JSON folder import on desktop, and per-account single-file export.
 - Usage display: standard 5-hour + 7-day windows, 7-day-only accounts, and official additional buckets such as Code Review / Spark; refresh shows remaining percentages and reset times consistently.
-- Quota reset warmup: enabled by default, sends a short warmup message after an exhausted 5-hour window resets. Enable or disable it per account or in bulk from the account pool. A separate 5-second scheduler checks recorded deadlines while the service is running; exhausted weekly quotas and disabled accounts are skipped. Each cycle is attempted once, with the attempt persisted across restarts.
+- [Quota reset warmup (Chinese guide)](../zh-CN/额度重置自动唤醒.md): enabled by default, sends a short warmup message after an exhausted 5-hour window resets. Enable or disable it per account or in bulk to reduce the wait for the next quota refresh.
 - Account authorization: `chatgpt.com` browser OAuth and Device Code login; browser OAuth also supports manually pasting the callback URL.
 - Platform keys: random or custom fixed keys, disabling, deletion, model binding, reasoning tier, and service tier (follow request / Standard / Fast / Ultrafast / Flex). Keys can be bound to custom account groups and intersected with plan filters so rotation stays inside the authorized pool.
-- Model management: Model Catalog V2 is the sole runtime source of truth. It supports builtin/custom models, integer three-tier and long-context pricing, account-pool and aggregate-API routes, instructions policy, local JSON preview/commit, and proactive Codex cache export from desktop and Web.
+- Model management: Model Catalog V2 is the sole runtime source of truth. It supports builtin/custom models, integer input/output/cached-input rates and long-context pricing tiers, account-pool and aggregate-API routes, instructions policy, local JSON preview/commit, and applying selected models to Codex through `model_catalog_json`.
 - The current catalog contains 12 built-in rows. `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`, the three GPT-5.6 models, `gpt-5.5`, `gpt-image-2`, and the two Image 2.5 variants make up the 11 models visible by default; only `codex-auto-review` is hidden.
-- Image 2.5 official pricing separates text and image input rates, while the current V2 billing snapshot has one input/cached-input bucket. Both Image 2.5 variants therefore keep their official pricing source but ship with `price_status=missing` and no tiers: they remain routable outside wallet billing, and wallet charging fails with `model_price_missing` instead of applying an inaccurate unified rate.
 - `gpt-5.4` and `gpt-5.4-mini` retired from Codex with ChatGPT sign-in on August 31, 2026, and `gpt-5.2` is also deprecated for that sign-in path; the general API model is not removed by this cleanup. Revision 9 removes their untouched built-ins, while user edits, price tiers, non-default routes, and permission/API-key associations are preserved as custom models. API-key users can also add the same slugs explicitly as custom models.
-- Aggregate API: manage minimal third-party upstreams, including create, edit, balance, and connectivity tests against configured V2 routes. It does not auto-discover provider models; administrators fetch and selectively link models to Catalog V2.
+- Aggregate API: manage minimal third-party upstreams, including create, edit, balance, and connectivity tests against configured V2 routes. It does not auto-discover provider models; administrators fetch and selectively link models to Catalog V2, with no legacy provider model pool.
 - Plugin center: `/plugins/` supports built-in curated, enterprise private, and custom source marketplace modes, plus manifests, tasks, logs, and Rhai interfaces.
-- Skills and plugins: `/skills/` separates Skills Installation from Codex Plugin Installation. It supports GitHub repositories, skills.sh search, ZIP/directory import, installed-item management, and the native Marketplace plugin flow; `.system` Skills remain read-only.
+- Skills and plugins: `/skills/` separates Skills Installation from Codex Plugin Installation. Skills support built-in and custom GitHub repositories, repository refresh, individual Skill installation, skills.sh search and installation, ZIP/directory import, and installed-item management. Codex plugins retain the full native Marketplace installation flow; `.system` Skills remain read-only.
 - Desktop project launcher: bookmark local directories; Windows and macOS open them in the ChatGPT Codex App, while Sessions opens the `resume` selector in a new terminal with the local CodexManager profile.
-- Settings: includes system-derived settings, per-account concurrency, upstream proxy, total and stream-idle timeouts, SSE keepalive, and conservative high-concurrency degradation. Disable keepalive with `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0`; enable experimental upstream WebSocket with `CODEXMANAGER_USE_WEBSOCKET_UPSTREAM=1`.
+- Settings: includes a system-derived settings button, per-account concurrency, upstream proxy, total and stream-idle timeouts, SSE keepalive settings and interval, and conservative high-concurrency degradation. Keepalive is enabled by default; disable it with `CODEXMANAGER_SSE_KEEPALIVE_ENABLED=0` (or `false`). Experimental upstream WebSocket is disabled by default; enable it with `CODEXMANAGER_USE_WEBSOCKET_UPSTREAM=1`.
 - System internal interface inventory: all desktop/service commands, RPC methods, and built-in plugin functions.
 - Local service: automatic startup with configurable port and listen address.
 - Local gateway: one OpenAI-compatible endpoint for Codex CLI, Gemini CLI, Claude Code, and third-party tools; supports Gemini to `/v1/responses`, SSE, tools, MCP, skills, and request/stream timeouts.
-- Image generation: injects the official Codex `image_generation` tool for `/v1/responses` by default and provides `/v1/images/generations` and `/v1/images/edits`; the Images API compatibility main model defaults to `gpt-6-luna`, while the injected image tool remains `gpt-image-2` and the two Image 2.5 variants are available for explicit selection.
+- Image generation: injects the official Codex `image_generation` tool for `/v1/responses` by default, passes explicitly provided tools through, and provides `/v1/images/generations` and `/v1/images/edits`; the Images API compatibility main model defaults to `gpt-6-luna`, while the injected image tool remains `gpt-image-2` and the two Image 2.5 variants are available for explicit selection.
 
 ## Screenshots
 
@@ -233,7 +256,7 @@ If this project has helped you, donations are welcome!
 
 ## Quick Start
 
-1. Launch the desktop app and click **Start Service**.
+1. Download a package for your platform from [GitHub Releases](https://github.com/qxcnm/Codex-Manager/releases/latest), launch the desktop app, and click **Start Service**.
 2. Open **Account Management** and choose browser authorization or Device Code login for `chatgpt.com`.
 3. If the browser callback fails, paste the callback URL to complete parsing manually.
 4. Refresh usage and verify account status.
@@ -248,6 +271,7 @@ If this project has helped you, donations are welcome!
 - **Desktop Diagnostics** can enable Debug mode, disable ordinary file logs, and open the log directory. Runtime logs are capped at 512 KB; request logs and token/cost statistics are unaffected.
 - If the UI cannot start, use `CodexManager.exe --debug` (`CodexManager --debug` on macOS/Linux). Startup failures display the reason and write `startup-error.log` to the shown log directory.
 - For database, proxy, listen-address, and other settings, see [Environment and Runtime Configuration](report/environment-and-runtime-config.md).
+- The Service edition optionally supports SeaORM MySQL/PostgreSQL backends when built with the corresponding driver. Existing SQLite data can be exported read-only and transactionally imported into an empty target database; see the [Chinese database switching and offline import guide](../zh-CN/report/环境变量与运行配置说明.md#service-数据库切换与离线导入). Validation with isolated local databases does not establish production acceptance; see the [Chinese migration evidence and scope](../zh-CN/report/Axum-Tokio-Tower-SeaORM迁移进度与会话交接.md).
 - Docker defaults to `TZ=Asia/Shanghai`; Compose inherits the deployment `TZ` or falls back to `Asia/Shanghai`. Use the appropriate IANA time zone elsewhere.
 
 ## Product Views
@@ -256,6 +280,7 @@ If this project has helped you, donations are welcome!
 
 - Account Management: import, export, refresh accounts and usage, with low-quota/ban filters and reset times.
 - Platform Key: bind keys by model, reasoning tier, and service tier, and inspect request logs.
+- Codex Connection: connect directly through an OpenAI account, directly through an aggregate API that can safely map to Responses, or through the CodexManager local gateway. Direct aggregate-API connections bypass the local gateway and do not appear in gateway request logs.
 - Model Management: desktop and Web do not write or download `~/.codex/models_cache.json`; direct accounts follow the official catalog, while the local gateway uses an independent managed catalog.
 - Plugin Center: `/plugins/` provides marketplace switching, installation, enable/disable, tasks, logs, and Rhai integration.
 - Skills and Plugins: `/skills/` separates Skills and Codex plugins, with repository/skills.sh install, ZIP/directory import, safe uninstall, native Marketplace flow, and read-only system Skills.
@@ -277,7 +302,7 @@ If this project has helped you, donations are welcome!
 - Testing baseline: [TESTING.md](TESTING.md)
 - Security: [SECURITY.md](SECURITY.md)
 - Model Catalog V2: [Chinese guide](../zh-CN/report/模型目录V2管理与计费说明.md)
-- Documentation index: [Chinese documentation index](../zh-CN/README.md)
+- Documentation index: [Chinese documentation index](../zh-CN/README.md#文档首页)
 
 ## Topic Pages
 
