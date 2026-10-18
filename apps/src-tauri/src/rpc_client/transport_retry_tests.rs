@@ -1,4 +1,4 @@
-use super::rpc_call_with_sockets_and_timeout;
+use super::{rpc_call_with_sockets, rpc_call_with_sockets_and_timeout, rpc_io_timeout};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -48,6 +48,103 @@ fn assert_no_pending_connection(listener: &TcpListener) {
     match listener.accept() {
         Err(error) if error.kind() == ErrorKind::WouldBlock => {}
         other => panic!("unexpected replay connection: {other:?}"),
+    }
+}
+
+#[test]
+fn managed_model_price_sync_uses_a_dedicated_timeout() {
+    assert_eq!(
+        rpc_io_timeout("apikey/managedModelPriceSyncV2", None),
+        Duration::from_secs(60)
+    );
+    for method in [
+        "apikey/managedModelListV2",
+        "apikey/managedModelPriceSync",
+        "apikey/managedModelPriceSyncV2Extra",
+    ] {
+        assert_eq!(
+            rpc_io_timeout(method, None),
+            Duration::from_secs(10),
+            "unrelated method must retain the default timeout: {method}"
+        );
+    }
+}
+
+#[test]
+fn managed_model_price_sync_waits_beyond_the_default_timeout() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind price sync mock");
+    let addr = listener.local_addr().expect("price sync mock address");
+    let server_listener = listener.try_clone().expect("clone price sync listener");
+    let fallback = TcpListener::bind("127.0.0.1:0").expect("bind fallback");
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = server_listener.accept().expect("accept price sync RPC");
+        let request = read_rpc_request(&mut stream);
+        assert_eq!(request["method"], "apikey/managedModelPriceSyncV2");
+        assert_eq!(
+            request["params"]["modelSlugs"],
+            serde_json::json!(["gpt-6-sol"])
+        );
+        // Real socket regression: the service may still be fetching its price sources
+        // after the previous ten-second desktop timeout has elapsed.
+        std::thread::sleep(Duration::from_secs(11));
+        let _ = stream.write_all(
+            response(r#"{"result":{"updated":1,"updatedSlugs":["gpt-6-sol"]}}"#).as_bytes(),
+        );
+    });
+
+    let started = Instant::now();
+    let result = rpc_call_with_sockets(
+        "apikey/managedModelPriceSyncV2",
+        &addr.to_string(),
+        &[addr, fallback.local_addr().expect("fallback address")],
+        Some(serde_json::json!({ "modelSlugs": ["gpt-6-sol"] })),
+    );
+    server.join().expect("join delayed price sync mock");
+    assert_no_pending_connection(&listener);
+    assert_no_pending_connection(&fallback);
+    let result = result.expect("price sync must wait beyond the default ten-second timeout");
+    assert!(started.elapsed() >= Duration::from_secs(11));
+    assert_eq!(result["result"]["updated"], 1);
+    assert_eq!(
+        result["result"]["updatedSlugs"],
+        serde_json::json!(["gpt-6-sol"])
+    );
+}
+
+#[test]
+fn managed_model_price_sync_does_not_replay_lost_or_timed_out_responses() {
+    for delayed_response in [false, true] {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind price sync mock");
+        let addr = listener.local_addr().expect("price sync mock address");
+        let server_listener = listener.try_clone().expect("clone price sync listener");
+        let fallback = TcpListener::bind("127.0.0.1:0").expect("bind fallback");
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = server_listener.accept().expect("accept price sync RPC");
+            let request = read_rpc_request(&mut stream);
+            assert_eq!(request["method"], "apikey/managedModelPriceSyncV2");
+            assert_eq!(
+                request["params"]["modelSlugs"],
+                serde_json::json!(["gpt-6-sol"])
+            );
+            if delayed_response {
+                std::thread::sleep(Duration::from_millis(150));
+                let _ = stream.write_all(response(r#"{"result":{"updated":1}}"#).as_bytes());
+            }
+        });
+
+        let error = rpc_call_with_sockets_and_timeout(
+            "apikey/managedModelPriceSyncV2",
+            &addr.to_string(),
+            &[addr, fallback.local_addr().expect("fallback address")],
+            Some(serde_json::json!({ "modelSlugs": ["gpt-6-sol"] })),
+            Duration::from_millis(30),
+        )
+        .expect_err("an unconfirmed price update must not replay");
+        server.join().expect("join price sync mock");
+        assert!(error.starts_with("rpc_result_unknown:"), "{error}");
+        assert!(error.contains("apikey/managedModelPriceSyncV2"), "{error}");
+        assert_no_pending_connection(&listener);
+        assert_no_pending_connection(&fallback);
     }
 }
 

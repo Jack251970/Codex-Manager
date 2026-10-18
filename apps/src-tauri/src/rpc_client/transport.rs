@@ -9,6 +9,7 @@ use super::retry_policy::{rpc_replay_safety, RpcReplaySafety};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_millis(400);
 const RPC_DEFAULT_IO_TIMEOUT: Duration = Duration::from_secs(10);
+const RPC_MANAGED_MODEL_PRICE_SYNC_IO_TIMEOUT: Duration = Duration::from_secs(60);
 const RPC_BULK_USAGE_REFRESH_IO_TIMEOUT: Duration = Duration::from_secs(600);
 const RPC_ACCOUNT_IMPORT_IO_TIMEOUT: Duration = Duration::from_secs(600);
 const RPC_CODEX_SKILLS_MUTATION_IO_TIMEOUT: Duration = Duration::from_secs(600);
@@ -79,6 +80,12 @@ fn validate_http_status(response: &str) -> Result<(), RpcAttemptError> {
 fn rpc_io_timeout(method: &str, params: Option<&serde_json::Value>) -> Duration {
     if method == "account/import" {
         return RPC_ACCOUNT_IMPORT_IO_TIMEOUT;
+    }
+
+    // Price sources can each take twenty seconds; allow their concurrent fetches,
+    // parsing, and persistence to finish before declaring the update result unknown.
+    if method == "apikey/managedModelPriceSyncV2" {
+        return RPC_MANAGED_MODEL_PRICE_SYNC_IO_TIMEOUT;
     }
 
     // A redemption can include the provider request followed by usage and credit refreshes.
